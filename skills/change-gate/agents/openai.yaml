@@ -1,0 +1,7 @@
+interface:
+  display_name: "Change Gate"
+  short_description: "Run isolated post-change validation"
+  default_prompt: "Use $change-gate to validate this repository change with the configured specialist checks."
+
+policy:
+  allow_implicit_invocation: false

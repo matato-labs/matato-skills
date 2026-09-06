@@ -1,0 +1,7 @@
+interface:
+  display_name: "PR Comment Resolver"
+  short_description: "Resolve PR feedback one comment at a time"
+  default_prompt: "Use $gh-pr-comment-resolver to inspect the current branch's pull request, understand the diff against the PR target branch, read all review feedback, and then handle comments one by one. For each comment, summarize it, decide whether to apply a change or challenge it, explain why, ask for user approval, and only then act before moving to the next comment."
+
+policy:
+  allow_implicit_invocation: true

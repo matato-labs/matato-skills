@@ -1,0 +1,7 @@
+interface:
+  display_name: "Handoff"
+  short_description: "Package work for a fresh new session"
+  default_prompt: "Use $handoff to capture this session into a compact restart handoff that can be used as input for a new session"
+
+policy:
+  allow_implicit_invocation: true

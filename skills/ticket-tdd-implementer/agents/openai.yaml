@@ -1,0 +1,4 @@
+interface:
+  display_name: "Ticket TDD Implementer"
+  short_description: "Approval-gated ticket implementation with plan, tests, then code"
+  default_prompt: "Use $ticket-tdd-implementer to implement a user-provided ticket through plan approval, test approval, and implementation phases."
