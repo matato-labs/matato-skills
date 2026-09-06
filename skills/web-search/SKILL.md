@@ -23,8 +23,8 @@ description: Use the bundled web-search scripts for fast factual lookups and cur
 - Run commands from this skill directory.
 - The scripts use `TAVILY_API_KEY` from the environment.
 - To set it up, create a Tavily account at https://app.tavily.com, generate an API key, and persist it with `the Matato configuration command or your shell environment`.
-- Use `bun searchWeb.ts --query "focused query" --depthMode quick --maxResults 5` for search results.
-- Use `bun fetchPageContent.ts --url "https://example.com"` when full page content is needed from a specific result.
+- Use `bun scripts/searchWeb.ts --query "focused query" --depthMode quick --maxResults 5` for search results.
+- Use `bun scripts/fetchPageContent.ts --url "https://example.com"` when full page content is needed from a specific result.
 - Do not rely on project source code, project package scripts, or project dependencies.
 
 ## Constraints
@@ -42,7 +42,7 @@ description: Use the bundled web-search scripts for fast factual lookups and cur
    - `quick` for direct factual checks.
    - `think` for moderate comparison or ambiguity.
    - `deep` only when still staying in web-search flow and more context is needed.
-3. Run `bun searchWeb.ts --query "focused query" --depthMode quick --maxResults 5` from this skill directory.
+3. Run `bun scripts/searchWeb.ts --query "focused query" --depthMode quick --maxResults 5` from this skill directory.
 4. Parse returned JSON results and extract only evidence-backed points.
 5. Fetch page content only when snippets are insufficient.
 6. Respond with:

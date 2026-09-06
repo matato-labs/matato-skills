@@ -21,12 +21,14 @@ description: Use this skill when the user wants to create a GitHub issue in a co
 Use repo-qualified commands:
 
 ### List Issues and read issue content
+
 ```bash
 gh issue list -R OWNER/REPO
 gh issue view "{id}" -R OWNER/REPO
 ```
 
 ### Create and add markdown content to issue
+
 ```bash
 cat <<'EOF' >/tmp/github-issue-body.md
 {description}
@@ -34,7 +36,6 @@ EOF
 gh issue create -R OWNER/REPO --title "{title}" --label "{label}" --body-file /tmp/github-issue-body.md
 gh issue edit "{id}" -R OWNER/REPO --body-file /tmp/github-issue-body.md
 ```
-
 
 Preferred body shape:
 
@@ -51,4 +52,3 @@ Short description of the issue.
 
 - List of acceptance critirias divided in functional requirements and nun functional requirements
 ```
-

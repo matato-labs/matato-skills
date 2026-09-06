@@ -109,7 +109,7 @@ Do not use a line reader that treats Unicode separators as record boundaries.
 Each outgoing command receives a unique ID:
 
 ```json
-{"id":"request-id","type":"prompt","message":"Hello"}
+{ "id": "request-id", "type": "prompt", "message": "Hello" }
 ```
 
 Incoming objects are routed as:
@@ -224,10 +224,10 @@ Matatod does not need Elysia-style REST routes when all product surfaces run in 
 
 Use three boundaries:
 
-| Consumer | Boundary |
-|---|---|
-| LiveView and controllers | direct Elixir contexts |
-| Telegram, scheduler, workflow | direct Elixir contexts |
+| Consumer                       | Boundary                   |
+| ------------------------------ | -------------------------- |
+| LiveView and controllers       | direct Elixir contexts     |
+| Telegram, scheduler, workflow  | direct Elixir contexts     |
 | local CLI, scripts, Pi Package | Unix-domain command socket |
 
 The Unix socket is local infrastructure, not a public web API. Filesystem permissions restrict access. Remote administration can use SSH to run the CLI.
@@ -289,7 +289,7 @@ Use length-prefixed JSON or strict JSONL over the Unix socket. Keep request/resp
 Streaming commands emit envelopes carrying the same request ID:
 
 ```json
-{"version":1,"id":"request-id","type":"event","event":{}}
+{ "version": 1, "id": "request-id", "type": "event", "event": {} }
 ```
 
 This protocol is independent from Pi RPC. Matatod translates domain commands to Ecto operations or conversation actor calls.

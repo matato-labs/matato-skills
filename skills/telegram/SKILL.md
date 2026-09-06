@@ -17,7 +17,7 @@ description: Use this skill when the agent must send a short message to the user
 
 ## Core Rules
 
-- Use the Telegram HTTP API directly through `bun sendMessageTelegram.ts`.
+- Use the Telegram HTTP API directly through `bun scripts/sendMessageTelegram.ts`.
 - Do not use project source code, SDKs, or wrappers.
 - Read the bot token from `TELEGRAM_BOT_TOKEN`.
 - Send to `TELEGRAM_OWNER_ID` by default.
@@ -40,7 +40,7 @@ description: Use this skill when the agent must send a short message to the user
 Run the TypeScript script from this skill directory using `bash`.
 
 ```bash
-bun sendMessageTelegram.ts "message text to send"
+bun scripts/sendMessageTelegram.ts "message text to send"
 ```
 
 ## Send Message To Explicit Chat
@@ -48,7 +48,7 @@ bun sendMessageTelegram.ts "message text to send"
 Use this only when the user gives a specific chat id.
 
 ```bash
-bun sendMessageTelegram.ts "message text to send" "telegram chat id from the user request"
+bun scripts/sendMessageTelegram.ts "message text to send" "telegram chat id from the user request"
 ```
 
 ## Expected Successful Output

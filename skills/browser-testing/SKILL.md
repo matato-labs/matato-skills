@@ -4,6 +4,7 @@ description: Use after a runnable frontend or user-flow change to perform one fo
 ---
 
 # Browser Testing Skill
+
 - Read the target repository's `package.json`, scripts, and existing E2E conventions first. Reuse the project's own start command instead of inventing a framework-specific one.
 - Record the app process PID and its log path so both can be cleaned up.
 - `playwright-cli` and Brave at `/usr/bin/brave` are provisioned globally on the worker. Never install them or download a browser inside a task. If either is missing, stop and report the blocker.

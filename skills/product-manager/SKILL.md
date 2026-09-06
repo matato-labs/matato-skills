@@ -1,6 +1,7 @@
 ---
 name: product-manager
 description: Research current AI agent and automation trends, then save one concise business-oriented product development proposal for Matato.
+disable-model-invocation: true
 ---
 
 # Product Manager Skill

@@ -51,18 +51,18 @@ Matato
 
 Important boundaries today:
 
-| Responsibility | Current location |
-|---|---|
-| Pi runtime | `../matato/src/agent/matatoAgent.ts` |
-| Matato tools | `../matato/src/agent/matatoAgentTools.ts` |
-| Session paths and policies | `../matato/src/agent/matatoAgentSessions.ts` |
-| API and SSE | `../matato/src/api/` |
-| Telegram | `../matato/src/gateway/telegram/`, `../matato/src/worker/telegram/` |
-| Scheduling | `../matato/src/worker/scheduledJobs/` |
-| Work and sequences | `../matato/src/worker/bus/` |
-| Durable domain state | `../matato/src/storage/`, SQLite |
-| Skills | `../matato/data/agent/skills/` |
-| CLI | `../matato/src/cli/` |
+| Responsibility             | Current location                                                    |
+| -------------------------- | ------------------------------------------------------------------- |
+| Pi runtime                 | `../matato/src/agent/matatoAgent.ts`                                |
+| Matato tools               | `../matato/src/agent/matatoAgentTools.ts`                           |
+| Session paths and policies | `../matato/src/agent/matatoAgentSessions.ts`                        |
+| API and SSE                | `../matato/src/api/`                                                |
+| Telegram                   | `../matato/src/gateway/telegram/`, `../matato/src/worker/telegram/` |
+| Scheduling                 | `../matato/src/worker/scheduledJobs/`                               |
+| Work and sequences         | `../matato/src/worker/bus/`                                         |
+| Durable domain state       | `../matato/src/storage/`, SQLite                                    |
+| Skills                     | `../matato/data/agent/skills/`                                      |
+| CLI                        | `../matato/src/cli/`                                                |
 
 ## What A Pi Package Provides
 
@@ -81,19 +81,19 @@ Pi Package discovery does not supervise an application daemon. Installing a pack
 
 Agent-facing behavior fits naturally in the package:
 
-| Matato capability | Pi mechanism |
-|---|---|
-| Identity and guardrails | `before_agent_start` extension |
-| Memory actions | custom tools |
-| Sequence initiation | custom tool |
-| Skills | native Pi skills |
-| Plan and research entry points | commands and prompts |
-| Work and health views | commands, widgets and custom TUI screens |
-| Tool permissions | `tool_call` interception |
-| Session metadata | custom entries, labels and names |
-| Trace rendering | tool and entry renderers |
-| Model and thinking controls | native Pi APIs |
-| Subagent dispatch | custom tool plus Pi subprocess/RPC |
+| Matato capability              | Pi mechanism                             |
+| ------------------------------ | ---------------------------------------- |
+| Identity and guardrails        | `before_agent_start` extension           |
+| Memory actions                 | custom tools                             |
+| Sequence initiation            | custom tool                              |
+| Skills                         | native Pi skills                         |
+| Plan and research entry points | commands and prompts                     |
+| Work and health views          | commands, widgets and custom TUI screens |
+| Tool permissions               | `tool_call` interception                 |
+| Session metadata               | custom entries, labels and names         |
+| Trace rendering                | tool and entry renderers                 |
+| Model and thinking controls    | native Pi APIs                           |
+| Subagent dispatch              | custom tool plus Pi subprocess/RPC       |
 
 Extensions are session-scoped. Long-lived resources must start after `session_start` and close on `session_shutdown`. `/reload`, session replacement and Pi exit tear down extension state. That lifecycle is correct for UI and agent behavior, but wrong for infrastructure expected to remain available without an interactive Pi process.
 
@@ -250,11 +250,11 @@ Use `agent_settled`, not only `agent_end`, when deciding that automatic retries,
 
 Three useful modes exist:
 
-| Mode | Use |
-|---|---|
-| Persistent RPC | conversational or observable subagent |
-| Temporary RPC | isolated task requiring live updates or control |
-| `pi --mode json -p --no-session` | independent one-shot task |
+| Mode                             | Use                                             |
+| -------------------------------- | ----------------------------------------------- |
+| Persistent RPC                   | conversational or observable subagent           |
+| Temporary RPC                    | isolated task requiring live updates or control |
+| `pi --mode json -p --no-session` | independent one-shot task                       |
 
 A daemon-supervised RPC subagent gives central concurrency limits and lifecycle tracking. An extension-spawned subagent is simpler but bypasses daemon supervision. The package plan can start with package-local dispatch; the Elixir runtime should eventually own subagents requiring durable status or global limits.
 

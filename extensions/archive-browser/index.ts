@@ -2,8 +2,20 @@ import { execFileSync } from "node:child_process";
 import { readdir, readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { basename, join } from "node:path";
-import { getMarkdownTheme, type ExtensionAPI, type ExtensionCommandContext, type Theme } from "@earendil-works/pi-coding-agent";
-import { Key, Markdown, matchesKey, truncateToWidth, visibleWidth, type TUI } from "@earendil-works/pi-tui";
+import {
+  getMarkdownTheme,
+  type ExtensionAPI,
+  type ExtensionCommandContext,
+  type Theme,
+} from "@earendil-works/pi-coding-agent";
+import {
+  Key,
+  Markdown,
+  matchesKey,
+  truncateToWidth,
+  visibleWidth,
+  type TUI,
+} from "@earendil-works/pi-tui";
 
 interface ArchiveFile {
   name: string;
@@ -16,11 +28,16 @@ async function loadArchives(directory: string): Promise<ArchiveFile[]> {
   try {
     const entries = await readdir(directory, { withFileTypes: true });
     const names = entries
-      .filter((entry) => entry.isFile() && entry.name.toLowerCase().endsWith(".md"))
+      .filter(
+        (entry) => entry.isFile() && entry.name.toLowerCase().endsWith(".md"),
+      )
       .map((entry) => entry.name)
       .sort((a, b) => b.localeCompare(a));
     return await Promise.all(
-      names.map(async (name) => ({ name, content: await readFile(join(directory, name), "utf8") })),
+      names.map(async (name) => ({
+        name,
+        content: await readFile(join(directory, name), "utf8"),
+      })),
     );
   } catch (error: unknown) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") return [];
@@ -30,7 +47,11 @@ async function loadArchives(directory: string): Promise<ArchiveFile[]> {
 
 function gitProjectName(cwd: string): string | undefined {
   try {
-    const root = execFileSync("git", ["rev-parse", "--show-toplevel"], { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
+    const root = execFileSync("git", ["rev-parse", "--show-toplevel"], {
+      cwd,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
     return root ? basename(root) : undefined;
   } catch {
     return undefined;
@@ -75,21 +96,58 @@ class ArchiveBrowser {
   }
 
   render(width: number): string[] {
-    if (width < 48) return [this.theme.fg("warning", "Archive browser needs a terminal at least 48 columns wide.")];
+    if (width < 48)
+      return [
+        this.theme.fg(
+          "warning",
+          "Archive browser needs a terminal at least 48 columns wide.",
+        ),
+      ];
 
     const leftWidth = Math.min(36, Math.max(20, Math.floor(width * 0.32)));
     const rightWidth = width - leftWidth - 1;
-    const bodyRows = Math.max(6, Math.floor((process.stdout.rows || 24) * 0.8) - 5);
+    const bodyRows = Math.max(
+      6,
+      Math.floor((process.stdout.rows || 24) * 0.8) - 5,
+    );
     const border = (text: string) => this.theme.fg("borderMuted", text);
     const title = this.theme.fg("accent", this.theme.bold(` ${this.title} `));
-    const lines = [this.pad(`${border("─".repeat(3))}${title}${border("─".repeat(Math.max(0, width - visibleWidth(title) - 3)))}`, width)];
+    const lines = [
+      this.pad(
+        `${border("─".repeat(3))}${title}${border("─".repeat(Math.max(0, width - visibleWidth(title) - 3)))}`,
+        width,
+      ),
+    ];
 
     const previewLines = this.previewLines(rightWidth);
-    this.previewOffset = Math.min(this.previewOffset, Math.max(0, previewLines.length - bodyRows));
-    const listStart = Math.max(0, Math.min(this.selected - Math.floor(bodyRows / 2), this.files.length - bodyRows));
+    this.previewOffset = Math.min(
+      this.previewOffset,
+      Math.max(0, previewLines.length - bodyRows),
+    );
+    const listStart = Math.max(
+      0,
+      Math.min(
+        this.selected - Math.floor(bodyRows / 2),
+        this.files.length - bodyRows,
+      ),
+    );
 
-    lines.push(this.row(this.theme.fg(this.focus === "files" ? "accent" : "muted", " Files"), this.previewHeader(), leftWidth, rightWidth));
-    lines.push(this.row(border("─".repeat(leftWidth)), border("─".repeat(rightWidth)), leftWidth, rightWidth));
+    lines.push(
+      this.row(
+        this.theme.fg(this.focus === "files" ? "accent" : "muted", " Files"),
+        this.previewHeader(),
+        leftWidth,
+        rightWidth,
+      ),
+    );
+    lines.push(
+      this.row(
+        border("─".repeat(leftWidth)),
+        border("─".repeat(rightWidth)),
+        leftWidth,
+        rightWidth,
+      ),
+    );
 
     for (let row = 0; row < bodyRows; row++) {
       const file = this.files[listStart + row];
@@ -101,8 +159,18 @@ class ArchiveBrowser {
       lines.push(this.row(label, preview, leftWidth, rightWidth));
     }
 
-    lines.push(this.row(border("─".repeat(leftWidth)), border("─".repeat(rightWidth)), leftWidth, rightWidth));
-    const help = this.focus === "files" ? "↑↓ select · Enter preview · Esc close" : "↑↓ scroll · ←/Esc files";
+    lines.push(
+      this.row(
+        border("─".repeat(leftWidth)),
+        border("─".repeat(rightWidth)),
+        leftWidth,
+        rightWidth,
+      ),
+    );
+    const help =
+      this.focus === "files"
+        ? "↑↓ select · Enter preview · Esc close"
+        : "↑↓ scroll · ←/Esc files";
     lines.push(this.pad(this.theme.fg("dim", ` ${help}`), width));
     return lines;
   }
@@ -127,7 +195,10 @@ class ArchiveBrowser {
   private previewHeader(): string {
     const file = this.files[this.selected];
     if (!file) return this.theme.fg("muted", " Preview");
-    return this.theme.fg(this.focus === "preview" ? "accent" : "muted", ` ${file.name}`);
+    return this.theme.fg(
+      this.focus === "preview" ? "accent" : "muted",
+      ` ${file.name}`,
+    );
   }
 
   private previewLines(width: number): string[] {
@@ -140,7 +211,12 @@ class ArchiveBrowser {
     return this.markdown!.render(width);
   }
 
-  private row(left: string, right: string, leftWidth: number, rightWidth: number): string {
+  private row(
+    left: string,
+    right: string,
+    leftWidth: number,
+    rightWidth: number,
+  ): string {
     return `${this.pad(left, leftWidth)}${this.theme.fg("borderMuted", "│")}${this.pad(right, rightWidth)}`;
   }
 
@@ -151,16 +227,24 @@ class ArchiveBrowser {
 }
 
 export default function (pi: ExtensionAPI): void {
-  const openBrowser = async (title: string, directory: string, ctx: ExtensionCommandContext) => {
+  const openBrowser = async (
+    title: string,
+    directory: string,
+    ctx: ExtensionCommandContext,
+  ) => {
     if (ctx.mode !== "tui") {
       ctx.ui.notify(`${title} requires interactive TUI mode.`, "error");
       return;
     }
     const files = await loadArchives(directory);
-    await ctx.ui.custom<void>((tui, theme, _keybindings, done) => new ArchiveBrowser(title, files, tui, theme, done), {
-      overlay: true,
-      overlayOptions: { anchor: "center", width: "95%", maxHeight: "80%" },
-    });
+    await ctx.ui.custom<void>(
+      (tui, theme, _keybindings, done) =>
+        new ArchiveBrowser(title, files, tui, theme, done),
+      {
+        overlay: true,
+        overlayOptions: { anchor: "center", width: "95%", maxHeight: "80%" },
+      },
+    );
   };
 
   pi.registerCommand("plans", {
@@ -171,14 +255,22 @@ export default function (pi: ExtensionAPI): void {
         ctx.ui.notify("/plans requires a Git repository.", "error");
         return;
       }
-      await openBrowser("Plans", join(homedir(), ".config", "matato-pi", "plans", project), ctx);
+      await openBrowser(
+        "Plans",
+        join(homedir(), ".config", "matato-pi", "plans", project),
+        ctx,
+      );
     },
   });
 
   pi.registerCommand("researches", {
     description: "Browse archived research",
     handler: async (_args, ctx) => {
-      await openBrowser("Researches", join(homedir(), ".config", "matato-pi", "research"), ctx);
+      await openBrowser(
+        "Researches",
+        join(homedir(), ".config", "matato-pi", "research"),
+        ctx,
+      );
     },
   });
 }

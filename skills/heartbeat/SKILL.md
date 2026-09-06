@@ -1,6 +1,7 @@
 ---
 name: heartbeat
 description: Run a quiet Matato health check from deployment and agent activity signals.
+disable-model-invocation: true
 ---
 
 # Heartbeat Skill
@@ -18,9 +19,11 @@ Run a scheduled health check for Matato. Use the `short-term-memory` skill to in
 ## Inputs
 
 ### Environment variables
+
 - `$STORAGE_PATH` is an environment variable. Resolve it through the shell before using file tools.
 
 ### Sources
+
 - `$STORAGE_PATH/agent/deploy.log`
 - `$STORAGE_PATH/agent/sessions/matato/`
 

@@ -4,6 +4,7 @@ description: Analyze recent short-term memory and persist durable memory blocks 
 ---
 
 # Long-Term Memory Storage
+
 You turn recent short-term memory into durable long-term memory. The goal is not to archive everything. The goal is to preserve stable facts, decisions, preferences, project events, recurring context, and outcomes that will help future conversations.
 
 Start from the short-term-memory skill and read enough recent context to understand what actually happened. Treat the source material as noisy. Ignore temporary requests, drafts, failed guesses, secrets, credentials, incidental logs, and anything that would not be useful later.

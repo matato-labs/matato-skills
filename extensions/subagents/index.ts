@@ -39,7 +39,12 @@ function getPiInvocation(args: string[]): { command: string; args: string[] } {
     : { command: process.execPath, args };
 }
 
-function runPi(args: string[], cwd: string, signal: AbortSignal | undefined, onStarted: () => void): Promise<ProcessResult> {
+function runPi(
+  args: string[],
+  cwd: string,
+  signal: AbortSignal | undefined,
+  onStarted: () => void,
+): Promise<ProcessResult> {
   return new Promise((resolvePromise, reject) => {
     const invocation = getPiInvocation(args);
     const child = spawn(invocation.command, invocation.args, {
@@ -47,7 +52,9 @@ function runPi(args: string[], cwd: string, signal: AbortSignal | undefined, onS
       env: {
         ...process.env,
         PI_OFFLINE: "1",
-        PI_SUBAGENT_DEPTH: String(Number(process.env.PI_SUBAGENT_DEPTH ?? "0") + 1),
+        PI_SUBAGENT_DEPTH: String(
+          Number(process.env.PI_SUBAGENT_DEPTH ?? "0") + 1,
+        ),
       },
       shell: false,
       stdio: ["ignore", "pipe", "pipe"],
@@ -88,7 +95,9 @@ export default function (pi: ExtensionAPI) {
 
   const tempDirs = new Set<string>();
   pi.on("session_shutdown", async () => {
-    await Promise.all([...tempDirs].map((dir) => rm(dir, { recursive: true, force: true })));
+    await Promise.all(
+      [...tempDirs].map((dir) => rm(dir, { recursive: true, force: true })),
+    );
     tempDirs.clear();
   });
 
@@ -109,14 +118,23 @@ export default function (pi: ExtensionAPI) {
         description:
           "Self-contained prompt for the fresh subagent. Start with /skill:<name> when delegating to a specific Pi skill.",
       }),
-      cwd: Type.Optional(Type.String({ description: "Working directory; defaults to the parent session cwd" })),
+      cwd: Type.Optional(
+        Type.String({
+          description: "Working directory; defaults to the parent session cwd",
+        }),
+      ),
     }),
 
     async execute(_toolCallId, params, signal, onUpdate, ctx) {
-      if (!ctx.model) throw new Error("Cannot launch a subagent without an active model");
+      if (!ctx.model)
+        throw new Error("Cannot launch a subagent without an active model");
 
       const cwd = resolve(ctx.cwd, params.cwd ?? ".");
-      const details: SubagentDetails = { status: "running", prompt: params.prompt, cwd };
+      const details: SubagentDetails = {
+        status: "running",
+        prompt: params.prompt,
+        cwd,
+      };
       const args = [
         "--mode",
         "text",
@@ -132,16 +150,29 @@ export default function (pi: ExtensionAPI) {
 
       const result = await runPi(args, cwd, signal, () => {
         onUpdate?.({
-          content: [{ type: "text", text: "Subagent launched. Waiting for it to finish…" }],
+          content: [
+            {
+              type: "text",
+              text: "Subagent launched. Waiting for it to finish…",
+            },
+          ],
           details,
         });
       });
 
       const output = result.stdout.trim();
-      if (result.code !== 0) throw new Error(result.stderr.trim() || output || `Subagent exited with code ${result.code}`);
+      if (result.code !== 0)
+        throw new Error(
+          result.stderr.trim() ||
+            output ||
+            `Subagent exited with code ${result.code}`,
+        );
       if (!output) throw new Error("Subagent finished without output");
 
-      const truncated = truncateTail(output, { maxBytes: DEFAULT_MAX_BYTES, maxLines: DEFAULT_MAX_LINES });
+      const truncated = truncateTail(output, {
+        maxBytes: DEFAULT_MAX_BYTES,
+        maxLines: DEFAULT_MAX_LINES,
+      });
       let modelOutput = truncated.content;
       if (truncated.truncated) {
         const dir = await mkdtemp(join(tmpdir(), "pi-subagent-"));
@@ -153,12 +184,19 @@ export default function (pi: ExtensionAPI) {
 
       return {
         content: [{ type: "text", text: modelOutput }],
-        details: { ...details, status: "finished", output: modelOutput } satisfies SubagentDetails,
+        details: {
+          ...details,
+          status: "finished",
+          output: modelOutput,
+        } satisfies SubagentDetails,
       };
     },
 
     renderCall(args, theme) {
-      const preview = args.prompt.length > 100 ? `${args.prompt.slice(0, 100)}…` : args.prompt;
+      const preview =
+        args.prompt.length > 100
+          ? `${args.prompt.slice(0, 100)}…`
+          : args.prompt;
       return new Text(
         `${theme.fg("toolTitle", theme.bold("subagent"))}\n${theme.fg("dim", preview)}`,
         0,
@@ -169,14 +207,26 @@ export default function (pi: ExtensionAPI) {
     renderResult(result, { expanded, isPartial }, theme) {
       const details = result.details as SubagentDetails | undefined;
       if (isPartial || details?.status === "running") {
-        return new Text(theme.fg("warning", "⏳ Subagent is running. Waiting for it to finish…"), 0, 0);
+        return new Text(
+          theme.fg(
+            "warning",
+            "⏳ Subagent is running. Waiting for it to finish…",
+          ),
+          0,
+          0,
+        );
       }
 
-      const output = details?.output ?? (result.content[0]?.type === "text" ? result.content[0].text : "");
-      if (!expanded) return new Text(theme.fg("success", "✓ Subagent finished"), 0, 0);
+      const output =
+        details?.output ??
+        (result.content[0]?.type === "text" ? result.content[0].text : "");
+      if (!expanded)
+        return new Text(theme.fg("success", "✓ Subagent finished"), 0, 0);
 
       const container = new Container();
-      container.addChild(new Text(theme.fg("success", "✓ Subagent finished"), 0, 0));
+      container.addChild(
+        new Text(theme.fg("success", "✓ Subagent finished"), 0, 0),
+      );
       container.addChild(new Spacer(1));
       container.addChild(new Markdown(output, 0, 0, getMarkdownTheme()));
       return container;

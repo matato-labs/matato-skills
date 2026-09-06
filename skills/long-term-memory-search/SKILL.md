@@ -4,6 +4,7 @@ description: Access long-term memory to find details about the user's exchanges 
 ---
 
 # Long-Term Memory Search
+
 You have access to long-term memory from an agent. It represents durable summaries of things that happened in the system, exchanges between the user and the agent, decisions, preferences, and project context that may matter later.
 
 Only use this skill when the short-term-memory skill could not find anything useful or when the user asks directly to use long-term memory.
