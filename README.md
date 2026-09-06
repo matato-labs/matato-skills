@@ -10,4 +10,6 @@ The package provides Matato skills, prompts, the `subagent` extension from `../s
 
 `/plans` browses Markdown files in `~/.config/matato-pi/plans/<git-root-name>/`; it requires a Git repository. `/researches` browses Markdown files in `~/.config/matato-pi/research/`. Both commands are read-only interactive two-pane viewers.
 
+`/automations` manages scheduled jobs in `~/.config/matato-pi/automations/config.json`. Its `automations` entries use Matato's job fields: name, raw cron schedule, prompt, model, reasoning effort, enabled state, sub-agent permission, and an optional TypeScript pre-script filename.
+
 Run checks with `npm run check`, `bun test`, and `npm run lint`.
