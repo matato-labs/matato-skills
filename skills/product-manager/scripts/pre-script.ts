@@ -53,6 +53,44 @@ const readState = async (path: string): Promise<State> => {
   return JSON.parse(await readFile(path, "utf8")) as State;
 };
 
+const listRepositoryFiles = async (
+  repository: string,
+  directory: string,
+): Promise<Array<RepositoryFile>> => {
+  const result = await runResult("gh", [
+    "api",
+    `repos/${repository}/contents/${directory}`,
+  ]);
+  if (result.exitCode !== 0 && !result.stderr.includes("Not Found"))
+    throw new Error(`gh failed: ${result.stderr}`);
+  return result.exitCode === 0
+    ? (JSON.parse(result.stdout) as Array<RepositoryFile>)
+    : [];
+};
+
+const matchingPullRequests = async (
+  repository: string,
+  date: string,
+): Promise<Array<PullRequest>> => {
+  const pullRequests = JSON.parse(
+    await run("gh", [
+      "pr",
+      "list",
+      "--repo",
+      repository,
+      "--state",
+      "open",
+      "--search",
+      `product proposal ${date} in:title`,
+      "--json",
+      "title,number,url",
+    ]),
+  ) as Array<PullRequest>;
+  return pullRequests.filter((pullRequest) =>
+    pullRequest.title.startsWith(`product proposal ${date}`),
+  );
+};
+
 const main = async (): Promise<void> => {
   const storagePath = Bun.env.STORAGE_PATH?.trim();
   if (!storagePath) throw new Error("STORAGE_PATH must be set");
@@ -65,16 +103,7 @@ const main = async (): Promise<void> => {
   if (!project)
     return skip("Matato project is not configured with a repository");
 
-  const filesResult = await runResult("gh", [
-    "api",
-    `repos/${project.repository}/contents/${outputDirectory}`,
-  ]);
-  if (filesResult.exitCode !== 0 && !filesResult.stderr.includes("Not Found"))
-    throw new Error(`gh failed: ${filesResult.stderr}`);
-  const files =
-    filesResult.exitCode === 0
-      ? (JSON.parse(filesResult.stdout) as Array<RepositoryFile>)
-      : [];
+  const files = await listRepositoryFiles(project.repository, outputDirectory);
   const proposal = files.find(
     (file) => file.type === "file" && file.name.startsWith(`${date}-`),
   );
@@ -84,29 +113,13 @@ const main = async (): Promise<void> => {
       file: `${outputDirectory}/${proposal.name}`,
     });
 
-  const pullRequests = JSON.parse(
-    await run("gh", [
-      "pr",
-      "list",
-      "--repo",
-      project.repository,
-      "--state",
-      "open",
-      "--search",
-      `product proposal ${date} in:title`,
-      "--json",
-      "title,number,url",
-    ]),
-  ) as Array<PullRequest>;
-  const matchingPullRequests = pullRequests.filter((pullRequest) =>
-    pullRequest.title.startsWith(`product proposal ${date}`),
-  );
-  if (matchingPullRequests.length)
+  const openPullRequests = await matchingPullRequests(project.repository, date);
+  if (openPullRequests.length)
     return skip(
       `Open product proposal pull request already exists for ${date}`,
       {
         localDate: date,
-        pullRequests: matchingPullRequests,
+        pullRequests: openPullRequests,
       },
     );
 

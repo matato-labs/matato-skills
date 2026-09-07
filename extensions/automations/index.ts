@@ -1,6 +1,12 @@
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import {
+  isAutomation,
+  parseAutomationConfig,
+  type Automation,
+  type AutomationConfig,
+} from "../../src/automation.ts";
 import type {
   ExtensionAPI,
   ExtensionCommandContext,
@@ -14,28 +20,6 @@ import {
   type TUI,
 } from "@earendil-works/pi-tui";
 
-const thinkingLevels = [
-  "off",
-  "minimal",
-  "low",
-  "medium",
-  "high",
-  "xhigh",
-  "max",
-] as const;
-
-type ThinkingLevel = (typeof thinkingLevels)[number];
-type Automation = {
-  jobName: string;
-  enabled: boolean;
-  schedule: string;
-  userPrompt: string;
-  preScriptName?: string;
-  model: string;
-  thinkingLevel: ThinkingLevel;
-  canLaunchSubAgents: boolean;
-};
-type AutomationConfig = { automations: Array<Automation> };
 type BrowserResult = {
   action: "add" | "edit" | "delete" | "close" | "refresh";
   index: number;
@@ -49,32 +33,8 @@ const configPath = join(
   "config.json",
 );
 
-function isThinkingLevel(value: string): value is ThinkingLevel {
-  return thinkingLevels.includes(value as ThinkingLevel);
-}
-
-function isAutomation(value: unknown): value is Automation {
-  if (!value || typeof value !== "object") return false;
-  const entry = value as Partial<Automation>;
-  return (
-    typeof entry.jobName === "string" &&
-    typeof entry.enabled === "boolean" &&
-    typeof entry.schedule === "string" &&
-    entry.schedule.trim().length > 0 &&
-    typeof entry.userPrompt === "string" &&
-    entry.userPrompt.trim().length > 0 &&
-    typeof entry.model === "string" &&
-    entry.model.trim().length > 0 &&
-    typeof entry.canLaunchSubAgents === "boolean" &&
-    typeof entry.thinkingLevel === "string" &&
-    isThinkingLevel(entry.thinkingLevel) &&
-    (entry.preScriptName === undefined ||
-      typeof entry.preScriptName === "string")
-  );
-}
-
 function parseAutomation(text: string): Automation {
-  const automation = JSON.parse(text) as unknown;
+  const automation: unknown = JSON.parse(text);
   if (!isAutomation(automation))
     throw new Error(
       "Invalid automation JSON. Check every required field and value.",
@@ -84,15 +44,9 @@ function parseAutomation(text: string): Automation {
 
 async function loadConfig(): Promise<AutomationConfig> {
   try {
-    const config = JSON.parse(await readFile(configPath, "utf8")) as {
-      automations?: unknown;
-    };
-    if (
-      !Array.isArray(config.automations) ||
-      !config.automations.every(isAutomation)
-    )
-      throw new Error("Invalid automation config");
-    return { automations: config.automations };
+    return parseAutomationConfig(
+      JSON.parse(await readFile(configPath, "utf8")),
+    );
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT")
       return { automations: [] };
@@ -135,21 +89,29 @@ class AutomationBrowser {
   ) {}
 
   handleInput(data: string): void {
-    if (matchesKey(data, Key.escape) || matchesKey(data, Key.ctrl("c")))
-      this.finish("close");
-    else if (data === "a") this.finish("add");
-    else if (data === "d" && this.automations.length) this.finish("delete");
-    else if (data === "r") this.finish("refresh");
-    else if (matchesKey(data, Key.enter) && this.automations.length)
-      this.finish("edit");
-    else if (matchesKey(data, Key.up))
-      this.selected = Math.max(0, this.selected - 1);
-    else if (matchesKey(data, Key.down))
-      this.selected = Math.min(this.automations.length - 1, this.selected + 1);
-    else if (matchesKey(data, Key.home)) this.selected = 0;
-    else if (matchesKey(data, Key.end))
-      this.selected = Math.max(0, this.automations.length - 1);
-    else return;
+    const actions: Array<[boolean, () => void]> = [
+      [
+        matchesKey(data, Key.escape) || matchesKey(data, Key.ctrl("c")),
+        () => this.finish("close"),
+      ],
+      [data === "a", () => this.finish("add")],
+      [
+        data === "d" && Boolean(this.automations.length),
+        () => this.finish("delete"),
+      ],
+      [data === "r", () => this.finish("refresh")],
+      [
+        matchesKey(data, Key.enter) && Boolean(this.automations.length),
+        () => this.finish("edit"),
+      ],
+      [matchesKey(data, Key.up), () => this.moveSelection(-1)],
+      [matchesKey(data, Key.down), () => this.moveSelection(1)],
+      [matchesKey(data, Key.home), () => this.jumpSelection(0)],
+      [matchesKey(data, Key.end), () => this.jumpSelection(-1)],
+    ];
+    const action = actions.find(([matches]) => matches)?.[1];
+    if (!action) return;
+    action();
     this.tui.requestRender();
   }
 
@@ -229,6 +191,18 @@ class AutomationBrowser {
 
   invalidate(): void {}
 
+  private moveSelection(delta: number): void {
+    this.selected = Math.max(
+      0,
+      Math.min(this.automations.length - 1, this.selected + delta),
+    );
+  }
+
+  private jumpSelection(index: number): void {
+    this.selected =
+      index < 0 ? Math.max(0, this.automations.length - 1) : index;
+  }
+
   private finish(action: BrowserResult["action"]): void {
     this.done({ action, index: this.selected });
   }
@@ -291,6 +265,63 @@ async function openEditor(
   return text === undefined ? undefined : parseAutomation(text);
 }
 
+const assertUniqueJobName = (
+  automations: Automation[],
+  automation: Automation,
+  current?: Automation,
+): void => {
+  if (
+    automations.some(
+      (entry) => entry.jobName === automation.jobName && entry !== current,
+    )
+  )
+    throw new Error(
+      `An automation named ${automation.jobName} already exists.`,
+    );
+};
+
+async function handleAction(
+  result: BrowserResult,
+  config: AutomationConfig,
+  ctx: ExtensionCommandContext,
+): Promise<void> {
+  const current = config.automations[result.index];
+  if (result.action === "delete" && current) {
+    if (
+      await ctx.ui.confirm(
+        "Remove automation?",
+        `${current.jobName} will be removed from config.json.`,
+      )
+    ) {
+      config.automations.splice(result.index, 1);
+      await saveConfig(config);
+      ctx.ui.notify(`Removed ${current.jobName}.`, "info");
+    }
+    return;
+  }
+  if (result.action === "add") {
+    const automation = await openEditor(
+      ctx,
+      "Add automation JSON",
+      defaultAutomation(ctx),
+    );
+    if (!automation) return;
+    assertUniqueJobName(config.automations, automation);
+    config.automations.push(automation);
+    await saveConfig(config);
+    ctx.ui.notify(`Added ${automation.jobName}.`, "info");
+    return;
+  }
+  if (result.action === "edit" && current) {
+    const automation = await openEditor(ctx, "Edit automation JSON", current);
+    if (!automation) return;
+    assertUniqueJobName(config.automations, automation, current);
+    config.automations[result.index] = automation;
+    await saveConfig(config);
+    ctx.ui.notify(`Updated ${automation.jobName}.`, "info");
+  }
+}
+
 export default function (pi: ExtensionAPI): void {
   pi.registerCommand("automations", {
     description: "Add, edit, remove, and inspect scheduled Matato automations",
@@ -321,59 +352,8 @@ export default function (pi: ExtensionAPI): void {
           config = await loadConfig();
           continue;
         }
-        const current = config.automations[result.index];
         try {
-          if (
-            result.action === "delete" &&
-            current &&
-            (await ctx.ui.confirm(
-              "Remove automation?",
-              `${current.jobName} will be removed from config.json.`,
-            ))
-          ) {
-            config.automations.splice(result.index, 1);
-            await saveConfig(config);
-            ctx.ui.notify(`Removed ${current.jobName}.`, "info");
-          }
-          if (result.action === "add") {
-            const automation = await openEditor(
-              ctx,
-              "Add automation JSON",
-              defaultAutomation(ctx),
-            );
-            if (!automation) continue;
-            if (
-              config.automations.some(
-                (entry) => entry.jobName === automation.jobName,
-              )
-            )
-              throw new Error(
-                `An automation named ${automation.jobName} already exists.`,
-              );
-            config.automations.push(automation);
-            await saveConfig(config);
-            ctx.ui.notify(`Added ${automation.jobName}.`, "info");
-          }
-          if (result.action === "edit" && current) {
-            const automation = await openEditor(
-              ctx,
-              "Edit automation JSON",
-              current,
-            );
-            if (!automation) continue;
-            if (
-              config.automations.some(
-                (entry) =>
-                  entry.jobName === automation.jobName && entry !== current,
-              )
-            )
-              throw new Error(
-                `An automation named ${automation.jobName} already exists.`,
-              );
-            config.automations[result.index] = automation;
-            await saveConfig(config);
-            ctx.ui.notify(`Updated ${automation.jobName}.`, "info");
-          }
+          await handleAction(result, config, ctx);
         } catch (error) {
           ctx.ui.notify(
             error instanceof Error

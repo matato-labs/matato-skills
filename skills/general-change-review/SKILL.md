@@ -6,7 +6,7 @@ disable-model-invocation: true
 
 # General Change Review
 
-Review the code for the following categories You MUST change the code for any of them that doesn't pass the check. It means fix tests, fix linting errors, refactor, add missing tests, add logging, etc. Do not stop until all categories are in a good state.
+Review the code for the following categories. You MUST change the code for any of them that doesn't pass the check. It means fix tests, fix linting errors, refactor, add missing tests, add logging, etc. Do not stop until all categories are in a good state.
 
 ## Strong types
 

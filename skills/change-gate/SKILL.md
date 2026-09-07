@@ -1,16 +1,16 @@
 ---
 name: change-gate
-description: Run $change-gate after a repository change to coordinate isolated acceptance, mutation, quality, and review checks. Do not use for implementing changes.
+description: Run $change-gate after a repository change to coordinate isolated acceptance, mutation, quality, and review checks.
 disable-model-invocation: true
 ---
 
 # Change Gate
 
-When invoked by automation, first read the pre-script output in the prompt. If it contains `"skip": true`, stop quietly. Otherwise use its pull-request and repository data. The user will execute this skill in the target repository or it will provide you with a PR, you can find the repository under $WORKSPACE (env var). Confirm that the repository exit, then derive a change summary from the diff.
+When invoked by automation, first read the pre-script output in the prompt. If it contains `"skip": true`, stop quietly. Otherwise use its pull-request and repository data. The user will execute this skill in the target repository or it will provide you with a PR, you can find the repository under $WORKSPACE (env var). Confirm that the repository exit.
 
 If you were given a PR, add the label `in-review`, if the label do not exist create it and add it to the PR. Remove the label `ai-review`, YOU MUST DELETE THE `ai-review` LABEL.
 
-Run the following specialists in order, launching each as a fresh-context subagent. Give each subagent only the stable inputs and its own task, never prior subagent conversations or conclusions. Each subagent will have its own skill with instructions on what to do; some will modify the code, while others will only analyze it. They must return a concise evidence, and findings with file paths where applicable.
+Run the following specialists in order, launching each as a fresh-context subagent. Give each subagent only the stable inputs and its own task, never prior subagent conversations or conclusions. Each subagent will have its own skill with instructions on what to do; each subagent must fix all the findings. They must return a concise evidence, changes and a summary.
 
 1. Invoke `$acceptance-criteria-review` for the supplied acceptance criteria.
 2. Invoke `$general-change-review` for an independent review of the change.

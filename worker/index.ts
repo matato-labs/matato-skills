@@ -5,18 +5,12 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { StringDecoder } from "node:string_decoder";
 import { Cron } from "croner";
+import {
+  parseAutomationConfig,
+  preScriptPath,
+  type Automation,
+} from "../src/automation.ts";
 
-type Automation = {
-  jobName: string;
-  enabled: boolean;
-  schedule: string;
-  userPrompt: string;
-  model: string;
-  thinkingLevel: string;
-  canLaunchSubAgents: boolean;
-};
-
-type AutomationConfig = { automations: Array<Automation> };
 type RpcMessage = { type?: string; success?: boolean; error?: string };
 
 const configPath =
@@ -31,9 +25,9 @@ const log = (message: string): void =>
 
 async function loadAutomations(): Promise<Array<Automation>> {
   try {
-    const config = JSON.parse(
-      await readFile(configPath, "utf8"),
-    ) as AutomationConfig;
+    const config = parseAutomationConfig(
+      JSON.parse(await readFile(configPath, "utf8")),
+    );
     return config.automations.filter((automation) => automation.enabled);
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") return [];
@@ -60,8 +54,12 @@ async function resolveSkillPath(jobName: string): Promise<string> {
   throw new Error(`Skill not found: ${jobName}`);
 }
 
-async function runPreScript(skillPath: string): Promise<string | null> {
-  const scriptPath = join(skillPath, "scripts", "pre-script.ts");
+async function runPreScript(
+  skillPath: string,
+  preScriptName: string | undefined,
+): Promise<string | null> {
+  const scriptPath = preScriptPath(skillPath, preScriptName);
+  if (!scriptPath) return null;
   try {
     await access(scriptPath, constants.X_OK);
   } catch {
@@ -185,7 +183,10 @@ function runPiRpc(
 
 async function runAutomation(automation: Automation): Promise<void> {
   const skillPath = await resolveSkillPath(automation.jobName);
-  const preScriptOutput = await runPreScript(skillPath);
+  const preScriptOutput = await runPreScript(
+    skillPath,
+    automation.preScriptName,
+  );
   await runPiRpc(
     automation,
     skillPath,

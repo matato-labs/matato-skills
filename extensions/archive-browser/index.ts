@@ -74,24 +74,25 @@ class ArchiveBrowser {
   ) {}
 
   handleInput(data: string): void {
-    if (matchesKey(data, Key.escape) || matchesKey(data, Key.ctrl("c"))) {
-      if (this.focus === "preview") this.focus = "files";
-      else this.done();
-    } else if (matchesKey(data, Key.enter) || matchesKey(data, Key.right)) {
-      if (this.files.length) this.focus = "preview";
-    } else if (matchesKey(data, Key.left)) {
-      this.focus = "files";
-    } else if (matchesKey(data, Key.up)) {
-      this.move(-1);
-    } else if (matchesKey(data, Key.down)) {
-      this.move(1);
-    } else if (matchesKey(data, Key.home)) {
-      this.jump(0);
-    } else if (matchesKey(data, Key.end)) {
-      this.jump(this.files.length - 1);
-    } else {
-      return;
-    }
+    const actions: Array<[boolean, () => void]> = [
+      [
+        matchesKey(data, Key.escape) || matchesKey(data, Key.ctrl("c")),
+        () => this.closePreview(),
+      ],
+      [
+        (matchesKey(data, Key.enter) || matchesKey(data, Key.right)) &&
+          Boolean(this.files.length),
+        () => (this.focus = "preview"),
+      ],
+      [matchesKey(data, Key.left), () => (this.focus = "files")],
+      [matchesKey(data, Key.up), () => this.move(-1)],
+      [matchesKey(data, Key.down), () => this.move(1)],
+      [matchesKey(data, Key.home), () => this.jump(0)],
+      [matchesKey(data, Key.end), () => this.jump(this.files.length - 1)],
+    ];
+    const action = actions.find(([matches]) => matches)?.[1];
+    if (!action) return;
+    action();
     this.tui.requestRender();
   }
 
@@ -177,6 +178,11 @@ class ArchiveBrowser {
 
   invalidate(): void {
     this.markdown?.invalidate();
+  }
+
+  private closePreview(): void {
+    if (this.focus === "preview") this.focus = "files";
+    else this.done();
   }
 
   private move(delta: number): void {
