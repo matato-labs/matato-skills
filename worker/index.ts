@@ -6,6 +6,7 @@ import { join } from "node:path";
 import { StringDecoder } from "node:string_decoder";
 import { Cron } from "croner";
 import {
+  dailySessionArgs,
   parseAutomationConfig,
   preScriptPath,
   type Automation,
@@ -125,6 +126,7 @@ function runPiRpc(
         automation.thinkingLevel,
         "--skill",
         skillPath,
+        ...dailySessionArgs(automation),
       ],
       { cwd: process.cwd(), stdio: ["pipe", "pipe", "pipe"] },
     );

@@ -1,3 +1,4 @@
+import { homedir } from "node:os";
 import { join } from "node:path";
 
 export const thinkingLevels = [
@@ -17,6 +18,7 @@ export type Automation = {
   schedule: string;
   userPrompt: string;
   preScriptName?: string;
+  dailySession?: boolean;
   model: string;
   thinkingLevel: ThinkingLevel;
   canLaunchSubAgents: boolean;
@@ -48,7 +50,9 @@ export function isAutomation(value: unknown): value is Automation {
     typeof value.canLaunchSubAgents === "boolean" &&
     typeof value.thinkingLevel === "string" &&
     isThinkingLevel(value.thinkingLevel) &&
-    isPreScriptName(value.preScriptName)
+    isPreScriptName(value.preScriptName) &&
+    (value.dailySession === undefined ||
+      typeof value.dailySession === "boolean")
   );
 }
 
@@ -58,6 +62,24 @@ export function parseAutomationConfig(value: unknown): AutomationConfig {
   if (!value.automations.every(isAutomation))
     throw new Error("Invalid automation config");
   return { automations: value.automations };
+}
+
+export function dailySessionArgs(
+  automation: Automation,
+  now = new Date(),
+): string[] {
+  if (!automation.dailySession) return [];
+  const date = [
+    now.getFullYear(),
+    String(now.getMonth() + 1).padStart(2, "0"),
+    String(now.getDate()).padStart(2, "0"),
+  ].join("-");
+  return [
+    "--session-id",
+    `${automation.jobName}-${date}`,
+    "--session-dir",
+    join(homedir(), ".config", "matato-pi", "sessions"),
+  ];
 }
 
 export function preScriptPath(

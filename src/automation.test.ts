@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
+  dailySessionArgs,
   parseAutomationConfig,
   preScriptPath,
   type Automation,
@@ -16,14 +17,28 @@ const automation = {
 } satisfies Automation;
 
 describe("automation configuration", () => {
-  test("keeps an optional pre-script filename", () => {
+  test("keeps optional pre-script and daily-session settings", () => {
     expect(
       parseAutomationConfig({
-        automations: [{ ...automation, preScriptName: "pre-script.ts" }],
+        automations: [
+          { ...automation, preScriptName: "pre-script.ts", dailySession: true },
+        ],
       }),
     ).toEqual({
-      automations: [{ ...automation, preScriptName: "pre-script.ts" }],
+      automations: [
+        { ...automation, preScriptName: "pre-script.ts", dailySession: true },
+      ],
     });
+  });
+
+  test("creates a stable per-day session only when enabled", () => {
+    expect(dailySessionArgs(automation, new Date(2026, 8, 7))).toEqual([]);
+    expect(
+      dailySessionArgs(
+        { ...automation, dailySession: true },
+        new Date(2026, 8, 7),
+      ).slice(0, 2),
+    ).toEqual(["--session-id", "daily-review-2026-09-07"]);
   });
 
   test("requires an automation array", () => {
@@ -43,6 +58,7 @@ describe("automation configuration", () => {
       { thinkingLevel: "invalid" },
       { canLaunchSubAgents: "false" },
       { preScriptName: "../secret.ts" },
+      { dailySession: "true" },
     ])
       expect(() =>
         parseAutomationConfig({ automations: [{ ...automation, ...invalid }] }),

@@ -13,9 +13,7 @@ pi install /absolute/path/to/matato-pi
 * Plans and researches storage in local files
 * E2E software lifecycle skills
 * Prepare for AI assistant work
-
-## Under development
-* Telegram connection
+* Telegram two-way connection
 
 ## Development
 
@@ -39,3 +37,21 @@ Researches are under `/researches` and they are stored in `~/.config/matato-pi/r
 Scheduled jobs are configured via a json file under `~/.config/matato-pi/automations/config.json`, when you start the worker with `npm run worker`, it loads the configuration and created a cronjob for every entry. An automation is tight to an skill, they can only be executed if the skill exist, when it's tirggered, it will search for a script called `preScript.ts` under `{skillName}/scripts`, if it's present it's going to execute it and the outpt is going to be given to the skill as input.
 
 To create/read/update/delete cron jobs, use `/automations`.
+### Telegram
+Set `TELEGRAM_BOT_TOKEN` and `TELEGRAM_OWNER_ID`, then add this automation through `/automations`:
+
+```json
+{
+  "jobName": "telegram-inbox",
+  "enabled": true,
+  "schedule": "*/3 * * * * *",
+  "userPrompt": "Process the new Telegram messages.",
+  "preScriptName": "preScript.ts",
+  "dailySession": true,
+  "model": "your-model",
+  "thinkingLevel": "low",
+  "canLaunchSubAgents": false
+}
+```
+
+Each day uses one continuous Pi session under `~/.config/matato-pi/sessions`. The inbox accepts messages only from `TELEGRAM_OWNER_ID`; agents reply through `telegram_send_message`. Use `/telegram` to inspect configuration and the latest poll time.
