@@ -1,17 +1,41 @@
 # Matato Pi Package
 
-Install locally with:
+MatatoPi is a pi package with extensions, skills promps that could help to have a nice e2e workflow to write code AI using pi. It has an extra feature to scheudled work direactly linked to a skill and allows you to run deterministic scripts before the AI workflow trigger.
 
 ```bash
 pi install /absolute/path/to/matato-pi
 ```
+> You can install from github as well `pi -e git:github.com/user/repo`
 
-The package provides Matato skills, prompts, the `subagent` extension from `../skills`, and archive browsers. It never imports `../matato` at runtime.
+## Features
+* Subagents
+* Scheduled jobs
+* Plans and researches storage in local files
+* E2E software lifecycle skills
+* Prepare for AI assistant work
 
-`/plans` browses Markdown files in `~/.config/matato-pi/plans/<git-root-name>/`; it requires a Git repository. `/researches` browses Markdown files in `~/.config/matato-pi/research/`. Both commands are read-only interactive two-pane viewers.
+## Under development
+* Telegram connection
 
-`/automations` manages scheduled jobs in `~/.config/matato-pi/automations/config.json`. Its `automations` entries use Matato's job fields: name, raw cron schedule, prompt, model, reasoning effort, enabled state, sub-agent permission, and an optional TypeScript pre-script filename.
+## Development
 
-Run `npm run worker` to start the standalone scheduler in `worker/`. It reloads that config every five seconds, resolves each skill from `~/.pi/agent/skills/` (or `skills/` in this package), runs its configured optional TypeScript pre-script from the skill's `scripts/` directory, and starts a one-shot `pi --mode rpc` run with the script output in the prompt. Pi stores sessions in its default session directory.
+### Test, Linting, Formating...
+```bash
+npm run test
+npm run lint
+npm run check
+```
 
-Run checks with `npm run check`, `bun test`, and `npm run lint`.
+## Examples
+
+### Plans
+You can see all plans you have created with matato-pi with `/plans`, plans are stored in `~/.config/matato-pi/plans/{repo}/{name}.md`
+
+### Researches
+Researches are under `/researches` and they are stored in `~/.config/matato-pi/researches/{name}.md`
+
+
+### Scheduled jobs
+Scheduled jobs are configured via a json file under `~/.config/matato-pi/automations/config.json`, when you start the worker with `npm run worker`, it loads the configuration and created a cronjob for every entry. An automation is tight to an skill, they can only be executed if the skill exist, when it's tirggered, it will search for a script called `preScript.ts` under `{skillName}/scripts`, if it's present it's going to execute it and the outpt is going to be given to the skill as input.
+
+To create/read/update/delete cron jobs, use `/automations`.
