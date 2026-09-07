@@ -49,10 +49,11 @@ Set `TELEGRAM_BOT_TOKEN` and `TELEGRAM_OWNER_ID`, then add this automation throu
   "preScriptName": "preScript.ts",
   "postScriptName": "postScript.ts",
   "dailySession": true,
+  "skipIfPreScriptEmpty": true,
   "model": "your-model",
   "thinkingLevel": "low",
   "canLaunchSubAgents": false
 }
 ```
 
-Each day uses one continuous Pi session under `~/.config/matato-pi/sessions` (override the root with `MATATO_PI_STORAGE_PATH` or `STORAGE_PATH`). The inbox accepts messages only from `TELEGRAM_OWNER_ID`; agents reply through `telegram_send_message`. Use `/telegram` to inspect configuration and the latest poll time.
+Each day uses one continuous Pi session under `~/.config/matato-pi/sessions` (override the root with `MATATO_PI_STORAGE_PATH` or `STORAGE_PATH`). Empty polls skip Pi entirely. The inbox accepts messages only from `TELEGRAM_OWNER_ID`; agents reply through `telegram_send_message`. Use `/telegram` to inspect configuration and the latest poll time.

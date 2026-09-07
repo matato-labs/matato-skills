@@ -26,6 +26,7 @@ describe("automation configuration", () => {
             preScriptName: "pre-script.ts",
             postScriptName: "post-script.ts",
             dailySession: true,
+            skipIfPreScriptEmpty: true,
           },
         ],
       }),
@@ -36,6 +37,7 @@ describe("automation configuration", () => {
           preScriptName: "pre-script.ts",
           postScriptName: "post-script.ts",
           dailySession: true,
+          skipIfPreScriptEmpty: true,
         },
       ],
     });
@@ -83,6 +85,7 @@ describe("automation configuration", () => {
       { preScriptName: "../secret.ts" },
       { postScriptName: "../secret.ts" },
       { dailySession: "true" },
+      { skipIfPreScriptEmpty: "true" },
     ])
       expect(() =>
         parseAutomationConfig({ automations: [{ ...automation, ...invalid }] }),

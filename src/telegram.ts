@@ -101,7 +101,7 @@ export async function getTelegramUpdates(input: {
     result?: Array<TelegramUpdate>;
     description?: string;
   };
-  if (!payload.ok || !payload.result)
+  if (!payload.ok || !Array.isArray(payload.result))
     throw new Error(
       `Telegram getUpdates failed: ${payload.description ?? "Unknown Telegram API error"}`,
     );

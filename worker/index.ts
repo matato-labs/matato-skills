@@ -184,6 +184,10 @@ function runPiRpc(
 async function runAutomation(automation: Automation): Promise<void> {
   const skillPath = await resolveSkillPath(automation.jobName);
   const preScriptOutput = await runScript(skillPath, automation.preScriptName);
+  if (automation.skipIfPreScriptEmpty && preScriptOutput === "") {
+    log(`Job skipped: ${automation.jobName} (pre-script produced no output)`);
+    return;
+  }
   await runPiRpc(
     automation,
     skillPath,

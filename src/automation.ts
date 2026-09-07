@@ -20,6 +20,7 @@ export type Automation = {
   preScriptName?: string;
   postScriptName?: string;
   dailySession?: boolean;
+  skipIfPreScriptEmpty?: boolean;
   model: string;
   thinkingLevel: ThinkingLevel;
   canLaunchSubAgents: boolean;
@@ -54,7 +55,9 @@ export function isAutomation(value: unknown): value is Automation {
     isScriptName(value.preScriptName) &&
     isScriptName(value.postScriptName) &&
     (value.dailySession === undefined ||
-      typeof value.dailySession === "boolean")
+      typeof value.dailySession === "boolean") &&
+    (value.skipIfPreScriptEmpty === undefined ||
+      typeof value.skipIfPreScriptEmpty === "boolean")
   );
 }
 

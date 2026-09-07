@@ -148,6 +148,11 @@ describe("Telegram API", () => {
       sendTelegramMessage({ chatId: "1", text: "hello" }),
     ).rejects.toThrow("Telegram sendMessage failed: blocked");
 
+    fetchSpy.mockResolvedValue(new Response(JSON.stringify({ ok: true })));
+    await expect(getTelegramUpdates({ offset: null })).rejects.toThrow(
+      "Telegram getUpdates failed: Unknown Telegram API error",
+    );
+
     await expect(
       sendTelegramMessage({ chatId: "", text: "hello" }),
     ).rejects.toThrow("Telegram chatId is required");
