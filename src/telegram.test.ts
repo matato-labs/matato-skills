@@ -82,6 +82,31 @@ describe("Telegram API", () => {
     });
   });
 
+  test("ignores non-text updates while advancing their offset", async () => {
+    fetchSpy.mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          ok: true,
+          result: [
+            {
+              update_id: 8,
+              message: {
+                date: 1,
+                chat: { id: 2 },
+                from: { id: 7, username: "leon" },
+              },
+            },
+          ],
+        }),
+      ),
+    );
+
+    await expect(getTelegramUpdates({ offset: 8 })).resolves.toEqual({
+      nextOffset: 9,
+      updates: [],
+    });
+  });
+
   test("keeps inbound text raw and preserves literal backslash-n", async () => {
     fetchSpy.mockResolvedValue(
       new Response(
@@ -125,6 +150,18 @@ describe("Telegram API", () => {
       nextOffset: 7,
     });
     expect(String(fetchSpy.mock.calls[0]?.[0])).toContain("offset=7");
+  });
+
+  test("accepts a negative offset to discard the initial backlog", async () => {
+    fetchSpy.mockResolvedValue(
+      new Response(JSON.stringify({ ok: true, result: [] })),
+    );
+
+    await expect(getTelegramUpdates({ offset: -1 })).resolves.toEqual({
+      updates: [],
+      nextOffset: 0,
+    });
+    expect(String(fetchSpy.mock.calls[0]?.[0])).toContain("offset=-1");
   });
 
   test("fails clearly when configuration or Telegram rejects a request", async () => {

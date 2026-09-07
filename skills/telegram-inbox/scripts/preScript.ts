@@ -9,7 +9,11 @@ const ownerId = process.env.TELEGRAM_OWNER_ID?.trim();
 if (!ownerId) throw new Error("TELEGRAM_OWNER_ID is required");
 
 const checkpoint = await readTelegramCheckpoint();
-const result = await getTelegramUpdates({ offset: checkpoint.nextOffset });
+// Telegram's negative offset forgets every older update while returning the
+// newest one, so the first poll cannot leave stale pages to answer later.
+const result = await getTelegramUpdates({
+  offset: checkpoint.nextOffset ?? -1,
+});
 const messages = result.updates.filter(({ chatId }) => chatId === ownerId);
 // Acknowledge first-poll backlog and updates that need no agent turn.
 if (checkpoint.nextOffset === null || messages.length === 0) {

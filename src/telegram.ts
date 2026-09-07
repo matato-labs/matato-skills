@@ -111,6 +111,8 @@ export async function getTelegramUpdates(input: {
       .map(toMessage)
       .filter((message): message is TelegramMessage => message !== null),
     nextOffset:
-      lastUpdateId === undefined ? (input.offset ?? 0) : lastUpdateId + 1,
+      lastUpdateId === undefined
+        ? Math.max(input.offset ?? 0, 0)
+        : lastUpdateId + 1,
   };
 }

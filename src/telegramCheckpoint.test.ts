@@ -52,6 +52,15 @@ describe("Telegram checkpoint", () => {
     });
   });
 
+  test("rejects malformed checkpoints", async () => {
+    await mkdir(join(directory, "telegram"), { recursive: true });
+    await writeFile(telegramCheckpointPath(), "not JSON");
+
+    await expect(readTelegramCheckpoint()).rejects.toThrow(
+      "Invalid Telegram checkpoint",
+    );
+  });
+
   test("commits a pending checkpoint only on demand", async () => {
     await writeTelegramCheckpoint(1);
     await writePendingTelegramCheckpoint(42);
