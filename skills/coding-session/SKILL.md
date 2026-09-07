@@ -6,7 +6,7 @@ disable-model-invocation: true
 
 # Task Implementation
 
-Given a plan from a ticket, GH Issue, or user's prompt, you must implement the changes in the target repository the user provides. Understand the code involved in the user change. Decide the implementation approach yourself, then analyse the files that need to be changed and the code surrounding those files that impacts the change in the overall architecture and E2E workflow. Do not limit your scope to the most obvious files.
+When invoked by automation, first read the pre-script output in the prompt. If it contains `"skip": true`, stop quietly. Otherwise use its issue and repository data. Given a plan from a ticket, GH Issue, or user's prompt, you must implement the changes in the target repository the user provides. Understand the code involved in the user change. Decide the implementation approach yourself, then analyse the files that need to be changed and the code surrounding those files that impacts the change in the overall architecture and E2E workflow. Do not limit your scope to the most obvious files.
 
 ## Testing
 

@@ -6,7 +6,7 @@ disable-model-invocation: true
 
 # Change Gate
 
-The user will execute this skill in the target repository or it will provide you with a PR, you can find the repository under $WORKSPACE (env var). Confirm that the repository exit, then derive a change summary from the diff.
+When invoked by automation, first read the pre-script output in the prompt. If it contains `"skip": true`, stop quietly. Otherwise use its pull-request and repository data. The user will execute this skill in the target repository or it will provide you with a PR, you can find the repository under $WORKSPACE (env var). Confirm that the repository exit, then derive a change summary from the diff.
 
 If you were given a PR, add the label `in-review`, if the label do not exist create it and add it to the PR. Remove the label `ai-review`, YOU MUST DELETE THE `ai-review` LABEL.
 

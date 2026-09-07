@@ -61,9 +61,7 @@ const main = async (): Promise<void> => {
   const date = localDate(timezone);
   const outputDirectory = "docs/productDevelopment";
   const stateFile = `${storagePath}/agent/product-manager.json`;
-  const project = parseProject(
-    await run("matato", ["--json", "project", "list"]),
-  );
+  const project = parseProject(await run("matato", ["project", "list"]));
   if (!project)
     return skip("Matato project is not configured with a repository");
 

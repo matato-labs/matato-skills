@@ -10,7 +10,7 @@ Review the code for the following categories You MUST change the code for any of
 
 ## Strong types
 
-Review for the usage of strong types, try to avoid weak types like `unknown`, `any` or such kind of types in the programming language the code is in.
+Review for the usage of strong types, try to avoid weak types like `unknown`, `any` or such kind of types in the programming language the code is in. Type checks should be done via the programming language strong typing systems instead of checks such as `if(value === string)`.
 
 ## Safe guards
 

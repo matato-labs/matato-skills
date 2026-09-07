@@ -9,5 +9,5 @@
     "skipLibCheck": true,
     "types": ["node", "bun"]
   },
-  "include": ["extensions/**/*.ts", "src/**/*.ts", "skills/**/*.ts"]
+  "include": ["extensions/**/*.ts", "src/**/*.ts", "skills/**/*.ts", "worker/**/*.ts"]
 }

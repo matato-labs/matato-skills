@@ -11,7 +11,12 @@ type PullRequest = {
 
 const main = async (): Promise<void> => {
   const repositories = await listWorkspaceRepos();
-  if (!repositories.length) return;
+  if (!repositories.length) {
+    console.log(
+      JSON.stringify({ skip: true, reason: "No workspace repositories found" }),
+    );
+    return;
+  }
 
   for (const repository of repositories) {
     const number = await run(
@@ -60,7 +65,12 @@ const main = async (): Promise<void> => {
     return;
   }
 
-  return;
+  console.log(
+    JSON.stringify({
+      skip: true,
+      reason: "No unassigned pull request with the ai-review label",
+    }),
+  );
 };
 
 await main();
