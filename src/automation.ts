@@ -1,5 +1,5 @@
-import { homedir } from "node:os";
 import { join } from "node:path";
+import { storagePath } from "./storagePath.ts";
 
 export const thinkingLevels = [
   "off",
@@ -18,6 +18,7 @@ export type Automation = {
   schedule: string;
   userPrompt: string;
   preScriptName?: string;
+  postScriptName?: string;
   dailySession?: boolean;
   model: string;
   thinkingLevel: ThinkingLevel;
@@ -35,7 +36,7 @@ export function isThinkingLevel(value: string): value is ThinkingLevel {
 const isNonEmptyString = (value: unknown): value is string =>
   typeof value === "string" && value.trim().length > 0;
 
-const isPreScriptName = (value: unknown): boolean =>
+const isScriptName = (value: unknown): boolean =>
   value === undefined ||
   (typeof value === "string" && /^[\w.-]+\.ts$/.test(value));
 
@@ -50,7 +51,8 @@ export function isAutomation(value: unknown): value is Automation {
     typeof value.canLaunchSubAgents === "boolean" &&
     typeof value.thinkingLevel === "string" &&
     isThinkingLevel(value.thinkingLevel) &&
-    isPreScriptName(value.preScriptName) &&
+    isScriptName(value.preScriptName) &&
+    isScriptName(value.postScriptName) &&
     (value.dailySession === undefined ||
       typeof value.dailySession === "boolean")
   );
@@ -78,15 +80,15 @@ export function dailySessionArgs(
     "--session-id",
     `${automation.jobName}-${date}`,
     "--session-dir",
-    join(homedir(), ".config", "matato-pi", "sessions"),
+    join(storagePath(), "sessions"),
   ];
 }
 
-export function preScriptPath(
+export function scriptPath(
   skillPath: string,
-  preScriptName: string | undefined,
+  scriptName: string | undefined,
 ): string | undefined {
-  return preScriptName && /^[\w.-]+\.ts$/.test(preScriptName)
-    ? join(skillPath, "scripts", preScriptName)
+  return scriptName && /^[\w.-]+\.ts$/.test(scriptName)
+    ? join(skillPath, "scripts", scriptName)
     : undefined;
 }

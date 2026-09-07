@@ -44,7 +44,7 @@ export const normalizeTelegramText = (text: string): string =>
 const toMessage = (update: TelegramUpdate): TelegramMessage | null => {
   const message = update.message;
   if (!message?.chat || !message.from || message.from.is_bot) return null;
-  const text = normalizeTelegramText(message.text ?? "");
+  const text = message.text ?? "";
   if (!text) return null;
   return {
     chatId: String(message.chat.id),

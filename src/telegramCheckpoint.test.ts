@@ -1,10 +1,12 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm, writeFile, mkdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
+  commitTelegramCheckpoint,
   readTelegramCheckpoint,
   telegramCheckpointPath,
+  writePendingTelegramCheckpoint,
   writeTelegramCheckpoint,
 } from "./telegramCheckpoint.ts";
 
@@ -40,8 +42,39 @@ describe("Telegram checkpoint", () => {
     });
   });
 
+  test("migrates a legacy updateId checkpoint", async () => {
+    await mkdir(join(directory, "telegram"), { recursive: true });
+    await writeFile(telegramCheckpointPath(), JSON.stringify({ updateId: 10 }));
+
+    await expect(readTelegramCheckpoint()).resolves.toEqual({
+      nextOffset: 11,
+      lastPolledAt: null,
+    });
+  });
+
+  test("commits a pending checkpoint only on demand", async () => {
+    await writeTelegramCheckpoint(1);
+    await writePendingTelegramCheckpoint(42);
+
+    await expect(readTelegramCheckpoint()).resolves.toMatchObject({
+      nextOffset: 1,
+    });
+
+    await expect(commitTelegramCheckpoint()).resolves.toBe(true);
+    await expect(readTelegramCheckpoint()).resolves.toMatchObject({
+      nextOffset: 42,
+    });
+    await expect(commitTelegramCheckpoint()).resolves.toBe(false);
+  });
+
   test("rejects invalid offsets", async () => {
     await expect(writeTelegramCheckpoint(-1)).rejects.toThrow(
+      "Invalid Telegram checkpoint offset",
+    );
+    await expect(writeTelegramCheckpoint(1.5)).rejects.toThrow(
+      "Invalid Telegram checkpoint offset",
+    );
+    await expect(writePendingTelegramCheckpoint(-1)).rejects.toThrow(
       "Invalid Telegram checkpoint offset",
     );
   });

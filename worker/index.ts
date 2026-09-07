@@ -8,7 +8,7 @@ import { Cron } from "croner";
 import {
   dailySessionArgs,
   parseAutomationConfig,
-  preScriptPath,
+  scriptPath,
   type Automation,
 } from "../src/automation.ts";
 
@@ -55,24 +55,24 @@ async function resolveSkillPath(jobName: string): Promise<string> {
   throw new Error(`Skill not found: ${jobName}`);
 }
 
-async function runPreScript(
+async function runScript(
   skillPath: string,
-  preScriptName: string | undefined,
+  scriptName: string | undefined,
 ): Promise<string | null> {
-  const scriptPath = preScriptPath(skillPath, preScriptName);
-  if (!scriptPath) return null;
+  const resolvedPath = scriptPath(skillPath, scriptName);
+  if (!resolvedPath) return null;
   try {
-    await access(scriptPath, constants.X_OK);
+    await access(resolvedPath, constants.X_OK);
   } catch {
     try {
-      await access(scriptPath, constants.F_OK);
+      await access(resolvedPath, constants.F_OK);
     } catch {
       return null;
     }
   }
 
   return new Promise((resolve, reject) => {
-    const child = spawn("bun", [scriptPath], {
+    const child = spawn("bun", [resolvedPath], {
       cwd: skillPath,
       env: {
         ...process.env,
@@ -89,9 +89,7 @@ async function runPreScript(
     child.once("close", (code) => {
       if (code === 0) resolve(stdout.trim());
       else
-        reject(
-          new Error(stderr.trim() || `Pre-script exited with code ${code}`),
-        );
+        reject(new Error(stderr.trim() || `Script exited with code ${code}`));
     });
   });
 }
@@ -185,15 +183,13 @@ function runPiRpc(
 
 async function runAutomation(automation: Automation): Promise<void> {
   const skillPath = await resolveSkillPath(automation.jobName);
-  const preScriptOutput = await runPreScript(
-    skillPath,
-    automation.preScriptName,
-  );
+  const preScriptOutput = await runScript(skillPath, automation.preScriptName);
   await runPiRpc(
     automation,
     skillPath,
     createPrompt(automation, preScriptOutput),
   );
+  await runScript(skillPath, automation.postScriptName);
   log(`Job completed: ${automation.jobName}`);
 }
 

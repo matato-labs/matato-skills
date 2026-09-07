@@ -47,6 +47,7 @@ Set `TELEGRAM_BOT_TOKEN` and `TELEGRAM_OWNER_ID`, then add this automation throu
   "schedule": "*/3 * * * * *",
   "userPrompt": "Process the new Telegram messages.",
   "preScriptName": "preScript.ts",
+  "postScriptName": "postScript.ts",
   "dailySession": true,
   "model": "your-model",
   "thinkingLevel": "low",
@@ -54,4 +55,4 @@ Set `TELEGRAM_BOT_TOKEN` and `TELEGRAM_OWNER_ID`, then add this automation throu
 }
 ```
 
-Each day uses one continuous Pi session under `~/.config/matato-pi/sessions`. The inbox accepts messages only from `TELEGRAM_OWNER_ID`; agents reply through `telegram_send_message`. Use `/telegram` to inspect configuration and the latest poll time.
+Each day uses one continuous Pi session under `~/.config/matato-pi/sessions` (override the root with `MATATO_PI_STORAGE_PATH` or `STORAGE_PATH`). The inbox accepts messages only from `TELEGRAM_OWNER_ID`; agents reply through `telegram_send_message`. Use `/telegram` to inspect configuration and the latest poll time.

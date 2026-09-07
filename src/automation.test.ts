@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
   dailySessionArgs,
   parseAutomationConfig,
-  preScriptPath,
+  scriptPath,
   type Automation,
 } from "./automation.ts";
 
@@ -17,16 +17,26 @@ const automation = {
 } satisfies Automation;
 
 describe("automation configuration", () => {
-  test("keeps optional pre-script and daily-session settings", () => {
+  test("keeps optional script and daily-session settings", () => {
     expect(
       parseAutomationConfig({
         automations: [
-          { ...automation, preScriptName: "pre-script.ts", dailySession: true },
+          {
+            ...automation,
+            preScriptName: "pre-script.ts",
+            postScriptName: "post-script.ts",
+            dailySession: true,
+          },
         ],
       }),
     ).toEqual({
       automations: [
-        { ...automation, preScriptName: "pre-script.ts", dailySession: true },
+        {
+          ...automation,
+          preScriptName: "pre-script.ts",
+          postScriptName: "post-script.ts",
+          dailySession: true,
+        },
       ],
     });
   });
@@ -39,6 +49,19 @@ describe("automation configuration", () => {
         new Date(2026, 8, 7),
       ).slice(0, 2),
     ).toEqual(["--session-id", "daily-review-2026-09-07"]);
+  });
+
+  test("honors MATATO_PI_STORAGE_PATH for the session directory", () => {
+    const original = process.env.MATATO_PI_STORAGE_PATH;
+    process.env.MATATO_PI_STORAGE_PATH = "/tmp/matato-pi-test-storage";
+    try {
+      expect(
+        dailySessionArgs({ ...automation, dailySession: true }).slice(2),
+      ).toEqual(["--session-dir", "/tmp/matato-pi-test-storage/sessions"]);
+    } finally {
+      if (original === undefined) delete process.env.MATATO_PI_STORAGE_PATH;
+      else process.env.MATATO_PI_STORAGE_PATH = original;
+    }
   });
 
   test("requires an automation array", () => {
@@ -58,6 +81,7 @@ describe("automation configuration", () => {
       { thinkingLevel: "invalid" },
       { canLaunchSubAgents: "false" },
       { preScriptName: "../secret.ts" },
+      { postScriptName: "../secret.ts" },
       { dailySession: "true" },
     ])
       expect(() =>
@@ -65,13 +89,11 @@ describe("automation configuration", () => {
       ).toThrow("Invalid automation config");
   });
 
-  test("resolves configured pre-scripts and skips jobs without one", () => {
-    expect(preScriptPath("/skills/daily-review", "pre-script.ts")).toBe(
+  test("resolves configured scripts and skips jobs without one", () => {
+    expect(scriptPath("/skills/daily-review", "pre-script.ts")).toBe(
       "/skills/daily-review/scripts/pre-script.ts",
     );
-    expect(preScriptPath("/skills/daily-review", undefined)).toBeUndefined();
-    expect(
-      preScriptPath("/skills/daily-review", "../secret.ts"),
-    ).toBeUndefined();
+    expect(scriptPath("/skills/daily-review", undefined)).toBeUndefined();
+    expect(scriptPath("/skills/daily-review", "../secret.ts")).toBeUndefined();
   });
 });

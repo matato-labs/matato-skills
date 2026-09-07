@@ -82,6 +82,51 @@ describe("Telegram API", () => {
     });
   });
 
+  test("keeps inbound text raw and preserves literal backslash-n", async () => {
+    fetchSpy.mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          ok: true,
+          result: [
+            {
+              update_id: 9,
+              message: {
+                date: 1,
+                chat: { id: 2 },
+                from: { id: 7, username: "leon" },
+                text: "hello\\nworld",
+              },
+            },
+          ],
+        }),
+      ),
+    );
+
+    await expect(getTelegramUpdates({ offset: 9 })).resolves.toEqual({
+      nextOffset: 10,
+      updates: [
+        {
+          chatId: "2",
+          from: "leon",
+          text: "hello\\nworld",
+          sentAt: "1970-01-01T00:00:01.000Z",
+        },
+      ],
+    });
+  });
+
+  test("forwards the offset and keeps it when no updates arrive", async () => {
+    fetchSpy.mockResolvedValue(
+      new Response(JSON.stringify({ ok: true, result: [] })),
+    );
+
+    await expect(getTelegramUpdates({ offset: 7 })).resolves.toEqual({
+      updates: [],
+      nextOffset: 7,
+    });
+    expect(String(fetchSpy.mock.calls[0]?.[0])).toContain("offset=7");
+  });
+
   test("fails clearly when configuration or Telegram rejects a request", async () => {
     delete process.env.TELEGRAM_BOT_TOKEN;
     await expect(getTelegramUpdates({ offset: null })).rejects.toThrow(
@@ -90,10 +135,24 @@ describe("Telegram API", () => {
 
     process.env.TELEGRAM_BOT_TOKEN = "token";
     fetchSpy.mockResolvedValue(
+      new Response("server exploded", { status: 500 }),
+    );
+    await expect(getTelegramUpdates({ offset: null })).rejects.toThrow(
+      "Telegram getUpdates request failed with status 500 and message server exploded",
+    );
+
+    fetchSpy.mockResolvedValue(
       new Response(JSON.stringify({ ok: false, description: "blocked" })),
     );
     await expect(
       sendTelegramMessage({ chatId: "1", text: "hello" }),
     ).rejects.toThrow("Telegram sendMessage failed: blocked");
+
+    await expect(
+      sendTelegramMessage({ chatId: "", text: "hello" }),
+    ).rejects.toThrow("Telegram chatId is required");
+    await expect(
+      sendTelegramMessage({ chatId: "1", text: "" }),
+    ).rejects.toThrow("Telegram message text is required");
   });
 });

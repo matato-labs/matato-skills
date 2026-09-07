@@ -8,22 +8,13 @@ export default function (pi: ExtensionAPI): void {
     name: "telegram_send_message",
     label: "Telegram send message",
     description:
-      "Send a concise text message to Telegram. Defaults to TELEGRAM_OWNER_ID.",
+      "Send a concise text message to the Telegram owner (TELEGRAM_OWNER_ID).",
     parameters: Type.Object({
       text: Type.String({ minLength: 1, description: "Message text" }),
-      chatId: Type.Optional(
-        Type.String({
-          minLength: 1,
-          description: "Telegram chat id; defaults to TELEGRAM_OWNER_ID",
-        }),
-      ),
     }),
     async execute(_toolCallId, params) {
-      const chatId = params.chatId ?? process.env.TELEGRAM_OWNER_ID;
-      if (!chatId)
-        throw new Error(
-          "TELEGRAM_OWNER_ID is required when chatId is not provided",
-        );
+      const chatId = process.env.TELEGRAM_OWNER_ID?.trim();
+      if (!chatId) throw new Error("TELEGRAM_OWNER_ID is required");
       await sendTelegramMessage({ chatId, text: params.text });
       return {
         content: [{ type: "text", text: "Telegram message sent." }],

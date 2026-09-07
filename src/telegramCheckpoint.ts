@@ -1,6 +1,6 @@
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
-import { homedir } from "node:os";
 import { dirname, join } from "node:path";
+import { storagePath } from "./storagePath.ts";
 
 export type TelegramCheckpoint = {
   nextOffset: number | null;
@@ -8,13 +8,7 @@ export type TelegramCheckpoint = {
 };
 
 export const telegramCheckpointPath = (): string =>
-  join(
-    process.env.MATATO_PI_STORAGE_PATH ??
-      process.env.STORAGE_PATH ??
-      join(homedir(), ".config", "matato-pi"),
-    "telegram",
-    "checkpoint.json",
-  );
+  join(storagePath(), "telegram", "checkpoint.json");
 
 export async function readTelegramCheckpoint(): Promise<TelegramCheckpoint> {
   try {
@@ -39,12 +33,12 @@ export async function readTelegramCheckpoint(): Promise<TelegramCheckpoint> {
   }
 }
 
-export async function writeTelegramCheckpoint(
+const writeCheckpoint = async (
+  path: string,
   nextOffset: number,
-): Promise<void> {
+): Promise<void> => {
   if (!Number.isInteger(nextOffset) || nextOffset < 0)
     throw new Error("Invalid Telegram checkpoint offset");
-  const path = telegramCheckpointPath();
   await mkdir(dirname(path), { recursive: true });
   const temporaryPath = `${path}.tmp`;
   await writeFile(
@@ -53,4 +47,25 @@ export async function writeTelegramCheckpoint(
     { encoding: "utf8", mode: 0o600 },
   );
   await rename(temporaryPath, path);
+};
+
+export const writeTelegramCheckpoint = (nextOffset: number): Promise<void> =>
+  writeCheckpoint(telegramCheckpointPath(), nextOffset);
+
+export const pendingTelegramCheckpointPath = (): string =>
+  `${telegramCheckpointPath()}.pending`;
+
+export const writePendingTelegramCheckpoint = (
+  nextOffset: number,
+): Promise<void> =>
+  writeCheckpoint(pendingTelegramCheckpointPath(), nextOffset);
+
+export async function commitTelegramCheckpoint(): Promise<boolean> {
+  try {
+    await rename(pendingTelegramCheckpointPath(), telegramCheckpointPath());
+    return true;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return false;
+    throw error;
+  }
 }
