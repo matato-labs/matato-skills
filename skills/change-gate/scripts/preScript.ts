@@ -9,16 +9,9 @@ type PullRequest = {
   labels: Array<{ name: string }>;
 };
 
-const skip = (reason: string): void =>
-  console.log(JSON.stringify({ skip: true, reason }));
-
 const main = async (): Promise<void> => {
-  const [user, repositories] = await Promise.all([
-    run("gh", ["api", "user", "--jq", ".login"]),
-    listWorkspaceRepos(),
-  ]);
-  if (!repositories.length)
-    return skip("No GitHub repositories found in WORKSPACE");
+  const repositories = await listWorkspaceRepos();
+  if (!repositories.length) return;
 
   for (const repository of repositories) {
     const number = await run(
@@ -39,6 +32,7 @@ const main = async (): Promise<void> => {
     );
     if (!number) continue;
 
+    const user = await run("gh", ["api", "user", "--jq", ".login"]);
     await run(
       "gh",
       ["pr", "edit", number, "--add-assignee", user],
@@ -66,7 +60,7 @@ const main = async (): Promise<void> => {
     return;
   }
 
-  skip("No available ai-review pull requests");
+  return;
 };
 
 await main();

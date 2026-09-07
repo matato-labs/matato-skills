@@ -7,11 +7,17 @@ export type WorkspaceRepo = {
   repositoryUrl: string;
 };
 
-export const run = async (
+export type CommandResult = {
+  stdout: string;
+  stderr: string;
+  exitCode: number;
+};
+
+export const runResult = async (
   command: string,
   args: Array<string>,
   cwd?: string,
-): Promise<string> => {
+): Promise<CommandResult> => {
   const process = Bun.spawn([command, ...args], {
     cwd,
     stdout: "pipe",
@@ -22,8 +28,18 @@ export const run = async (
     new Response(process.stderr).text(),
     process.exited,
   ]);
-  if (exitCode !== 0) throw new Error(`${command} failed: ${stderr.trim()}`);
-  return stdout.trim();
+  return { stdout: stdout.trim(), stderr: stderr.trim(), exitCode };
+};
+
+export const run = async (
+  command: string,
+  args: Array<string>,
+  cwd?: string,
+): Promise<string> => {
+  const result = await runResult(command, args, cwd);
+  if (result.exitCode !== 0)
+    throw new Error(`${command} failed: ${result.stderr}`);
+  return result.stdout;
 };
 
 export const listWorkspaceRepos = async (): Promise<Array<WorkspaceRepo>> => {

@@ -1,13 +1,5 @@
+import { readFlagValue } from "../../../src/cli.ts";
 import { fetchPageContent } from "./webSearch.ts";
-
-const readFlagValue = (args: string[], name: string) => {
-  const inlinePrefix = `--${name}=`;
-  const inlineValue = args.find((arg) => arg.startsWith(inlinePrefix));
-  if (inlineValue) return inlineValue.slice(inlinePrefix.length);
-
-  const flagIndex = args.indexOf(`--${name}`);
-  return flagIndex === -1 ? "" : (args[flagIndex + 1] ?? "");
-};
 
 const parseInput = (args: string[]) => {
   const url = readFlagValue(args, "url").trim();

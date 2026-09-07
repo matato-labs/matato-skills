@@ -9,16 +9,9 @@ type Issue = {
   labels: Array<{ name: string }>;
 };
 
-const skip = (reason: string): void =>
-  console.log(JSON.stringify({ skip: true, reason }));
-
 const main = async (): Promise<void> => {
-  const [user, projects] = await Promise.all([
-    run("gh", ["api", "user", "--jq", ".login"]),
-    listWorkspaceRepos(),
-  ]);
-  if (!projects.length)
-    return skip("No GitHub repositories found in WORKSPACE");
+  const projects = await listWorkspaceRepos();
+  if (!projects.length) return;
 
   for (const project of projects) {
     const number = await run(
@@ -39,6 +32,7 @@ const main = async (): Promise<void> => {
     );
     if (!number) continue;
 
+    const user = await run("gh", ["api", "user", "--jq", ".login"]);
     await run(
       "gh",
       ["issue", "edit", number, "--add-assignee", user],
@@ -66,7 +60,7 @@ const main = async (): Promise<void> => {
     return;
   }
 
-  skip("No available AI issues");
+  return;
 };
 
 await main();

@@ -1,15 +1,7 @@
+import { readFlagValue } from "../../../src/cli.ts";
 import { searchWeb } from "./webSearch.ts";
 
 type DepthMode = "quick" | "think" | "deep";
-
-const readFlagValue = (args: string[], name: string) => {
-  const inlinePrefix = `--${name}=`;
-  const inlineValue = args.find((arg) => arg.startsWith(inlinePrefix));
-  if (inlineValue) return inlineValue.slice(inlinePrefix.length);
-
-  const flagIndex = args.indexOf(`--${name}`);
-  return flagIndex === -1 ? "" : (args[flagIndex + 1] ?? "");
-};
 
 const parseDepthMode = (value: string): DepthMode =>
   value === "think" || value === "deep" ? value : "quick";
