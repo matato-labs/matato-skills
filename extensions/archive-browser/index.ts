@@ -39,7 +39,7 @@ async function loadArchives(directory: string): Promise<ArchiveFile[]> {
         content: await readFile(join(directory, name), "utf8"),
       })),
     );
-  } catch (error: unknown) {
+  } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") return [];
     throw error;
   }

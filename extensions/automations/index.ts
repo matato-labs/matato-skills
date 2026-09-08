@@ -2,8 +2,6 @@ import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import {
-  isAutomation,
-  parseAutomationConfig,
   type Automation,
   type AutomationConfig,
 } from "../../src/automation.ts";
@@ -34,19 +32,12 @@ const configPath = join(
 );
 
 function parseAutomation(text: string): Automation {
-  const automation: unknown = JSON.parse(text);
-  if (!isAutomation(automation))
-    throw new Error(
-      "Invalid automation JSON. Check every required field and value.",
-    );
-  return automation;
+  return JSON.parse(text) as Automation;
 }
 
 async function loadConfig(): Promise<AutomationConfig> {
   try {
-    return parseAutomationConfig(
-      JSON.parse(await readFile(configPath, "utf8")),
-    );
+    return JSON.parse(await readFile(configPath, "utf8")) as AutomationConfig;
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT")
       return { automations: [] };
@@ -72,6 +63,7 @@ function defaultAutomation(ctx: ExtensionCommandContext): Automation {
     enabled: true,
     schedule: "0 9 * * *",
     userPrompt: "Describe the automation work here.",
+    dailySession: false,
     model: ctx.model?.id ?? "model-id",
     thinkingLevel: "low",
     canLaunchSubAgents: false,
@@ -226,7 +218,6 @@ class AutomationBrowser {
     const enabled = automation.enabled
       ? this.theme.fg("success", "Enabled")
       : this.theme.fg("muted", "Paused");
-    const script = automation.preScriptName ?? "None";
     return [
       this.theme.bold(automation.jobName),
       "",
@@ -234,7 +225,7 @@ class AutomationBrowser {
       `Model: ${automation.model}`,
       `Reasoning: ${automation.thinkingLevel}`,
       `Sub-agents: ${automation.canLaunchSubAgents ? "allowed" : "not allowed"}`,
-      `Pre-script: ${script}`,
+      `Daily session: ${automation.dailySession ? "enabled" : "disabled"}`,
       "",
       this.theme.fg("muted", "Prompt"),
       ...automation.userPrompt.split("\n"),

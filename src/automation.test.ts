@@ -1,9 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import {
-  parseAutomationConfig,
-  preScriptPath,
-  type Automation,
-} from "./automation.ts";
+import { dailySessionArgs, scriptPath, type Automation } from "./automation.ts";
 
 const automation = {
   jobName: "daily-review",
@@ -16,46 +12,34 @@ const automation = {
 } satisfies Automation;
 
 describe("automation configuration", () => {
-  test("keeps an optional pre-script filename", () => {
+  test("creates a stable per-day session only when enabled", () => {
+    expect(dailySessionArgs(automation, new Date(2026, 8, 7))).toEqual([]);
     expect(
-      parseAutomationConfig({
-        automations: [{ ...automation, preScriptName: "pre-script.ts" }],
-      }),
-    ).toEqual({
-      automations: [{ ...automation, preScriptName: "pre-script.ts" }],
-    });
+      dailySessionArgs(
+        { ...automation, dailySession: true },
+        new Date(2026, 8, 7),
+      ).slice(0, 2),
+    ).toEqual(["--session-id", "daily-review-2026-09-07"]);
   });
 
-  test("requires an automation array", () => {
-    for (const value of [null, {}, { automations: {} }])
-      expect(() => parseAutomationConfig(value)).toThrow(
-        "Invalid automation config",
-      );
+  test("honors MATATO_PI_STORAGE_PATH for the session directory", () => {
+    const original = process.env.MATATO_PI_STORAGE_PATH;
+    process.env.MATATO_PI_STORAGE_PATH = "/tmp/matato-pi-test-storage";
+    try {
+      expect(
+        dailySessionArgs({ ...automation, dailySession: true }).slice(2),
+      ).toEqual(["--session-dir", "/tmp/matato-pi-test-storage/sessions"]);
+    } finally {
+      if (original === undefined) delete process.env.MATATO_PI_STORAGE_PATH;
+      else process.env.MATATO_PI_STORAGE_PATH = original;
+    }
   });
 
-  test("rejects invalid automation fields", () => {
-    for (const invalid of [
-      { jobName: 1 },
-      { enabled: "true" },
-      { schedule: " " },
-      { userPrompt: " " },
-      { model: " " },
-      { thinkingLevel: "invalid" },
-      { canLaunchSubAgents: "false" },
-      { preScriptName: "../secret.ts" },
-    ])
-      expect(() =>
-        parseAutomationConfig({ automations: [{ ...automation, ...invalid }] }),
-      ).toThrow("Invalid automation config");
-  });
-
-  test("resolves configured pre-scripts and skips jobs without one", () => {
-    expect(preScriptPath("/skills/daily-review", "pre-script.ts")).toBe(
+  test("resolves configured scripts and skips jobs without one", () => {
+    expect(scriptPath("/skills/daily-review", "pre-script.ts")).toBe(
       "/skills/daily-review/scripts/pre-script.ts",
     );
-    expect(preScriptPath("/skills/daily-review", undefined)).toBeUndefined();
-    expect(
-      preScriptPath("/skills/daily-review", "../secret.ts"),
-    ).toBeUndefined();
+    expect(scriptPath("/skills/daily-review", undefined)).toBeUndefined();
+    expect(scriptPath("/skills/daily-review", "../secret.ts")).toBeUndefined();
   });
 });

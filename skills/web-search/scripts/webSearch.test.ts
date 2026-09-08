@@ -10,18 +10,34 @@ afterEach(() => {
   else process.env.TAVILY_API_KEY = originalKey;
 });
 
-const mockFetch = (body: unknown) => {
-  globalThis.fetch = (async () =>
-    new Response(JSON.stringify(body), {
-      status: 200,
-    })) as unknown as typeof fetch;
+type MockResponse = {
+  error?: string;
+  results?: Array<{ raw_content?: string }>;
+};
+type FetchHandler = (options?: RequestInit) => Promise<Response>;
+
+const setFetch = (handler: FetchHandler): void => {
+  globalThis.fetch = Object.assign(
+    async (_input: RequestInfo | URL, options?: RequestInit) =>
+      handler(options),
+    { preconnect: (): void => {} },
+  );
+};
+
+const mockFetch = (body: MockResponse): void => {
+  setFetch(
+    async () =>
+      new Response(JSON.stringify(body), {
+        status: 200,
+      }),
+  );
 };
 
 describe("Tavily helpers", () => {
   test("normalizes a query, caps quick results, and drops invalid duplicates", async () => {
     process.env.TAVILY_API_KEY = "key";
     let request: RequestInit | undefined;
-    globalThis.fetch = (async (_url, options) => {
+    setFetch(async (options) => {
       request = options;
       return new Response(
         JSON.stringify({
@@ -47,7 +63,7 @@ describe("Tavily helpers", () => {
           ],
         }),
       );
-    }) as typeof fetch;
+    });
 
     await expect(
       searchWeb({ query: " query ", depthMode: "quick", maxResults: 99 }),

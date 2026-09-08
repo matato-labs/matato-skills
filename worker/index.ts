@@ -6,9 +6,10 @@ import { join } from "node:path";
 import { StringDecoder } from "node:string_decoder";
 import { Cron } from "croner";
 import {
-  parseAutomationConfig,
-  preScriptPath,
+  dailySessionArgs,
+  scriptPath,
   type Automation,
+  type AutomationConfig,
 } from "../src/automation.ts";
 
 type RpcMessage = { type?: string; success?: boolean; error?: string };
@@ -25,9 +26,9 @@ const log = (message: string): void =>
 
 async function loadAutomations(): Promise<Array<Automation>> {
   try {
-    const config = parseAutomationConfig(
-      JSON.parse(await readFile(configPath, "utf8")),
-    );
+    const config = JSON.parse(
+      await readFile(configPath, "utf8"),
+    ) as AutomationConfig;
     return config.automations.filter((automation) => automation.enabled);
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") return [];
@@ -54,24 +55,24 @@ async function resolveSkillPath(jobName: string): Promise<string> {
   throw new Error(`Skill not found: ${jobName}`);
 }
 
-async function runPreScript(
+async function runScript(
   skillPath: string,
-  preScriptName: string | undefined,
+  scriptName: string | undefined,
 ): Promise<string | null> {
-  const scriptPath = preScriptPath(skillPath, preScriptName);
-  if (!scriptPath) return null;
+  const resolvedPath = scriptPath(skillPath, scriptName);
+  if (!resolvedPath) return null;
   try {
-    await access(scriptPath, constants.X_OK);
+    await access(resolvedPath, constants.X_OK);
   } catch {
     try {
-      await access(scriptPath, constants.F_OK);
+      await access(resolvedPath, constants.F_OK);
     } catch {
       return null;
     }
   }
 
   return new Promise((resolve, reject) => {
-    const child = spawn("bun", [scriptPath], {
+    const child = spawn("bun", [resolvedPath], {
       cwd: skillPath,
       env: {
         ...process.env,
@@ -88,9 +89,7 @@ async function runPreScript(
     child.once("close", (code) => {
       if (code === 0) resolve(stdout.trim());
       else
-        reject(
-          new Error(stderr.trim() || `Pre-script exited with code ${code}`),
-        );
+        reject(new Error(stderr.trim() || `Script exited with code ${code}`));
     });
   });
 }
@@ -125,6 +124,7 @@ function runPiRpc(
         automation.thinkingLevel,
         "--skill",
         skillPath,
+        ...dailySessionArgs(automation),
       ],
       { cwd: process.cwd(), stdio: ["pipe", "pipe", "pipe"] },
     );
@@ -183,15 +183,17 @@ function runPiRpc(
 
 async function runAutomation(automation: Automation): Promise<void> {
   const skillPath = await resolveSkillPath(automation.jobName);
-  const preScriptOutput = await runPreScript(
-    skillPath,
-    automation.preScriptName,
-  );
+  const preScriptOutput = await runScript(skillPath, "preScript.ts");
+  if (preScriptOutput === "") {
+    // log(`Job skipped: ${automation.jobName} (pre-script produced no output)`);
+    return;
+  }
   await runPiRpc(
     automation,
     skillPath,
     createPrompt(automation, preScriptOutput),
   );
+  await runScript(skillPath, "postScript.ts");
   log(`Job completed: ${automation.jobName}`);
 }
 
@@ -211,7 +213,7 @@ async function reload(): Promise<void> {
           automation.schedule,
           { name: automation.jobName, protect: true },
           () =>
-            runAutomation(automation).catch((error: unknown) =>
+            runAutomation(automation).catch((error: Error) =>
               console.error(
                 `[matato-pi-worker] Job failed: ${automation.jobName}`,
                 error,
@@ -250,7 +252,7 @@ async function sync(): Promise<void> {
 async function main(): Promise<void> {
   await sync();
   setInterval(() => {
-    void sync().catch((error: unknown) =>
+    void sync().catch((error: Error) =>
       console.error("[matato-pi-worker] Could not reload automations", error),
     );
   }, 5_000).unref();
@@ -266,7 +268,7 @@ function shutdown(): void {
 
 process.once("SIGINT", shutdown);
 process.once("SIGTERM", shutdown);
-void main().catch((error: unknown) => {
+void main().catch((error: Error) => {
   console.error("[matato-pi-worker] Could not start", error);
   process.exitCode = 1;
 });
