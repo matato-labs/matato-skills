@@ -7,6 +7,14 @@ pi install /absolute/path/to/matato-pi
 ```
 > You can install from github as well `pi -e git:github.com/user/repo`
 
+## Environment variables
+
+| Variable | Required by | Description |
+| --- | --- | --- |
+| `TELEGRAM_BOT_TOKEN` | Telegram | Bot API token. |
+| `TELEGRAM_OWNER_ID` | Telegram | Owner chat ID allowed to use the inbox and receive replies. |
+| `WORKSPACE` | Workspace skills | Directory containing your repositories. |
+
 ## Features
 * Subagents
 * Scheduled jobs
@@ -38,7 +46,7 @@ Scheduled jobs are configured via a json file under `~/.config/matato-pi/automat
 
 To create/read/update/delete cron jobs, use `/automations`.
 ### Telegram
-Set `TELEGRAM_BOT_TOKEN` and `TELEGRAM_OWNER_ID`, then add this automation through `/automations`:
+Add this automation through `/automations`:
 
 ```json
 {
@@ -54,4 +62,4 @@ Set `TELEGRAM_BOT_TOKEN` and `TELEGRAM_OWNER_ID`, then add this automation throu
 }
 ```
 
-Each day uses one continuous Pi session under `~/.config/matato-pi/sessions` (override the root with `MATATO_PI_STORAGE_PATH` or `STORAGE_PATH`). Empty polls skip Pi entirely. The inbox accepts messages only from `TELEGRAM_OWNER_ID`; agents reply through `telegram_send_message`. Use `/telegram` to inspect configuration and the latest poll time.
+Each day uses one continuous Pi session under `~/.config/matato-pi/sessions` (override the root with `MATATO_PI_STORAGE_PATH` or `STORAGE_PATH`). Empty polls skip Pi entirely. The inbox accepts messages only from `TELEGRAM_OWNER_ID`; agents reply through `telegram_send_message`.

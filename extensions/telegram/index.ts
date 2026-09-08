@@ -1,6 +1,5 @@
 import { Type } from "typebox";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { readTelegramCheckpoint } from "../../src/telegramCheckpoint.ts";
 import { sendTelegramMessage } from "../../src/telegram.ts";
 
 export default function (pi: ExtensionAPI): void {
@@ -20,23 +19,6 @@ export default function (pi: ExtensionAPI): void {
         content: [{ type: "text", text: "Telegram message sent." }],
         details: { chatId },
       };
-    },
-  });
-
-  pi.registerCommand("telegram", {
-    description: "Show Telegram integration configuration and polling status",
-    handler: async (_args, ctx) => {
-      const checkpoint = await readTelegramCheckpoint();
-      const token = process.env.TELEGRAM_BOT_TOKEN?.trim()
-        ? "configured"
-        : "missing";
-      const owner = process.env.TELEGRAM_OWNER_ID?.trim()
-        ? "configured"
-        : "missing";
-      ctx.ui.notify(
-        `Telegram token: ${token}; owner: ${owner}; last poll: ${checkpoint.lastPolledAt ?? "never"}.`,
-        token === "configured" && owner === "configured" ? "info" : "warning",
-      );
     },
   });
 }
