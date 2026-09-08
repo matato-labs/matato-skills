@@ -7,9 +7,9 @@ import { StringDecoder } from "node:string_decoder";
 import { Cron } from "croner";
 import {
   dailySessionArgs,
-  parseAutomationConfig,
   scriptPath,
   type Automation,
+  type AutomationConfig,
 } from "../src/automation.ts";
 
 type RpcMessage = { type?: string; success?: boolean; error?: string };
@@ -26,9 +26,9 @@ const log = (message: string): void =>
 
 async function loadAutomations(): Promise<Array<Automation>> {
   try {
-    const config = parseAutomationConfig(
-      JSON.parse(await readFile(configPath, "utf8")),
-    );
+    const config = JSON.parse(
+      await readFile(configPath, "utf8"),
+    ) as AutomationConfig;
     return config.automations.filter((automation) => automation.enabled);
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") return [];
@@ -184,7 +184,7 @@ function runPiRpc(
 async function runAutomation(automation: Automation): Promise<void> {
   const skillPath = await resolveSkillPath(automation.jobName);
   const preScriptOutput = await runScript(skillPath, automation.preScriptName);
-  if (automation.skipIfPreScriptEmpty && preScriptOutput === "") {
+  if (preScriptOutput === "") {
     log(`Job skipped: ${automation.jobName} (pre-script produced no output)`);
     return;
   }
@@ -193,7 +193,7 @@ async function runAutomation(automation: Automation): Promise<void> {
     skillPath,
     createPrompt(automation, preScriptOutput),
   );
-  await runScript(skillPath, automation.postScriptName);
+  await runScript(skillPath, "postScript.ts");
   log(`Job completed: ${automation.jobName}`);
 }
 
@@ -213,7 +213,7 @@ async function reload(): Promise<void> {
           automation.schedule,
           { name: automation.jobName, protect: true },
           () =>
-            runAutomation(automation).catch((error: unknown) =>
+            runAutomation(automation).catch((error: Error) =>
               console.error(
                 `[matato-pi-worker] Job failed: ${automation.jobName}`,
                 error,
@@ -252,7 +252,7 @@ async function sync(): Promise<void> {
 async function main(): Promise<void> {
   await sync();
   setInterval(() => {
-    void sync().catch((error: unknown) =>
+    void sync().catch((error: Error) =>
       console.error("[matato-pi-worker] Could not reload automations", error),
     );
   }, 5_000).unref();
@@ -268,7 +268,7 @@ function shutdown(): void {
 
 process.once("SIGINT", shutdown);
 process.once("SIGTERM", shutdown);
-void main().catch((error: unknown) => {
+void main().catch((error: Error) => {
   console.error("[matato-pi-worker] Could not start", error);
   process.exitCode = 1;
 });

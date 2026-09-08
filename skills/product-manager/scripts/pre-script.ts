@@ -5,11 +5,17 @@ import { dirname } from "node:path";
 import { run, runResult } from "../../../src/workspaceRepos.ts";
 
 type Project = { name: string; repositoryUrl: string; repository: string };
-type State = { lastProposalDate?: string; proposals?: Array<unknown> };
+type Proposal = Record<string, string>;
+type State = { lastProposalDate?: string; proposals?: Proposal[] };
 type RepositoryFile = { type: string; name: string };
 type PullRequest = { title: string; number: number; url: string };
+type SkipDetails = {
+  localDate?: string;
+  file?: string;
+  pullRequests?: PullRequest[];
+};
 
-const skip = (reason: string, details: Record<string, unknown> = {}): void =>
+const skip = (reason: string, details: SkipDetails = {}): void =>
   console.log(JSON.stringify({ skip: true, reason, ...details }));
 
 const localDate = (timezone: string): string => {

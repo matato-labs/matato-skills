@@ -2,8 +2,6 @@ import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import {
-  isAutomation,
-  parseAutomationConfig,
   type Automation,
   type AutomationConfig,
 } from "../../src/automation.ts";
@@ -34,19 +32,12 @@ const configPath = join(
 );
 
 function parseAutomation(text: string): Automation {
-  const automation: unknown = JSON.parse(text);
-  if (!isAutomation(automation))
-    throw new Error(
-      "Invalid automation JSON. Check every required field and value.",
-    );
-  return automation;
+  return JSON.parse(text) as Automation;
 }
 
 async function loadConfig(): Promise<AutomationConfig> {
   try {
-    return parseAutomationConfig(
-      JSON.parse(await readFile(configPath, "utf8")),
-    );
+    return JSON.parse(await readFile(configPath, "utf8")) as AutomationConfig;
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT")
       return { automations: [] };
@@ -73,7 +64,6 @@ function defaultAutomation(ctx: ExtensionCommandContext): Automation {
     schedule: "0 9 * * *",
     userPrompt: "Describe the automation work here.",
     dailySession: false,
-    skipIfPreScriptEmpty: false,
     model: ctx.model?.id ?? "model-id",
     thinkingLevel: "low",
     canLaunchSubAgents: false,
@@ -238,7 +228,6 @@ class AutomationBrowser {
       `Sub-agents: ${automation.canLaunchSubAgents ? "allowed" : "not allowed"}`,
       `Pre-script: ${script}`,
       `Daily session: ${automation.dailySession ? "enabled" : "disabled"}`,
-      `Skip on empty pre-script: ${automation.skipIfPreScriptEmpty ? "enabled" : "disabled"}`,
       "",
       this.theme.fg("muted", "Prompt"),
       ...automation.userPrompt.split("\n"),

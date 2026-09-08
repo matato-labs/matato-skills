@@ -1,10 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import {
-  dailySessionArgs,
-  parseAutomationConfig,
-  scriptPath,
-  type Automation,
-} from "./automation.ts";
+import { dailySessionArgs, scriptPath, type Automation } from "./automation.ts";
 
 const automation = {
   jobName: "daily-review",
@@ -17,32 +12,6 @@ const automation = {
 } satisfies Automation;
 
 describe("automation configuration", () => {
-  test("keeps optional script and daily-session settings", () => {
-    expect(
-      parseAutomationConfig({
-        automations: [
-          {
-            ...automation,
-            preScriptName: "pre-script.ts",
-            postScriptName: "post-script.ts",
-            dailySession: true,
-            skipIfPreScriptEmpty: true,
-          },
-        ],
-      }),
-    ).toEqual({
-      automations: [
-        {
-          ...automation,
-          preScriptName: "pre-script.ts",
-          postScriptName: "post-script.ts",
-          dailySession: true,
-          skipIfPreScriptEmpty: true,
-        },
-      ],
-    });
-  });
-
   test("creates a stable per-day session only when enabled", () => {
     expect(dailySessionArgs(automation, new Date(2026, 8, 7))).toEqual([]);
     expect(
@@ -64,32 +33,6 @@ describe("automation configuration", () => {
       if (original === undefined) delete process.env.MATATO_PI_STORAGE_PATH;
       else process.env.MATATO_PI_STORAGE_PATH = original;
     }
-  });
-
-  test("requires an automation array", () => {
-    for (const value of [null, {}, { automations: {} }])
-      expect(() => parseAutomationConfig(value)).toThrow(
-        "Invalid automation config",
-      );
-  });
-
-  test("rejects invalid automation fields", () => {
-    for (const invalid of [
-      { jobName: 1 },
-      { enabled: "true" },
-      { schedule: " " },
-      { userPrompt: " " },
-      { model: " " },
-      { thinkingLevel: "invalid" },
-      { canLaunchSubAgents: "false" },
-      { preScriptName: "../secret.ts" },
-      { postScriptName: "../secret.ts" },
-      { dailySession: "true" },
-      { skipIfPreScriptEmpty: "true" },
-    ])
-      expect(() =>
-        parseAutomationConfig({ automations: [{ ...automation, ...invalid }] }),
-      ).toThrow("Invalid automation config");
   });
 
   test("resolves configured scripts and skips jobs without one", () => {

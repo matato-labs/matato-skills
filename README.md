@@ -47,9 +47,7 @@ Set `TELEGRAM_BOT_TOKEN` and `TELEGRAM_OWNER_ID`, then add this automation throu
   "schedule": "*/3 * * * * *",
   "userPrompt": "Process the new Telegram messages.",
   "preScriptName": "preScript.ts",
-  "postScriptName": "postScript.ts",
   "dailySession": true,
-  "skipIfPreScriptEmpty": true,
   "model": "your-model",
   "thinkingLevel": "low",
   "canLaunchSubAgents": false
