@@ -54,7 +54,6 @@ Add this automation through `/automations`:
   "enabled": true,
   "schedule": "*/3 * * * * *",
   "userPrompt": "Process the new Telegram messages.",
-  "preScriptName": "preScript.ts",
   "dailySession": true,
   "model": "your-model",
   "thinkingLevel": "low",

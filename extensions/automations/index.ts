@@ -218,7 +218,6 @@ class AutomationBrowser {
     const enabled = automation.enabled
       ? this.theme.fg("success", "Enabled")
       : this.theme.fg("muted", "Paused");
-    const script = automation.preScriptName ?? "None";
     return [
       this.theme.bold(automation.jobName),
       "",
@@ -226,7 +225,6 @@ class AutomationBrowser {
       `Model: ${automation.model}`,
       `Reasoning: ${automation.thinkingLevel}`,
       `Sub-agents: ${automation.canLaunchSubAgents ? "allowed" : "not allowed"}`,
-      `Pre-script: ${script}`,
       `Daily session: ${automation.dailySession ? "enabled" : "disabled"}`,
       "",
       this.theme.fg("muted", "Prompt"),

@@ -8,7 +8,6 @@ export type Automation = {
   enabled: boolean;
   schedule: string;
   userPrompt: string;
-  preScriptName?: string;
   dailySession?: boolean;
   model: string;
   thinkingLevel: ThinkingLevel;
