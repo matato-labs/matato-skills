@@ -6,7 +6,7 @@ on:
 
 jobs:
   test:
-    name: Test
+    name: Pi Test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -19,7 +19,7 @@ jobs:
       - run: npm test
 
   lint:
-    name: Lint
+    name: Pi Lint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -31,7 +31,7 @@ jobs:
       - run: npm run lint
 
   typecheck:
-    name: Typecheck
+    name: Pi Typecheck
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -41,3 +41,48 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run check
+
+  elixir-test:
+    name: Elixir Test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web-app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: erlef/setup-beam@v1
+        with:
+          elixir-version: "1.17.3"
+          otp-version: "27.1"
+      - run: mix deps.get
+      - run: mix test
+
+  elixir-format:
+    name: Elixir Format
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web-app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: erlef/setup-beam@v1
+        with:
+          elixir-version: "1.17.3"
+          otp-version: "27.1"
+      - run: mix deps.get
+      - run: mix format --check-formatted
+
+  elixir-lint:
+    name: Elixir Lint
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web-app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: erlef/setup-beam@v1
+        with:
+          elixir-version: "1.17.3"
+          otp-version: "27.1"
+      - run: mix deps.get
+      - run: mix compile --warnings-as-errors
