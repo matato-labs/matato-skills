@@ -4,33 +4,62 @@ defmodule WebApp.AutomationRunner do
   alias WebApp.Automation
 
   def run(%Automation{} = automation) do
+    Logger.info("Automation started: #{automation.job_name}")
+
     with {:ok, skill_path} <- skill_path(automation.job_name),
          {:ok, output} <- script(skill_path, "preScript.ts") do
       run_automation(automation, skill_path, output)
     else
       {:error, reason} ->
-        Logger.error("Automation failed", job_name: automation.job_name, reason: reason)
+        Logger.error("Automation failed: #{automation.job_name}. Reason: #{reason}")
     end
   end
 
   defp run_automation(automation, _skill_path, "") do
-    Logger.info("Automation skipped", job_name: automation.job_name)
+    Logger.info("Automation skipped: #{automation.job_name} (pre-script returned no work)")
   end
 
   defp run_automation(automation, skill_path, output) do
     with :ok <- run_pi(automation, skill_path, output),
          {:ok, _output} <- script(skill_path, "postScript.ts") do
-      Logger.info("Automation completed", job_name: automation.job_name)
+      Logger.info("Automation completed: #{automation.job_name}")
     else
       {:error, reason} ->
-        Logger.error("Automation failed", job_name: automation.job_name, reason: reason)
+        Logger.error("Automation failed: #{automation.job_name}. Reason: #{reason}")
     end
   end
 
   defp skill_path(job_name) do
-    path = Path.join([System.user_home!(), ".pi", "agent", "skills", job_name])
-    if File.dir?(path), do: {:ok, path}, else: {:error, "Skill not found: #{job_name}"}
+    paths = [default_skills_path() | package_paths()] |> Enum.map(&Path.join(&1, job_name))
+
+    case Enum.find(paths, &File.dir?/1) do
+      nil -> {:error, "Skill not found: #{job_name}. Searched: #{Enum.join(paths, ", ")}"}
+      path -> {:ok, path}
+    end
   end
+
+  defp default_skills_path, do: Path.join([System.user_home!(), ".pi", "agent", "skills"])
+
+  defp package_paths do
+    settings_path = Path.join([System.user_home!(), ".pi", "agent", "settings.json"])
+
+    with {:ok, body} <- File.read(settings_path),
+         {:ok, %{"packages" => packages}} when is_list(packages) <- Jason.decode(body) do
+      packages
+      |> Enum.flat_map(&package_source/1)
+      |> Enum.map(&Path.expand(&1, Path.dirname(settings_path)))
+      |> Enum.map(&Path.join(&1, "skills"))
+    else
+      _ -> []
+    end
+  end
+
+  defp package_source(source) when is_binary(source) do
+    if String.starts_with?(source, ["/", "."]), do: [source], else: []
+  end
+
+  defp package_source(%{"source" => source}), do: package_source(source)
+  defp package_source(_package), do: []
 
   defp script(skill_path, name) do
     path = Path.join([skill_path, "scripts", name])

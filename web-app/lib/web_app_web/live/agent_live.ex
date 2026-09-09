@@ -185,7 +185,7 @@ defmodule WebAppWeb.AgentLive do
       <div :if={!@streaming} class="markdown">{markdown(@item.text)}</div>
       <div :if={@streaming} class="whitespace-pre-wrap">
         {@item.text}<span
-          :if={@streaming && @item.role == :agent}
+          :if={@item.role == :agent}
           class="ml-1 inline-block h-4 w-0.5 animate-pulse bg-primary align-middle"
         ></span>
       </div>

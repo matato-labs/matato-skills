@@ -1,6 +1,8 @@
 defmodule WebApp.AutomationTest do
   use ExUnit.Case, async: false
 
+  import ExUnit.CaptureLog
+
   alias WebApp.{Automation, AutomationRunner, AutomationScheduler}
 
   setup do
@@ -22,6 +24,14 @@ defmodule WebApp.AutomationTest do
     assert automation.job_name == "enabled"
     assert automation.daily_session
     refute disabled.enabled
+  end
+
+  test "logs the failed automation and reason" do
+    job_name = "missing-#{System.unique_integer([:positive])}"
+
+    log = capture_log(fn -> AutomationRunner.run(automation(job_name, "* * * * *")) end)
+
+    assert log =~ "Automation failed: #{job_name}. Reason: Skill not found: #{job_name}"
   end
 
   test "validates every schedule before atomically replacing enabled jobs" do
