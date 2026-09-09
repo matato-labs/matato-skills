@@ -1,8 +1,9 @@
 import { execFileSync } from "node:child_process";
-import { readdir, readFile } from "node:fs/promises";
+import { readdir, readFile, unlink } from "node:fs/promises";
 import { basename, join } from "node:path";
 import { storagePath } from "../../src/storagePath.ts";
 import {
+  copyToClipboard,
   getMarkdownTheme,
   type ExtensionAPI,
   type ExtensionCommandContext,
@@ -19,6 +20,7 @@ import {
 
 interface ArchiveFile {
   name: string;
+  path: string;
   content: string;
 }
 
@@ -34,10 +36,10 @@ async function loadArchives(directory: string): Promise<ArchiveFile[]> {
       .map((entry) => entry.name)
       .sort((a, b) => b.localeCompare(a));
     return await Promise.all(
-      names.map(async (name) => ({
-        name,
-        content: await readFile(join(directory, name), "utf8"),
-      })),
+      names.map(async (name) => {
+        const path = join(directory, name);
+        return { name, path, content: await readFile(path, "utf8") };
+      }),
     );
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") return [];
@@ -67,10 +69,11 @@ class ArchiveBrowser {
 
   constructor(
     private readonly title: string,
-    private readonly files: ArchiveFile[],
+    private readonly files: Array<ArchiveFile>,
     private readonly tui: TUI,
     private readonly theme: Theme,
     private readonly done: () => void,
+    private readonly notify: (message: string, level: "info" | "error") => void,
   ) {}
 
   handleInput(data: string): void {
@@ -85,6 +88,14 @@ class ArchiveBrowser {
         () => (this.focus = "preview"),
       ],
       [matchesKey(data, Key.left), () => (this.focus = "files")],
+      [
+        matchesKey(data, "c") && Boolean(this.files.length),
+        () => void this.copyPath(),
+      ],
+      [
+        matchesKey(data, "d") && Boolean(this.files.length),
+        () => void this.deleteFile(),
+      ],
       [matchesKey(data, Key.up), () => this.move(-1)],
       [matchesKey(data, Key.down), () => this.move(1)],
       [matchesKey(data, Key.home), () => this.jump(0)],
@@ -170,7 +181,7 @@ class ArchiveBrowser {
     );
     const help =
       this.focus === "files"
-        ? "↑↓ select · Enter preview · Esc close"
+        ? "↑↓ select · Enter preview · c copy path · d delete · Esc close"
         : "↑↓ scroll · ←/Esc files";
     lines.push(this.pad(this.theme.fg("dim", ` ${help}`), width));
     return lines;
@@ -196,6 +207,40 @@ class ArchiveBrowser {
     this.selected = Math.max(0, Math.min(index, this.files.length - 1));
     this.previewOffset = 0;
     this.markdownIndex = -1;
+  }
+
+  private async copyPath(): Promise<void> {
+    const file = this.files[this.selected];
+    if (!file) return;
+    try {
+      await copyToClipboard(file.path);
+      this.notify("File path copied.", "info");
+    } catch (error) {
+      this.notify(
+        `Could not copy file path: ${(error as Error).message}`,
+        "error",
+      );
+    }
+  }
+
+  private async deleteFile(): Promise<void> {
+    const file = this.files[this.selected];
+    if (!file) return;
+    try {
+      await unlink(file.path);
+      this.files.splice(this.selected, 1);
+      this.selected = Math.min(this.selected, this.files.length - 1);
+      this.previewOffset = 0;
+      this.markdown = undefined;
+      this.markdownIndex = -1;
+      this.notify(`Deleted ${file.name}.`, "info");
+      this.tui.requestRender();
+    } catch (error) {
+      this.notify(
+        `Could not delete ${file.name}: ${(error as Error).message}`,
+        "error",
+      );
+    }
   }
 
   private previewHeader(): string {
@@ -245,7 +290,9 @@ export default function (pi: ExtensionAPI): void {
     const files = await loadArchives(directory);
     await ctx.ui.custom<void>(
       (tui, theme, _keybindings, done) =>
-        new ArchiveBrowser(title, files, tui, theme, done),
+        new ArchiveBrowser(title, files, tui, theme, done, (message, level) =>
+          ctx.ui.notify(message, level),
+        ),
       {
         overlay: true,
         overlayOptions: { anchor: "center", width: "95%", maxHeight: "80%" },
