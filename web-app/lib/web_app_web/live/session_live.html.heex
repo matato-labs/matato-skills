@@ -1,0 +1,35 @@
+<Layouts.app flash={@flash}>
+  <div class="h-screen overflow-hidden bg-base-300 text-base-content">
+    <div class="grid h-full lg:grid-cols-[17rem_minmax(0,1fr)]">
+      <SessionComponents.sidebar sessions={@sessions} session_id={@session_id} />
+
+      <main class="grid h-full min-h-0 place-items-center overflow-y-auto bg-base-300 px-5 py-12">
+        <div class="w-full max-w-lg">
+          <.form for={@start_form} id="start-session-form" phx-submit="start" class="space-y-5">
+            <.input
+              field={@start_form[:project]}
+              type="select"
+              label="Project directory"
+              prompt="Select a project…"
+              options={Enum.map(@projects, &{&1.name, &1.path})}
+              required
+              class="select w-full border-base-content/15 bg-base-200 focus:border-primary focus:outline-none"
+            />
+
+            <button id="start-session-button" class="btn btn-primary w-full">
+              Start Pi session <.icon name="hero-arrow-right" class="size-4" />
+            </button>
+          </.form>
+
+          <div
+            :if={@error}
+            class="mt-4 rounded-lg border border-error/30 bg-error/8 px-4 py-3 text-sm text-error"
+            role="alert"
+          >
+            {@error}
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+</Layouts.app>

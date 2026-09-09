@@ -38,7 +38,7 @@ You need to understand if Matato already serves something similar and whether it
 
 ## State File
 
-The state file is `$STORAGE_PATH/agent/product-manager.json`.
+The state file is `$MATATO_PI_CONFIG/agent/product-manager.json`.
 
 Use this JSON shape:
 
@@ -67,7 +67,7 @@ Use this JSON shape:
    - the expected product value.
 5. Keep the proposal to 3 short paragraphs maximum.
 6. Save it under `docs/productDevelopment/` with a descriptive date-prefixed kebab-case markdown file name.
-7. Update `$STORAGE_PATH/agent/product-manager.json` with the saved proposal metadata.
+7. Update `$MATATO_PI_CONFIG/agent/product-manager.json` with the saved proposal metadata.
 8. From the cloned project repository root, run these git steps:
    - `git status --short` and stop if there are unrelated pending changes.
    - `git checkout main && git pull --ff-only origin main`

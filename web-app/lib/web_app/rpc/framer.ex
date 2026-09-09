@@ -16,7 +16,7 @@ defmodule WebApp.Rpc.Framer do
     size = byte_size(line) - 1
 
     case line do
-      <<body::binary-size(size), "\r">> -> body
+      <<body::binary-size(^size), "\r">> -> body
       _line -> line
     end
   end

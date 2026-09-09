@@ -46,7 +46,7 @@ Researches are under `/researches` and they are stored in `~/.config/matato-pi/r
 
 
 ### Scheduled jobs
-Scheduled jobs are configured via a json file under `~/.config/matato-pi/automations/config.json`, when you start the worker with `npm run worker`, it loads the configuration and created a cronjob for every entry. An automation is tight to an skill, they can only be executed if the skill exist, when it's tirggered, it will search for a script called `preScript.ts` under `{skillName}/scripts`, if it's present it's going to execute it and the outpt is going to be given to the skill as input.
+Scheduled jobs are configured via `$MATATO_PI_CONFIG/automations/config.json` (default: `~/.config/matato-pi/automations/config.json`), when you start the worker with `npm run worker`, it loads the configuration and created a cronjob for every entry. An automation is tight to an skill, they can only be executed if the skill exist, when it's tirggered, it will search for a script called `preScript.ts` under `{skillName}/scripts`, if it's present it's going to execute it and the outpt is going to be given to the skill as input.
 
 To create/read/update/delete cron jobs, use `/automations`.
 ### Telegram
@@ -65,4 +65,4 @@ Add this automation through `/automations`:
 }
 ```
 
-Each day uses one continuous Pi session under `~/.config/matato-pi/sessions` (override the root with `MATATO_PI_STORAGE_PATH` or `STORAGE_PATH`). Empty polls skip Pi entirely. The inbox accepts messages only from `TELEGRAM_OWNER_ID`; agents reply through `telegram_send_message`.
+Each day uses one continuous Pi session under `$MATATO_PI_CONFIG/sessions` (default root: `~/.config/matato-pi`). Override the root with `MATATO_PI_CONFIG`. Empty polls skip Pi entirely. The inbox accepts messages only from `TELEGRAM_OWNER_ID`; agents reply through `telegram_send_message`.

@@ -20,20 +20,20 @@ Run a scheduled health check for Matato. Use the `short-term-memory` skill to in
 
 ### Environment variables
 
-- `$STORAGE_PATH` is an environment variable. Resolve it through the shell before using file tools.
+- `$MATATO_PI_CONFIG` is an environment variable. Resolve it through the shell before using file tools.
 
 ### Sources
 
-- `$STORAGE_PATH/agent/deploy.log`
-- `$STORAGE_PATH/agent/sessions/matato/`
+- `$MATATO_PI_CONFIG/agent/deploy.log`
+- `$MATATO_PI_CONFIG/agent/sessions/matato/`
 
 ## Workflow
 
 1. Keep the analysis focused on the last hour.
-2. Resolve `$STORAGE_PATH` through the shell before reading from runtime storage.
-3. Read recent entries in `$STORAGE_PATH/agent/deploy.log`.
-4. Inspect recent session files under `$STORAGE_PATH/agent/sessions/matato/heartbeat/`.
-5. If needed, inspect nearby recent sessions under `$STORAGE_PATH/agent/sessions/matato/` for more context.
+2. Resolve `$MATATO_PI_CONFIG` through the shell before reading from runtime storage.
+3. Read recent entries in `$MATATO_PI_CONFIG/agent/deploy.log`.
+4. Inspect recent session files under `$MATATO_PI_CONFIG/agent/sessions/matato/heartbeat/`.
+5. If needed, inspect nearby recent sessions under `$MATATO_PI_CONFIG/agent/sessions/matato/` for more context.
 6. Use the `short-term-memory` skill to extract evidence and summarize what happened.
 7. Look for deployment failures, crashes, repeated runtime errors, missing or stale startup signals, stalled jobs, or other anomalies that require attention.
 8. Ignore healthy logs, old resolved errors, and isolated noise.

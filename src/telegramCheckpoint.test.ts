@@ -11,18 +11,17 @@ import {
 } from "./telegramCheckpoint.ts";
 
 let directory: string;
-const originalStoragePath = process.env.MATATO_PI_STORAGE_PATH;
+const originalStoragePath = process.env.MATATO_PI_CONFIG;
 
 beforeEach(async () => {
   directory = await mkdtemp(join(tmpdir(), "matato-pi-telegram-"));
-  process.env.MATATO_PI_STORAGE_PATH = directory;
+  process.env.MATATO_PI_CONFIG = directory;
 });
 
 afterEach(async () => {
   await rm(directory, { recursive: true, force: true });
-  if (originalStoragePath === undefined)
-    delete process.env.MATATO_PI_STORAGE_PATH;
-  else process.env.MATATO_PI_STORAGE_PATH = originalStoragePath;
+  if (originalStoragePath === undefined) delete process.env.MATATO_PI_CONFIG;
+  else process.env.MATATO_PI_CONFIG = originalStoragePath;
 });
 
 describe("Telegram checkpoint", () => {

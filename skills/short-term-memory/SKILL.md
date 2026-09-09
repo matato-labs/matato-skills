@@ -9,8 +9,8 @@ You have access to all daily activity via two sources: sessions, which include a
 
 ## Sources
 
-- `$STORAGE_PATH/agent/sessions/matato/`
-- `$STORAGE_PATH/agent/deploy.log`
+- `$MATATO_PI_CONFIG/agent/sessions/matato/`
+- `$MATATO_PI_CONFIG/agent/deploy.log`
 
 ## Task
 
@@ -20,8 +20,8 @@ Once you have all matches, make a summary for the user and reply back. Be to the
 
 ## Sessions
 
-`$STORAGE_PATH/agent/sessions/matato/` is a folder that contains all the different sessions between the user and agent, or scheduled job sessions, and they are organized by day or date time.
+`$MATATO_PI_CONFIG/agent/sessions/matato/` is a folder that contains all the different sessions between the user and agent, or scheduled job sessions, and they are organized by day or date time.
 
 ## Systems logs
 
-`$STORAGE_PATH/agent/deploy.log` contains the system logs written by the worker startup path.
+`$MATATO_PI_CONFIG/agent/deploy.log` contains the system logs written by the worker startup path.

@@ -11,12 +11,11 @@ import {
   type Automation,
   type AutomationConfig,
 } from "../src/automation.ts";
+import { automationConfigPath, storagePath } from "../src/storagePath.ts";
 
 type RpcMessage = { type?: string; success?: boolean; error?: string };
 
-const configPath =
-  process.env.MATATO_PI_AUTOMATIONS_CONFIG ??
-  join(homedir(), ".config", "matato-pi", "automations", "config.json");
+const configPath = automationConfigPath();
 const schedules = new Map<string, Cron>();
 let configStamp = "";
 let stopping = false;
@@ -76,8 +75,7 @@ async function runScript(
       cwd: skillPath,
       env: {
         ...process.env,
-        STORAGE_PATH:
-          process.env.STORAGE_PATH ?? join(homedir(), ".config", "matato-pi"),
+        MATATO_PI_CONFIG: storagePath(),
       },
       stdio: ["ignore", "pipe", "pipe"],
     });

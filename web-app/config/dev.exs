@@ -45,7 +45,8 @@ config :web_app, WebAppWeb.Endpoint,
 # Enable dev routes for dashboard and mailbox
 config :web_app, dev_routes: true
 
-# Do not include metadata nor timestamps in development logs
+# Keep development output focused on actionable application events.
+config :logger, level: :info
 config :logger, :default_formatter, format: "[$level] $message\n"
 
 # Set a higher stacktrace during development. Avoid configuring such
