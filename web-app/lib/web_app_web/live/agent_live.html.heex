@@ -1,0 +1,344 @@
+<Layouts.app flash={@flash}>
+  <div class="h-screen overflow-hidden bg-base-300 text-base-content">
+    <div class="grid h-full lg:grid-cols-[17rem_minmax(0,1fr)]">
+      <aside class="overflow-y-auto border-b border-base-content/10 bg-base-200 lg:border-r lg:border-b-0">
+        <div class="flex items-center gap-3 px-5 py-5">
+          <div class="grid size-8 place-items-center rounded-lg bg-primary text-primary-content">
+            <.icon name="hero-command-line" class="size-4" />
+          </div>
+          <div>
+            <p class="text-sm font-semibold tracking-tight">Matato Agent</p>
+          </div>
+        </div>
+
+        <div class="border-t border-base-content/10 px-3 py-4">
+          <div class="mb-2 flex items-center justify-between px-2">
+            <h2 class="text-[0.68rem] font-semibold uppercase tracking-[0.16em] text-base-content/45">
+              Sessions
+            </h2>
+            <.link
+              navigate={~p"/"}
+              class="rounded-md p-1 text-base-content/45 hover:bg-base-content/5 hover:text-base-content"
+              aria-label="New session"
+            >
+              <.icon name="hero-plus" class="size-4" />
+            </.link>
+          </div>
+          <nav
+            class="flex gap-2 overflow-x-auto lg:block lg:space-y-1"
+            aria-label="Agent sessions"
+          >
+            <.link
+              :for={item <- @sessions}
+              navigate={~p"/sessions/#{item["id"]}"}
+              class={[
+                "flex min-w-48 items-center gap-2 rounded-lg px-2.5 py-2 text-sm transition-colors lg:min-w-0",
+                item["id"] == @session_id && "bg-base-content/8 text-base-content",
+                item["id"] != @session_id &&
+                  "text-base-content/55 hover:bg-base-content/5 hover:text-base-content/80"
+              ]}
+            >
+              <span class={[
+                "size-1.5 shrink-0 rounded-full",
+                item["status"] in ["starting", "working", "retrying", "compacting"] &&
+                  "bg-warning",
+                item["status"] in ["interrupted", "failed"] && "bg-error",
+                item["status"] in ["stopped", "waiting_for_input"] && "bg-base-content/35",
+                item["status"] == "settled" && "bg-success/70"
+              ]}></span>
+              <span class="truncate">{item["name"]}</span>
+            </.link>
+            <p :if={@sessions == []} class="px-2 py-3 text-xs leading-5 text-base-content/40">
+              No sessions yet.
+            </p>
+          </nav>
+        </div>
+      </aside>
+
+      <main class="flex h-full min-h-0 flex-col overflow-hidden bg-base-300">
+        <%= if @session do %>
+          <header class="flex min-h-16 shrink-0 items-center justify-between gap-4 border-b border-base-content/10 px-5 lg:px-8">
+            <div class="min-w-0">
+              <h1 class="truncate text-sm font-semibold">
+                {Path.basename(
+                  Enum.find(@sessions, %{}, &(&1["id"] == @session_id))["project"] ||
+                    "Agent session"
+                )}
+              </h1>
+            </div>
+            <div class="flex items-center gap-2">
+              <button
+                :if={@session.status in [:working, :retrying, :compacting, :waiting_for_input]}
+                id="abort-button"
+                phx-click="abort"
+                disabled={!@interaction_owner}
+                class="btn btn-sm btn-ghost text-error"
+              >
+                <.icon name="hero-stop" class="size-4" /> Abort
+              </button>
+              <button
+                :if={!@interaction_owner && @session.status not in [:stopped, :failed]}
+                id="takeover-button"
+                phx-click="takeover"
+                class="btn btn-sm btn-outline"
+              >Take control</button>
+              <button
+                :if={@session.status in [:stopped, :failed]}
+                id="resume-button"
+                phx-click="resume"
+                class="btn btn-sm btn-primary"
+              >Resume</button>
+            </div>
+          </header>
+
+          <section
+            id="transcript"
+            class="min-h-0 flex-1 overflow-y-auto px-5 py-8 lg:px-8"
+            aria-live="polite"
+          >
+            <div class="mx-auto max-w-6xl space-y-7">
+              <div
+                :if={@session.status == :interrupted}
+                id="interrupted-run"
+                class="rounded-lg border border-warning/25 bg-warning/5 px-4 py-3 text-sm text-warning"
+                role="status"
+              >
+                The previous run was interrupted. Completed history was restored; prompts were not replayed.
+              </div>
+
+              <div
+                :for={notice <- @session.notices}
+                class="rounded-lg border border-base-content/10 bg-base-200 px-4 py-3 text-sm"
+                role="status"
+              >
+                {notice["message"]}
+              </div>
+
+              <div
+                :if={@session.messages == [] && partial_items(@session) == []}
+                class="py-20 text-center"
+              >
+                <div class="mx-auto mb-4 grid size-11 place-items-center rounded-xl bg-base-200 text-base-content/45">
+                  <.icon name="hero-sparkles" class="size-5" />
+                </div>
+                <h2 class="text-base font-semibold">Ready for a task</h2>
+                <p class="mx-auto mt-2 max-w-sm text-sm leading-6 text-base-content/50">
+                  Pi is connected to this project. Describe the outcome you want.
+                </p>
+              </div>
+
+              <div id="messages" phx-update="stream" class="contents">
+                <.transcript_item :for={{id, item} <- @streams.messages} id={id} item={item} />
+              </div>
+
+              <.transcript_item
+                :for={item <- activity_items(partial_items(@session), true)}
+                id={item.id}
+                item={item}
+                streaming
+              />
+
+              <div
+                :if={@session.queue["steering"] != [] || @session.queue["followUp"] != []}
+                class="flex items-center gap-3 rounded-lg border border-warning/25 bg-warning/5 px-3 py-2 text-xs text-warning-content"
+              >
+                <.icon name="hero-clock" class="size-4 text-warning" />
+                <span>{length(@session.queue["steering"])} steering, {length(
+                  @session.queue["followUp"]
+                )} later</span>
+                <button
+                  phx-click="clear_queue"
+                  disabled={!@interaction_owner}
+                  class="ml-auto font-semibold text-warning hover:underline"
+                >Clear queue</button>
+              </div>
+
+              <div
+                :if={@session.error}
+                class="rounded-lg border border-error/30 bg-error/8 px-4 py-3 text-sm text-error"
+                role="alert"
+              >
+                {@session.error}
+              </div>
+              <div
+                :if={@error}
+                id="session-error"
+                class="rounded-lg border border-error/30 bg-error/8 px-4 py-3 text-sm text-error"
+                role="alert"
+              >
+                {@error}
+              </div>
+            </div>
+          </section>
+
+          <section
+            :if={@session.dialog}
+            class="border-t border-warning/25 bg-warning/5 px-5 py-4 lg:px-8"
+          >
+            <div class="mx-auto max-w-3xl">
+              <p class="text-xs font-semibold uppercase tracking-wider text-warning">
+                Agent needs input
+              </p>
+              <h2 class="mt-1 text-sm font-semibold">{@session.dialog["title"]}</h2>
+              <p :if={@session.dialog["message"]} class="mt-1 text-sm text-base-content/60">
+                {@session.dialog["message"]}
+              </p>
+
+              <div :if={@session.dialog["method"] == "select"} class="mt-3 flex flex-wrap gap-2">
+                <button
+                  :for={option <- @session.dialog["options"]}
+                  id={"dialog-option-#{:erlang.phash2(option)}"}
+                  phx-click="dialog"
+                  phx-value-value={option}
+                  disabled={!@interaction_owner}
+                  class="btn btn-sm btn-outline"
+                >{option}</button>
+                <button
+                  id="dialog-cancel"
+                  phx-click="dialog"
+                  phx-value-cancel="true"
+                  disabled={!@interaction_owner}
+                  class="btn btn-sm btn-ghost"
+                >Cancel</button>
+              </div>
+
+              <div :if={@session.dialog["method"] == "confirm"} class="mt-3 flex gap-2">
+                <button
+                  id="dialog-confirm"
+                  disabled={!@interaction_owner}
+                  phx-click="dialog"
+                  phx-value-answer="true"
+                  class="btn btn-sm btn-primary"
+                >Confirm</button>
+                <button
+                  id="dialog-decline"
+                  disabled={!@interaction_owner}
+                  phx-click="dialog"
+                  phx-value-answer="false"
+                  class="btn btn-sm btn-ghost"
+                >Cancel</button>
+              </div>
+
+              <.form
+                :if={@session.dialog["method"] in ["input", "editor"]}
+                for={@dialog_form}
+                id="dialog-form"
+                phx-submit="dialog"
+                class="mt-3 flex items-end gap-2"
+              >
+                <.input
+                  field={@dialog_form[:value]}
+                  type="textarea"
+                  rows={if @session.dialog["method"] == "editor", do: 5, else: 1}
+                  placeholder={@session.dialog["placeholder"]}
+                  class="textarea textarea-bordered min-h-10 flex-1 bg-base-200 text-sm"
+                />
+                <button disabled={!@interaction_owner} class="btn btn-sm btn-primary">Submit</button>
+                <button
+                  type="button"
+                  disabled={!@interaction_owner}
+                  phx-click="dialog"
+                  phx-value-cancel="true"
+                  class="btn btn-sm btn-ghost"
+                >Cancel</button>
+              </.form>
+            </div>
+          </section>
+
+          <footer class="shrink-0 border-t border-base-content/10 bg-base-300 px-5 py-4 lg:px-8">
+            <.form
+              for={@composer_form}
+              id="composer-form"
+              phx-submit="compose"
+              phx-change="draft"
+              phx-hook="ComposerSubmit"
+              class="mx-auto max-w-3xl"
+            >
+              <.input
+                field={@composer_form[:message]}
+                type="textarea"
+                rows="3"
+                placeholder="Ask Pi to work on this project…"
+                class="textarea w-full resize-none border-base-content/15 bg-base-200 text-sm leading-6 placeholder:text-base-content/30 focus:border-primary focus:outline-none"
+              />
+              <div class="mt-2 flex items-center gap-2">
+                <p class="hidden text-xs text-base-content/35 sm:block">
+                  Shift + Enter for a new line
+                </p>
+                <div class="ml-auto flex gap-2">
+                  <button
+                    :if={@session.status in [:working, :retrying, :compacting]}
+                    name="behavior"
+                    value="steer"
+                    disabled={!@interaction_owner}
+                    class="btn btn-sm btn-ghost"
+                  >Steer</button>
+                  <button
+                    :if={@session.status in [:working, :retrying, :compacting]}
+                    name="behavior"
+                    value="later"
+                    disabled={!@interaction_owner}
+                    class="btn btn-sm btn-ghost"
+                  >Later</button>
+                  <button
+                    :if={@session.status not in [:stopped, :failed]}
+                    id="stop-button"
+                    type="button"
+                    disabled={!@interaction_owner}
+                    phx-click="stop"
+                    class="btn btn-sm btn-ghost text-error"
+                  >
+                    <.icon name="hero-stop" class="size-3.5" /> Stop
+                  </button>
+                  <button
+                    name="behavior"
+                    value="send"
+                    class="btn btn-sm btn-primary"
+                    disabled={
+                      !@interaction_owner ||
+                        @session.status in [:starting, :waiting_for_input, :stopped, :failed]
+                    }
+                  >
+                    Send <.icon name="hero-arrow-up" class="size-3.5" />
+                  </button>
+                </div>
+              </div>
+            </.form>
+          </footer>
+        <% else %>
+          <section class="grid flex-1 place-items-center px-5 py-12">
+            <div class="w-full max-w-lg">
+              <.form
+                for={@start_form}
+                id="start-session-form"
+                phx-submit="start"
+                class="space-y-5"
+              >
+                <.input
+                  field={@start_form[:project]}
+                  type="select"
+                  label="Project directory"
+                  prompt="Select a project…"
+                  options={Enum.map(@projects, &{&1.name, &1.path})}
+                  required
+                  class="select w-full border-base-content/15 bg-base-200 focus:border-primary focus:outline-none"
+                />
+
+                <button id="start-session-button" class="btn btn-primary w-full">Start Pi session
+                <.icon name="hero-arrow-right" class="size-4" /></button>
+              </.form>
+
+              <div
+                :if={@error}
+                class="mt-4 rounded-lg border border-error/30 bg-error/8 px-4 py-3 text-sm text-error"
+                role="alert"
+              >
+                {@error}
+              </div>
+            </div>
+          </section>
+        <% end %>
+      </main>
+    </div>
+  </div>
+</Layouts.app>

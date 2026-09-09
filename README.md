@@ -15,6 +15,10 @@ pi install /absolute/path/to/matato-pi
 | `TELEGRAM_OWNER_ID` | Telegram | Owner chat ID allowed to use the inbox and receive replies. |
 | `WORKSPACE` | Workspace skills | Directory containing your repositories. |
 
+## Remote Agent Web App
+
+A database-free Phoenix LiveView client for `pi --mode rpc` lives in [`web-app/`](web-app/README.md).
+
 ## Features
 * Subagents
 * Scheduled jobs
