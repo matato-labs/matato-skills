@@ -63,7 +63,9 @@ defmodule WebApp.MixProject do
       {:jason, "~> 1.2"},
       {:mdex, "~> 0.13.5"},
       {:dns_cluster, "~> 0.2.0"},
-      {:bandit, "~> 1.5"}
+      {:bandit, "~> 1.5"},
+      {:file_system, "~> 1.1"},
+      {:quantum, "~> 3.5"}
     ]
   end
 

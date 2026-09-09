@@ -1,10 +1,10 @@
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
-import { homedir } from "node:os";
-import { join } from "node:path";
+import { dirname } from "node:path";
 import {
   type Automation,
   type AutomationConfig,
 } from "../../src/automation.ts";
+import { automationConfigPath } from "../../src/storagePath.ts";
 import type {
   ExtensionAPI,
   ExtensionCommandContext,
@@ -23,13 +23,7 @@ type BrowserResult = {
   index: number;
 };
 
-const configPath = join(
-  homedir(),
-  ".config",
-  "matato-pi",
-  "automations",
-  "config.json",
-);
+const configPath = automationConfigPath();
 
 function parseAutomation(text: string): Automation {
   return JSON.parse(text) as Automation;
@@ -46,9 +40,7 @@ async function loadConfig(): Promise<AutomationConfig> {
 }
 
 async function saveConfig(config: AutomationConfig): Promise<void> {
-  await mkdir(join(homedir(), ".config", "matato-pi", "automations"), {
-    recursive: true,
-  });
+  await mkdir(dirname(configPath), { recursive: true });
   const temporaryPath = `${configPath}.tmp`;
   await writeFile(temporaryPath, `${JSON.stringify(config, null, 2)}\n`, {
     encoding: "utf8",

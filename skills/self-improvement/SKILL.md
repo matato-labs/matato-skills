@@ -14,7 +14,7 @@ The first part of this task is to find potential skills and/or automations that 
 
 Use the available summaries, logs, and raw sessions by using the skill `short-term-memory`, which gives you access to logs and skills.
 
-Skill must be save under the `STORAGE_PATH/.config/matato` folder
+Skill must be save under the `MATATO_PI_CONFIG/.config/matato` folder
 
 ## Errors or bugs
 

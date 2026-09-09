@@ -18,7 +18,7 @@ defmodule WebAppWeb.Router do
   scope "/", WebAppWeb do
     pipe_through :browser
 
-    live "/", AgentLive, :index
+    live "/", SessionLive, :index
     live "/sessions/:id", AgentLive, :show
   end
 

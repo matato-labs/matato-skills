@@ -98,8 +98,8 @@ const matchingPullRequests = async (
 };
 
 const main = async (): Promise<void> => {
-  const storagePath = Bun.env.STORAGE_PATH?.trim();
-  if (!storagePath) throw new Error("STORAGE_PATH must be set");
+  const storagePath = Bun.env.MATATO_PI_CONFIG?.trim();
+  if (!storagePath) throw new Error("MATATO_PI_CONFIG must be set");
 
   const timezone = Bun.env.TIMEZONE?.trim() || "UTC";
   const date = localDate(timezone);

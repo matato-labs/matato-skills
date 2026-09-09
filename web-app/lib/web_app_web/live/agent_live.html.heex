@@ -1,59 +1,7 @@
 <Layouts.app flash={@flash}>
   <div class="h-screen overflow-hidden bg-base-300 text-base-content">
     <div class="grid h-full lg:grid-cols-[17rem_minmax(0,1fr)]">
-      <aside class="overflow-y-auto border-b border-base-content/10 bg-base-200 lg:border-r lg:border-b-0">
-        <div class="flex items-center gap-3 px-5 py-5">
-          <div class="grid size-8 place-items-center rounded-lg bg-primary text-primary-content">
-            <.icon name="hero-command-line" class="size-4" />
-          </div>
-          <div>
-            <p class="text-sm font-semibold tracking-tight">Matato Agent</p>
-          </div>
-        </div>
-
-        <div class="border-t border-base-content/10 px-3 py-4">
-          <div class="mb-2 flex items-center justify-between px-2">
-            <h2 class="text-[0.68rem] font-semibold uppercase tracking-[0.16em] text-base-content/45">
-              Sessions
-            </h2>
-            <.link
-              navigate={~p"/"}
-              class="rounded-md p-1 text-base-content/45 hover:bg-base-content/5 hover:text-base-content"
-              aria-label="New session"
-            >
-              <.icon name="hero-plus" class="size-4" />
-            </.link>
-          </div>
-          <nav
-            class="flex gap-2 overflow-x-auto lg:block lg:space-y-1"
-            aria-label="Agent sessions"
-          >
-            <.link
-              :for={item <- @sessions}
-              navigate={~p"/sessions/#{item["id"]}"}
-              class={[
-                "flex min-w-48 items-center gap-2 rounded-lg px-2.5 py-2 text-sm transition-colors lg:min-w-0",
-                item["id"] == @session_id && "bg-base-content/8 text-base-content",
-                item["id"] != @session_id &&
-                  "text-base-content/55 hover:bg-base-content/5 hover:text-base-content/80"
-              ]}
-            >
-              <span class={[
-                "size-1.5 shrink-0 rounded-full",
-                item["status"] in ["starting", "working", "retrying", "compacting"] &&
-                  "bg-warning",
-                item["status"] in ["interrupted", "failed"] && "bg-error",
-                item["status"] in ["stopped", "waiting_for_input"] && "bg-base-content/35",
-                item["status"] == "settled" && "bg-success/70"
-              ]}></span>
-              <span class="truncate">{item["name"]}</span>
-            </.link>
-            <p :if={@sessions == []} class="px-2 py-3 text-xs leading-5 text-base-content/40">
-              No sessions yet.
-            </p>
-          </nav>
-        </div>
-      </aside>
+      <SessionComponents.sidebar sessions={@sessions} session_id={@session_id} />
 
       <main class="flex h-full min-h-0 flex-col overflow-hidden bg-base-300">
         <%= if @session do %>
@@ -307,35 +255,14 @@
           </footer>
         <% else %>
           <section class="grid flex-1 place-items-center px-5 py-12">
-            <div class="w-full max-w-lg">
-              <.form
-                for={@start_form}
-                id="start-session-form"
-                phx-submit="start"
-                class="space-y-5"
-              >
-                <.input
-                  field={@start_form[:project]}
-                  type="select"
-                  label="Project directory"
-                  prompt="Select a project…"
-                  options={Enum.map(@projects, &{&1.name, &1.path})}
-                  required
-                  class="select w-full border-base-content/15 bg-base-200 focus:border-primary focus:outline-none"
-                />
-
-                <button id="start-session-button" class="btn btn-primary w-full">Start Pi session
-                <.icon name="hero-arrow-right" class="size-4" /></button>
-              </.form>
-
-              <div
-                :if={@error}
-                class="mt-4 rounded-lg border border-error/30 bg-error/8 px-4 py-3 text-sm text-error"
-                role="alert"
-              >
-                {@error}
-              </div>
-            </div>
+            <p
+              :if={@error}
+              id="session-error"
+              class="rounded-lg border border-error/30 bg-error/8 px-4 py-3 text-sm text-error"
+              role="alert"
+            >
+              {@error}
+            </p>
           </section>
         <% end %>
       </main>

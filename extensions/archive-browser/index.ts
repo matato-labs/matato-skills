@@ -1,7 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { readdir, readFile } from "node:fs/promises";
-import { homedir } from "node:os";
 import { basename, join } from "node:path";
+import { storagePath } from "../../src/storagePath.ts";
 import {
   getMarkdownTheme,
   type ExtensionAPI,
@@ -261,22 +261,14 @@ export default function (pi: ExtensionAPI): void {
         ctx.ui.notify("/plans requires a Git repository.", "error");
         return;
       }
-      await openBrowser(
-        "Plans",
-        join(homedir(), ".config", "matato-pi", "plans", project),
-        ctx,
-      );
+      await openBrowser("Plans", join(storagePath(), "plans", project), ctx);
     },
   });
 
   pi.registerCommand("researches", {
     description: "Browse archived research",
     handler: async (_args, ctx) => {
-      await openBrowser(
-        "Researches",
-        join(homedir(), ".config", "matato-pi", "research"),
-        ctx,
-      );
+      await openBrowser("Researches", join(storagePath(), "research"), ctx);
     },
   });
 }

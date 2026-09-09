@@ -17,6 +17,8 @@ defmodule WebApp.Application do
       {Registry, keys: :duplicate, name: WebApp.SubscriberRegistry},
       {DynamicSupervisor, strategy: :one_for_one, name: WebApp.AgentSupervisor},
       WebApp.RemoteRegistry,
+      WebApp.AutomationScheduler,
+      WebApp.AutomationWatcher,
       WebAppWeb.Endpoint
     ]
 

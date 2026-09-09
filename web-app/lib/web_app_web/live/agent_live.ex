@@ -1,7 +1,8 @@
 defmodule WebAppWeb.AgentLive do
   use WebAppWeb, :live_view
 
-  alias WebApp.{AgentFanout, AgentSession, AgentState, RemoteRegistry, Workspace}
+  alias WebApp.{AgentFanout, AgentSession, AgentState, RemoteRegistry}
+  alias WebAppWeb.SessionComponents
 
   @max_prompt_bytes 100_000
 
@@ -10,14 +11,12 @@ defmodule WebAppWeb.AgentLive do
     socket =
       assign(socket,
         page_title: "Matato Agent",
-        projects: Workspace.directories(),
         sessions: RemoteRegistry.list(),
         session_id: nil,
         session: nil,
         draft: "",
         interaction_owner: false,
         error: nil,
-        start_form: to_form(%{"project" => ""}, as: :session),
         composer_form: to_form(%{"message" => ""}, as: :composer),
         dialog_form: to_form(%{"value" => ""}, as: :dialog)
       )
@@ -48,21 +47,6 @@ defmodule WebAppWeb.AgentLive do
   def handle_params(_params, _uri, socket), do: {:noreply, socket}
 
   @impl true
-  def handle_event("start", %{"session" => params}, socket) do
-    relative = params["project"] || ""
-
-    cond do
-      byte_size(relative) > 1_024 ->
-        {:noreply, assign(socket, error: "Project path is too long")}
-
-      true ->
-        case RemoteRegistry.create(relative) do
-          {:ok, id} -> {:noreply, push_navigate(socket, to: ~p"/sessions/#{id}")}
-          {:error, error} -> {:noreply, assign(socket, error: error)}
-        end
-    end
-  end
-
   def handle_event(event, _params, %{assigns: %{interaction_owner: false}} = socket)
       when event in ["compose", "abort", "clear_queue", "stop", "dialog"] do
     {:noreply, assign(socket, error: "Take interaction control before changing this session")}

@@ -26,10 +26,19 @@ basic_auth =
     _ -> nil
   end
 
+matato_pi_config =
+  System.get_env("MATATO_PI_CONFIG") ||
+    if(config_env() == :test,
+      do: Path.join(storage_root, "matato-pi"),
+      else: Path.expand("~/.config/matato-pi")
+    )
+
 config :web_app,
   workspace: workspace || System.tmp_dir!(),
   session_dir: Path.join(storage_root, "sessions"),
   metadata_file: Path.join(storage_root, "sessions.json"),
+  automations_config_path: Path.join(matato_pi_config, "automations/config.json"),
+  automation_storage_path: matato_pi_config,
   basic_auth: basic_auth
 
 # config/runtime.exs is executed for all environments, including

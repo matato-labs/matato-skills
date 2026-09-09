@@ -16,6 +16,7 @@ Optional configuration:
 
 | Variable | Purpose |
 | --- | --- |
+| `MATATO_PI_CONFIG` | Matato automation config root. Defaults to `~/.config/matato-pi`; automations are read from `automations/config.json`. |
 | `MATATO_PI_WEB_STORAGE` | Metadata and managed Pi session root. Defaults to `~/.config/matato-pi/web-app`. |
 | `MATATO_WEB_USER` | HTTP Basic Auth user. Required in production. |
 | `MATATO_WEB_PASSWORD` | HTTP Basic Auth password. Required in production. |

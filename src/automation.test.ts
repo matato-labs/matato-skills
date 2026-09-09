@@ -22,16 +22,16 @@ describe("automation configuration", () => {
     ).toEqual(["--session-id", "daily-review-2026-09-07"]);
   });
 
-  test("honors MATATO_PI_STORAGE_PATH for the session directory", () => {
-    const original = process.env.MATATO_PI_STORAGE_PATH;
-    process.env.MATATO_PI_STORAGE_PATH = "/tmp/matato-pi-test-storage";
+  test("honors MATATO_PI_CONFIG for the session directory", () => {
+    const original = process.env.MATATO_PI_CONFIG;
+    process.env.MATATO_PI_CONFIG = "/tmp/matato-pi-test-storage";
     try {
       expect(
         dailySessionArgs({ ...automation, dailySession: true }).slice(2),
       ).toEqual(["--session-dir", "/tmp/matato-pi-test-storage/sessions"]);
     } finally {
-      if (original === undefined) delete process.env.MATATO_PI_STORAGE_PATH;
-      else process.env.MATATO_PI_STORAGE_PATH = original;
+      if (original === undefined) delete process.env.MATATO_PI_CONFIG;
+      else process.env.MATATO_PI_CONFIG = original;
     }
   });
 
