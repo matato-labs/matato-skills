@@ -8,7 +8,6 @@ defmodule WebAppWeb.Router do
     plug :put_root_layout, html: {WebAppWeb.Layouts, :root}
     plug :protect_from_forgery
     plug :put_secure_browser_headers
-    plug WebAppWeb.Auth
   end
 
   pipeline :api do

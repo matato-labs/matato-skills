@@ -16,10 +16,7 @@ Optional configuration:
 
 | Variable | Purpose |
 | --- | --- |
-| `MATATO_PI_CONFIG` | Matato automation config root. Defaults to `~/.config/matato-pi`; automations are read from `automations/config.json`. |
-| `MATATO_PI_WEB_STORAGE` | Metadata and managed Pi session root. Defaults to `~/.config/matato-pi/web-app`. |
-| `MATATO_WEB_USER` | HTTP Basic Auth user. Required in production. |
-| `MATATO_WEB_PASSWORD` | HTTP Basic Auth password. Required in production. |
+| `MATATO_PI_CONFIG` | Matato data root. Stores automation configuration plus web-session metadata and Pi session files. Defaults to `~/.config/matato-pi`. |
 | `PORT` | HTTP port, default `4000`. |
 
 Production binds to loopback by default. Put an authenticated TLS ingress or private tunnel in front. Pi is not sandboxed and runs with the web server user's host permissions.

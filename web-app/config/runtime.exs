@@ -6,40 +6,21 @@ if config_env() != :test and (is_nil(workspace) or String.trim(workspace) == "")
   raise "WORKSPACE is required and must point to an accessible directory"
 end
 
-storage_root =
-  System.get_env("MATATO_PI_WEB_STORAGE") ||
-    if(config_env() == :test,
-      do: Path.join(System.tmp_dir!(), "matato-pi-web-test"),
-      else: Path.expand("~/.config/matato-pi/web-app")
-    )
-
-credentials = {System.get_env("MATATO_WEB_USER"), System.get_env("MATATO_WEB_PASSWORD")}
-
-if config_env() == :prod and
-     credentials |> Tuple.to_list() |> Enum.any?(&(is_nil(&1) or String.trim(&1) == "")) do
-  raise "MATATO_WEB_USER and MATATO_WEB_PASSWORD are required in production"
-end
-
-basic_auth =
-  case credentials do
-    {username, password} when is_binary(username) and is_binary(password) -> {username, password}
-    _ -> nil
-  end
-
 matato_pi_config =
   System.get_env("MATATO_PI_CONFIG") ||
     if(config_env() == :test,
-      do: Path.join(storage_root, "matato-pi"),
+      do: Path.join(System.tmp_dir!(), "matato-pi-test"),
       else: Path.expand("~/.config/matato-pi")
     )
+
+storage_root = Path.join(matato_pi_config, "web-app")
 
 config :web_app,
   workspace: workspace || System.tmp_dir!(),
   session_dir: Path.join(storage_root, "sessions"),
   metadata_file: Path.join(storage_root, "sessions.json"),
   automations_config_path: Path.join(matato_pi_config, "automations/config.json"),
-  automation_storage_path: matato_pi_config,
-  basic_auth: basic_auth
+  automation_storage_path: matato_pi_config
 
 # config/runtime.exs is executed for all environments, including
 # during releases. It is executed after compilation and before the
