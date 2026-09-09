@@ -1,0 +1,151 @@
+import Config
+
+workspace = System.get_env("WORKSPACE")
+
+if config_env() != :test and (is_nil(workspace) or String.trim(workspace) == "") do
+  raise "WORKSPACE is required and must point to an accessible directory"
+end
+
+storage_root =
+  System.get_env("MATATO_PI_WEB_STORAGE") ||
+    if(config_env() == :test,
+      do: Path.join(System.tmp_dir!(), "matato-pi-web-test"),
+      else: Path.expand("~/.config/matato-pi/web-app")
+    )
+
+credentials = {System.get_env("MATATO_WEB_USER"), System.get_env("MATATO_WEB_PASSWORD")}
+
+if config_env() == :prod and
+     credentials |> Tuple.to_list() |> Enum.any?(&(is_nil(&1) or String.trim(&1) == "")) do
+  raise "MATATO_WEB_USER and MATATO_WEB_PASSWORD are required in production"
+end
+
+basic_auth =
+  case credentials do
+    {username, password} when is_binary(username) and is_binary(password) -> {username, password}
+    _ -> nil
+  end
+
+config :web_app,
+  workspace: workspace || System.tmp_dir!(),
+  session_dir: Path.join(storage_root, "sessions"),
+  metadata_file: Path.join(storage_root, "sessions.json"),
+  basic_auth: basic_auth
+
+# config/runtime.exs is executed for all environments, including
+# during releases. It is executed after compilation and before the
+# system starts, so it is typically used to load production configuration
+# and secrets from environment variables or elsewhere. Do not define
+# any compile-time configuration in here, as it won't be applied.
+# The block below contains prod specific runtime configuration.
+
+# ## Using releases
+#
+# If you use `mix release`, you need to explicitly enable the server
+# by passing the PHX_SERVER=true when you start it:
+#
+#     PHX_SERVER=true bin/web_app start
+#
+# Alternatively, you can use `mix phx.gen.release` to generate a `bin/server`
+# script that automatically sets the env var above.
+if System.get_env("PHX_SERVER") do
+  config :web_app, WebAppWeb.Endpoint, server: true
+end
+
+config :web_app, WebAppWeb.Endpoint,
+  http: [port: String.to_integer(System.get_env("PORT", "4000"))]
+
+if config_env() == :dev do
+  # Reload browser tabs when matching files change.
+  config :web_app, WebAppWeb.Endpoint,
+    live_reload: [
+      web_console_logger: true,
+      patterns: [
+        # Static assets, except user uploads
+        ~r"priv/static/(?!uploads/).*\.(js|css|png|jpeg|jpg|gif|svg)$",
+        # Gettext translations
+        ~r"priv/gettext/.*\.po$",
+        # Router, Controllers, LiveViews and LiveComponents
+        ~r"lib/web_app_web/router\.ex$",
+        ~r"lib/web_app_web/(controllers|live|components)/.*\.(ex|heex)$"
+      ]
+    ]
+end
+
+if config_env() == :prod do
+  # The secret key base is used to sign/encrypt cookies and other secrets.
+  # A default value is used in config/dev.exs and config/test.exs but you
+  # want to use a different value for prod and you most likely don't want
+  # to check this value into version control, so we use an environment
+  # variable instead.
+  secret_key_base =
+    System.get_env("SECRET_KEY_BASE") ||
+      raise """
+      environment variable SECRET_KEY_BASE is missing.
+      You can generate one by calling: mix phx.gen.secret
+      """
+
+  host = System.get_env("PHX_HOST") || "example.com"
+
+  config :web_app, :dns_cluster_query, System.get_env("DNS_CLUSTER_QUERY")
+
+  config :web_app, WebAppWeb.Endpoint,
+    url: [host: host, port: 443, scheme: "https"],
+    http: [
+      # Bind to loopback. Put an authenticated TLS ingress in front for remote access.
+      # See the documentation on https://bandit.hexdocs.pm/Bandit.html#t:options/0
+      # for details about using IPv6 vs IPv4 and loopback vs public addresses.
+      ip: {127, 0, 0, 1}
+    ],
+    secret_key_base: secret_key_base
+
+  # ## SSL Support
+  #
+  # To get SSL working, you will need to add the `https` key
+  # to your endpoint configuration:
+  #
+  #     config :web_app, WebAppWeb.Endpoint,
+  #       https: [
+  #         ...,
+  #         port: 443,
+  #         cipher_suite: :strong,
+  #         keyfile: System.get_env("SOME_APP_SSL_KEY_PATH"),
+  #         certfile: System.get_env("SOME_APP_SSL_CERT_PATH")
+  #       ]
+  #
+  # The `cipher_suite` is set to `:strong` to support only the
+  # latest and more secure SSL ciphers. This means old browsers
+  # and clients may not be supported. You can set it to
+  # `:compatible` for wider support.
+  #
+  # `:keyfile` and `:certfile` expect an absolute path to the key
+  # and cert in disk or a relative path inside priv, for example
+  # "priv/ssl/server.key". For all supported SSL configuration
+  # options, see https://plug.hexdocs.pm/Plug.SSL.html#configure/1
+  #
+  # We also recommend setting `force_ssl` in your config/prod.exs,
+  # ensuring no data is ever sent via http, always redirecting to https:
+  #
+  #     config :web_app, WebAppWeb.Endpoint,
+  #       force_ssl: [hsts: true]
+  #
+  # Check `Plug.SSL` for all available options in `force_ssl`.
+
+  # ## Configuring the mailer
+  #
+  # In production you need to configure the mailer to use a different adapter.
+  # Here is an example configuration for Mailgun:
+  #
+  #     config :web_app, WebApp.Mailer,
+  #       adapter: Swoosh.Adapters.Mailgun,
+  #       api_key: System.get_env("MAILGUN_API_KEY"),
+  #       domain: System.get_env("MAILGUN_DOMAIN")
+  #
+  # Most non-SMTP adapters require an API client. Swoosh supports Req, Hackney,
+  # and Finch out-of-the-box. This configuration is typically done at
+  # compile-time in your config/prod.exs:
+  #
+  #     config :swoosh, :api_client, Swoosh.ApiClient.Req
+  #
+  # See https://swoosh.hexdocs.pm/Swoosh.html#module-installation for details.
+end
