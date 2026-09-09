@@ -10,6 +10,8 @@ WORKSPACE=/absolute/path/to/projects mix setup
 WORKSPACE=/absolute/path/to/projects mix phx.server
 ```
 
+On Linux, install `inotify-tools` first; it provides the automation configuration watcher.
+
 Open `http://localhost:4000`. The picker lists direct child directories beneath `WORKSPACE` and rejects traversal and symlink escapes.
 
 Optional configuration:
