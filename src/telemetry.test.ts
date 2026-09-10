@@ -30,7 +30,7 @@ describe("OTLP telemetry exporter", () => {
       const exporter = new OtlpExporter(endpoint);
       await exporter.exportMetrics([
         {
-          name: "matato_pi_tools_total",
+          name: "matato_agent_tool_executions_total",
           value: 1,
           labels: { tool_name: "bash", result: "success" },
         },
@@ -48,23 +48,134 @@ describe("OTLP telemetry exporter", () => {
           scopeMetrics: Array<{
             metrics: Array<{
               name: string;
-              sum: { dataPoints: Array<{ asDouble: number }> };
+              sum: {
+                aggregationTemporality: number;
+                dataPoints: Array<{ asDouble: number }>;
+              };
             }>;
           }>;
         }>;
       };
       expect(metrics.resourceMetrics[0]?.scopeMetrics[0]?.metrics[0]).toEqual(
         expect.objectContaining({
-          name: "matato_pi_tools_total",
+          name: "matato_agent_tool_executions_total",
           sum: expect.objectContaining({
+            aggregationTemporality: 2,
             dataPoints: [expect.objectContaining({ asDouble: 1 })],
           }),
         }),
       );
       const exported = requests.map((request) => request.body).join("\n");
-      expect(exported).toContain("matato-pi");
+      expect(exported).toContain(
+        '"service.name","value":{"stringValue":"matato"}',
+      );
       expect(exported).not.toContain("/home/");
       expect(exported).not.toContain("tool arguments");
+    });
+  });
+
+  test("exports duration observations as histograms", async () => {
+    await withCollector(async (endpoint, requests) => {
+      const exporter = new OtlpExporter(endpoint);
+      await exporter.exportMetrics([
+        {
+          name: "matato_agent_duration_seconds",
+          type: "histogram",
+          value: 3,
+        },
+      ]);
+
+      const metrics = JSON.parse(requests[0]?.body ?? "{}") as {
+        resourceMetrics: Array<{
+          scopeMetrics: Array<{
+            metrics: Array<{
+              histogram: {
+                aggregationTemporality: number;
+                dataPoints: Array<{
+                  attributes: Array<{
+                    key: string;
+                    value: { stringValue: string };
+                  }>;
+                  bucketCounts: Array<number>;
+                  count: number;
+                  explicitBounds: Array<number>;
+                  sum: number;
+                  timeUnixNano: string;
+                }>;
+              };
+            }>;
+          }>;
+        }>;
+      };
+      expect(
+        metrics.resourceMetrics[0]?.scopeMetrics[0]?.metrics[0]?.histogram,
+      ).toEqual({
+        aggregationTemporality: 2,
+        dataPoints: [
+          {
+            attributes: [],
+            bucketCounts: [0, 1, 0],
+            count: 1,
+            explicitBounds: [1, 5],
+            sum: 3,
+            timeUnixNano: expect.any(String),
+          },
+        ],
+      });
+    });
+  });
+
+  test("includes values at the histogram lower bucket boundary", async () => {
+    await withCollector(async (endpoint, requests) => {
+      const exporter = new OtlpExporter(endpoint);
+      await exporter.exportMetrics([
+        {
+          name: "matato_agent_duration_seconds",
+          type: "histogram",
+          value: 1,
+        },
+      ]);
+
+      const exported = JSON.parse(requests[0]?.body ?? "{}") as {
+        resourceMetrics: Array<{
+          scopeMetrics: Array<{
+            metrics: Array<{
+              histogram: { dataPoints: Array<{ bucketCounts: Array<number> }> };
+            }>;
+          }>;
+        }>;
+      };
+      expect(
+        exported.resourceMetrics[0]?.scopeMetrics[0]?.metrics[0]?.histogram
+          .dataPoints[0]?.bucketCounts,
+      ).toEqual([1, 0, 0]);
+    });
+  });
+
+  test("includes values at the histogram upper bucket boundary", async () => {
+    await withCollector(async (endpoint, requests) => {
+      const exporter = new OtlpExporter(endpoint);
+      await exporter.exportMetrics([
+        {
+          name: "matato_agent_duration_seconds",
+          type: "histogram",
+          value: 5,
+        },
+      ]);
+
+      const exported = JSON.parse(requests[0]?.body ?? "{}") as {
+        resourceMetrics: Array<{
+          scopeMetrics: Array<{
+            metrics: Array<{
+              histogram: { dataPoints: Array<{ bucketCounts: Array<number> }> };
+            }>;
+          }>;
+        }>;
+      };
+      expect(
+        exported.resourceMetrics[0]?.scopeMetrics[0]?.metrics[0]?.histogram
+          .dataPoints[0]?.bucketCounts,
+      ).toEqual([0, 1, 0]);
     });
   });
 
@@ -74,7 +185,9 @@ describe("OTLP telemetry exporter", () => {
     });
 
     await expect(
-      exporter.exportMetrics([{ name: "matato_pi_prompts_total", value: 1 }]),
+      exporter.exportMetrics([
+        { name: "matato_agent_prompts_total", value: 1 },
+      ]),
     ).resolves.toBeUndefined();
   });
 
@@ -85,7 +198,22 @@ describe("OTLP telemetry exporter", () => {
       return new Response();
     });
 
+    await exporter.exportMetrics([
+      { name: "matato_agent_prompts_total", value: 1 },
+    ]);
     await exporter.exportLogs([{ event: "agent_started" }]);
     expect(calls).toBe(0);
+  });
+
+  test("normalizes a trailing collector slash", async () => {
+    const urls: Array<string> = [];
+    const exporter = new OtlpExporter("http://collector:4318/", async (url) => {
+      urls.push(url);
+      return new Response();
+    });
+
+    await exporter.exportLogs([{ event: "agent_started" }]);
+
+    expect(urls).toEqual(["http://collector:4318/v1/logs"]);
   });
 });

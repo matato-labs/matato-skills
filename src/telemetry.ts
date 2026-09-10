@@ -1,11 +1,16 @@
 type AttributeValue = { stringValue: string } | { intValue: string };
 type Attribute = { key: string; value: AttributeValue };
 type Labels = Record<string, string>;
-type Metric = {
+type CounterMetric = {
+  type?: never;
   name: string;
   value: number;
   labels?: Labels;
 };
+type HistogramMetric = Omit<CounterMetric, "type"> & {
+  type: "histogram";
+};
+type Metric = CounterMetric | HistogramMetric;
 type Log = {
   event: string;
   labels?: Labels;
@@ -17,7 +22,7 @@ export type TelemetryFetch = (
 ) => Promise<Response>;
 
 const serviceAttributes: Array<Attribute> = [
-  { key: "service.name", value: { stringValue: "matato-pi" } },
+  { key: "service.name", value: { stringValue: "matato" } },
   { key: "service.version", value: { stringValue: "0.1.0" } },
 ];
 
@@ -31,6 +36,44 @@ const attributes = (labels: Labels = {}): Array<Attribute> =>
 
 const collectorUrl = (endpoint: string, signal: "metrics" | "logs"): string =>
   `${endpoint.replace(/\/$/, "")}/v1/${signal}`;
+
+const metricBody = (metric: Metric, timestamp: string): object => ({
+  name: metric.name,
+  unit: metric.name.endsWith("_seconds") ? "s" : undefined,
+  ...(metric.type === "histogram"
+    ? {
+        histogram: {
+          aggregationTemporality: 2,
+          dataPoints: [
+            {
+              attributes: attributes(metric.labels),
+              bucketCounts: [
+                metric.value <= 1 ? 1 : 0,
+                metric.value > 1 && metric.value <= 5 ? 1 : 0,
+                metric.value > 5 ? 1 : 0,
+              ],
+              count: 1,
+              explicitBounds: [1, 5],
+              sum: metric.value,
+              timeUnixNano: timestamp,
+            },
+          ],
+        },
+      }
+    : {
+        sum: {
+          aggregationTemporality: 2,
+          isMonotonic: true,
+          dataPoints: [
+            {
+              attributes: attributes(metric.labels),
+              asDouble: metric.value,
+              timeUnixNano: timestamp,
+            },
+          ],
+        },
+      }),
+});
 
 export class OtlpExporter {
   constructor(
@@ -48,21 +91,7 @@ export class OtlpExporter {
           scopeMetrics: [
             {
               scope: { name: "matato-pi.telemetry" },
-              metrics: metrics.map((metric) => ({
-                name: metric.name,
-                unit: metric.name.endsWith("_seconds") ? "s" : undefined,
-                sum: {
-                  aggregationTemporality: 2,
-                  isMonotonic: true,
-                  dataPoints: [
-                    {
-                      attributes: attributes(metric.labels),
-                      asDouble: metric.value,
-                      timeUnixNano: timestamp,
-                    },
-                  ],
-                },
-              })),
+              metrics: metrics.map((metric) => metricBody(metric, timestamp)),
             },
           ],
         },

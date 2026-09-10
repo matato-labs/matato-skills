@@ -20,7 +20,7 @@ pi install /absolute/path/to/matato-pi
 
 Set `OTEL_ENDPOINT` to the local Grafana OTEL-LGTM collector (normally `http://localhost:4318`) to export privacy-safe prompt, token, cost, tool, result, and duration telemetry. Export failures are ignored so they cannot interrupt Pi runs. Telemetry never includes prompt or assistant text, tool arguments or results, credentials, filesystem paths, or other request content.
 
-`matato_pi_explicit_skill_duration_seconds` measures only commands entered as `/skill:<name>`; it does not infer or measure implicit skill selection.
+`matato_agent_skill_duration_seconds` measures only commands entered as `/skill:<name>`; it does not infer or measure implicit skill selection.
 
 ## Remote Agent Web App
 
