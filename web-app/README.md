@@ -18,7 +18,8 @@ Optional configuration:
 
 | Variable | Purpose |
 | --- | --- |
-| `MATATO_PI_CONFIG` | Matato data root. Stores automation configuration plus web-session metadata and Pi session files. Defaults to `~/.config/matato-pi`. |
+| `MATATO_PI_CONFIG` | Matato data root. Stores automation configuration and the web session catalog at `sessions/sessions.json`. Defaults to `~/.config/matato-pi`. |
+| `PI_CODING_AGENT_SESSION_DIR` | Optional Pi session directory. Defaults to `~/.pi/agent/sessions`. |
 | `PORT` | HTTP port, default `4000`. |
 
 Production binds to loopback by default. Put an authenticated TLS ingress or private tunnel in front. Pi is not sandboxed and runs with the web server user's host permissions.

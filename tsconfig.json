@@ -12,7 +12,6 @@
   "include": [
     "extensions/**/*.ts",
     "src/**/*.ts",
-    "skills/**/*.ts",
-    "worker/**/*.ts"
+    "skills/**/*.ts"
   ]
 }

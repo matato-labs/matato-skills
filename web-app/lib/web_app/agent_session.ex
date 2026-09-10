@@ -41,17 +41,17 @@ defmodule WebApp.AgentSession do
     executable =
       System.find_executable(options[:executable] || "pi") || raise "Pi executable not found"
 
-    session_dir = Application.fetch_env!(:web_app, :session_dir)
-    File.mkdir_p!(session_dir)
-    File.chmod!(session_dir, 0o700)
+    stderr_dir = Application.fetch_env!(:web_app, :metadata_file) |> Path.dirname()
+    File.mkdir_p!(stderr_dir)
+    File.chmod!(stderr_dir, 0o700)
 
-    args = ["--mode", "rpc", "--session-dir", session_dir, "--name", options[:name], "--approve"]
+    args = ["--mode", "rpc", "--name", options[:name], "--approve"]
 
     args =
       if options[:session_file], do: args ++ ["--session", options[:session_file]], else: args
 
     stderr_path =
-      Path.join(session_dir, ".stderr-#{options[:id]}-#{System.unique_integer([:positive])}")
+      Path.join(stderr_dir, ".stderr-#{options[:id]}-#{System.unique_integer([:positive])}")
 
     port = open_port(executable, args, options[:project], stderr_path)
 

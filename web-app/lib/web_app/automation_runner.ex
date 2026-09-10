@@ -112,15 +112,8 @@ defmodule WebApp.AutomationRunner do
   defp daily_session_args(%{daily_session: false}), do: []
 
   defp daily_session_args(automation) do
-    storage = storage_path()
     date = Date.utc_today() |> Date.to_iso8601()
-
-    [
-      "--session-id",
-      "#{automation.job_name}-#{date}",
-      "--session-dir",
-      Path.join(storage, "sessions")
-    ]
+    ["--session-id", "#{automation.job_name}-#{date}"]
   end
 
   defp open_port(executable, args, working_directory) do
