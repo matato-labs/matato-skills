@@ -196,7 +196,8 @@ defmodule WebAppWeb.AgentLive do
       :if={@item.kind == :message}
       id={@id}
       class={[
-        "max-w-prose text-sm leading-6 text-base-content/85",
+        "text-sm leading-6 text-base-content/85",
+        @item.role == :agent && "mt-8 max-w-none",
         @item.role == :user &&
           "ml-auto w-fit max-w-[92%] rounded-2xl border border-base-content/12 bg-base-200/35 px-3.5 py-2.5 text-left"
       ]}
