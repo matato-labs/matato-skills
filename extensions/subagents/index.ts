@@ -145,36 +145,45 @@ export async function runBounded<T, R>(
   return results;
 }
 
-function taskOutput(
+function processError(
+  result: ProcessResult,
+  output: string,
+): string | undefined {
+  if (result.code === 0) return;
+  return (
+    result.stderr.trim() || output || `Subagent exited with code ${result.code}`
+  );
+}
+
+async function saveTruncatedOutput(
+  output: string,
+  truncated: ReturnType<typeof truncateTail>,
+  tempDirs: Set<string>,
+): Promise<TaskOutput> {
+  const dir = await mkdtemp(join(tmpdir(), "pi-subagent-"));
+  const file = join(dir, "output.txt");
+  tempDirs.add(dir);
+  await writeFile(file, output, { encoding: "utf8", mode: 0o600 });
+  return {
+    output: `${truncated.content}\n\n[Output truncated to ${truncated.outputLines} of ${truncated.totalLines} lines (${formatSize(truncated.outputBytes)} of ${formatSize(truncated.totalBytes)}). Full output: ${file}]`,
+  };
+}
+
+async function taskOutput(
   result: ProcessResult,
   tempDirs: Set<string>,
 ): Promise<TaskOutput> {
   const output = result.stdout.trim();
-  if (result.code !== 0)
-    return Promise.resolve({
-      error:
-        result.stderr.trim() ||
-        output ||
-        `Subagent exited with code ${result.code}`,
-    });
-  if (!output)
-    return Promise.resolve({ error: "Subagent finished without output" });
+  const error = processError(result, output);
+  if (error) return { error };
+  if (!output) return { error: "Subagent finished without output" };
 
   const truncated = truncateTail(output, {
     maxBytes: DEFAULT_MAX_BYTES,
     maxLines: DEFAULT_MAX_LINES,
   });
-  if (!truncated.truncated)
-    return Promise.resolve({ output: truncated.content });
-
-  return mkdtemp(join(tmpdir(), "pi-subagent-")).then(async (dir) => {
-    const file = join(dir, "output.txt");
-    tempDirs.add(dir);
-    await writeFile(file, output, { encoding: "utf8", mode: 0o600 });
-    return {
-      output: `${truncated.content}\n\n[Output truncated to ${truncated.outputLines} of ${truncated.totalLines} lines (${formatSize(truncated.outputBytes)} of ${formatSize(truncated.totalBytes)}). Full output: ${file}]`,
-    };
-  });
+  if (!truncated.truncated) return { output: truncated.content };
+  return saveTruncatedOutput(output, truncated, tempDirs);
 }
 
 function resultsOutput(tasks: Array<SubagentTaskDetails>): string {
@@ -192,6 +201,154 @@ function progressText(tasks: Array<SubagentTaskDetails>): string {
   ).length;
   const running = tasks.filter((task) => task.status === "running").length;
   return `Subagent batch: ${completed}/${tasks.length} finished, ${running} running.`;
+}
+
+function prepareTasks(
+  params: SubagentParams,
+  cwd: string,
+): {
+  batch: boolean;
+  tasks: Array<SubagentTaskDetails>;
+} {
+  if ("tasks" in params)
+    return {
+      batch: true,
+      tasks: params.tasks.map((task) => ({
+        status: "queued",
+        prompt: task.prompt,
+        cwd: resolve(cwd, task.cwd ?? "."),
+      })),
+    };
+
+  return {
+    batch: false,
+    tasks: [
+      {
+        status: "queued",
+        prompt: params.prompt,
+        cwd: resolve(cwd, params.cwd ?? "."),
+      },
+    ],
+  };
+}
+
+interface SubagentRunSettings {
+  model: string;
+  thinkingLevel: string | undefined;
+  signal: AbortSignal | undefined;
+  tempDirs: Set<string>;
+  update: () => void;
+}
+
+function subagentArgs(
+  task: SubagentTaskDetails,
+  settings: SubagentRunSettings,
+): Array<string> {
+  return [
+    "--mode",
+    "text",
+    "--print",
+    "--no-session",
+    "--model",
+    settings.model,
+    "--thinking",
+    settings.thinkingLevel ?? "off",
+    "--",
+    task.prompt,
+  ];
+}
+
+function throwIfAborted(signal: AbortSignal | undefined): void {
+  if (signal?.aborted) throw new Error("Subagent was aborted");
+}
+
+function completeTask(
+  task: SubagentTaskDetails,
+  output: TaskOutput,
+  update: () => void,
+): void {
+  if (output.error) {
+    task.status = "failed";
+    task.error = output.error;
+  } else {
+    task.status = "finished";
+    task.output = output.output;
+  }
+  update();
+}
+
+async function runSubagentTask(
+  task: SubagentTaskDetails,
+  settings: SubagentRunSettings,
+): Promise<SubagentTaskDetails> {
+  throwIfAborted(settings.signal);
+  const result = await runPi(
+    subagentArgs(task, settings),
+    task.cwd,
+    settings.signal,
+    () => {
+      task.status = "running";
+      settings.update();
+    },
+  );
+  throwIfAborted(settings.signal);
+  completeTask(
+    task,
+    await taskOutput(result, settings.tempDirs),
+    settings.update,
+  );
+  return task;
+}
+
+function completedOutput(
+  batch: boolean,
+  tasks: Array<SubagentTaskDetails>,
+): string {
+  if (batch) return resultsOutput(tasks);
+  return tasks[0].output ?? "";
+}
+
+function singleTaskError(
+  batch: boolean,
+  task: SubagentTaskDetails,
+): string | undefined {
+  if (batch || task.status !== "failed") return;
+  return task.error ?? "Subagent failed";
+}
+
+function summaryText(
+  tasks: Array<SubagentTaskDetails>,
+  failed: number,
+): string {
+  if (failed)
+    return `✓ ${tasks.length - failed}/${tasks.length} subagents finished; ${failed} failed`;
+  return `✓ ${tasks.length || 1} subagent${tasks.length === 1 ? "" : "s"} finished`;
+}
+
+function displayedOutput(
+  details: SubagentDetails | undefined,
+  tasks: Array<SubagentTaskDetails>,
+  fallback: string,
+): string {
+  if (details && tasks.length > 1) return resultsOutput(tasks);
+  return tasks[0]?.output ?? fallback;
+}
+
+function resultTasks(
+  details: SubagentDetails | undefined,
+): Array<SubagentTaskDetails> {
+  return details?.tasks ?? [];
+}
+
+function isInProgress(
+  isPartial: boolean,
+  details: SubagentDetails | undefined,
+): boolean {
+  return isPartial || details?.status === "running";
+}
+
+function resultColor(failed: number): "error" | "success" {
+  return failed ? "error" : "success";
 }
 
 export default function (pi: ExtensionAPI) {
@@ -265,65 +422,39 @@ export default function (pi: ExtensionAPI) {
       if (!ctx.model)
         throw new Error("Cannot launch a subagent without an active model");
 
-      const model = ctx.model;
-      const batch = "tasks" in params;
-      const requestedTasks = batch ? params.tasks : [params];
-      const tasks: Array<SubagentTaskDetails> = requestedTasks.map((task) => ({
-        status: "queued",
-        prompt: task.prompt,
-        cwd: resolve(ctx.cwd, task.cwd ?? "."),
-      }));
-      const details: SubagentDetails = { status: "running", tasks };
+      const prepared = prepareTasks(params, ctx.cwd);
+      const details: SubagentDetails = {
+        status: "running",
+        tasks: prepared.tasks,
+      };
       const update = () =>
         onUpdate?.({
-          content: [{ type: "text", text: progressText(tasks) }],
+          content: [{ type: "text", text: progressText(prepared.tasks) }],
           details,
         });
-
+      const settings: SubagentRunSettings = {
+        model: `${ctx.model.provider}/${ctx.model.id}`,
+        thinkingLevel: ctx.thinkingLevel,
+        signal,
+        tempDirs,
+        update,
+      };
       const completedTasks = await runBounded(
-        tasks,
-        batch ? MAX_CONCURRENT_SUBAGENTS : 1,
-        async (task) => {
-          const args = [
-            "--mode",
-            "text",
-            "--print",
-            "--no-session",
-            "--model",
-            `${model.provider}/${model.id}`,
-            "--thinking",
-            ctx.thinkingLevel ?? "off",
-            "--",
-            task.prompt,
-          ];
-          const result = await runPi(args, task.cwd, signal, () => {
-            task.status = "running";
-            update();
-          });
-          if (signal?.aborted) throw new Error("Subagent was aborted");
-
-          const output = await taskOutput(result, tempDirs);
-          if (output.error) {
-            task.status = "failed";
-            task.error = output.error;
-          } else {
-            task.status = "finished";
-            task.output = output.output;
-          }
-          update();
-          return task;
-        },
+        prepared.tasks,
+        prepared.batch ? MAX_CONCURRENT_SUBAGENTS : 1,
+        (task) => runSubagentTask(task, settings),
       );
 
       details.status = "finished";
-      if (!batch && completedTasks[0].status === "failed")
-        throw new Error(completedTasks[0].error ?? "Subagent failed");
-
-      const output = batch
-        ? resultsOutput(completedTasks)
-        : (completedTasks[0].output ?? "");
+      const error = singleTaskError(prepared.batch, completedTasks[0]);
+      if (error) throw new Error(error);
       return {
-        content: [{ type: "text", text: output }],
+        content: [
+          {
+            type: "text",
+            text: completedOutput(prepared.batch, completedTasks),
+          },
+        ],
         details,
       };
     },
@@ -343,32 +474,32 @@ export default function (pi: ExtensionAPI) {
 
     renderResult(result, { expanded, isPartial }, theme) {
       const details = result.details as SubagentDetails | undefined;
-      if (isPartial || details?.status === "running")
+      if (isInProgress(isPartial, details))
         return new Text(
-          theme.fg("warning", progressText(details?.tasks ?? [])),
+          theme.fg("warning", progressText(resultTasks(details))),
           0,
           0,
         );
 
-      const tasks = details?.tasks ?? [];
+      const tasks = resultTasks(details);
       const failed = tasks.filter((task) => task.status === "failed").length;
-      const summary = failed
-        ? `✓ ${tasks.length - failed}/${tasks.length} subagents finished; ${failed} failed`
-        : `✓ ${tasks.length || 1} subagent${tasks.length === 1 ? "" : "s"} finished`;
-      if (!expanded)
-        return new Text(theme.fg(failed ? "error" : "success", summary), 0, 0);
+      const summary = summaryText(tasks, failed);
+      const color = resultColor(failed);
+      if (!expanded) return new Text(theme.fg(color, summary), 0, 0);
 
-      const output =
-        details && tasks.length > 1
-          ? resultsOutput(tasks)
-          : (details?.tasks[0]?.output ??
-            (result.content[0]?.type === "text" ? result.content[0].text : ""));
+      const firstContent = result.content[0];
+      const fallback = firstContent?.type === "text" ? firstContent.text : "";
       const container = new Container();
-      container.addChild(
-        new Text(theme.fg(failed ? "error" : "success", summary), 0, 0),
-      );
+      container.addChild(new Text(theme.fg(color, summary), 0, 0));
       container.addChild(new Spacer(1));
-      container.addChild(new Markdown(output, 0, 0, getMarkdownTheme()));
+      container.addChild(
+        new Markdown(
+          displayedOutput(details, tasks, fallback),
+          0,
+          0,
+          getMarkdownTheme(),
+        ),
+      );
       return container;
     },
   });
