@@ -24,6 +24,7 @@ type NewsPreScriptResult =
       localDate: string;
     }
   | {
+      skip: false;
       localDate: string;
       localHour: number;
       localMinute: number;
@@ -34,11 +35,11 @@ type NewsPreScriptResult =
     };
 
 export const run = async (): Promise<NewsPreScriptResult> => {
-  const storagePath = Bun.env.STORAGE_PATH;
-  const timezone = Bun.env.TIMEZONE ?? "UTC";
+  const storagePath = Bun.env.MATATO_PI_CONFIG;
+  const timezone = Bun.env.TIMEZONE ?? "Europe/Berlin";
 
   if (!storagePath) {
-    throw new Error("STORAGE_PATH must be set");
+    throw new Error("MATATO_PI_CONFIG must be set");
   }
 
   const stateFile = path.join(storagePath, "agent", "newsDigest.json");
@@ -62,6 +63,7 @@ export const run = async (): Promise<NewsPreScriptResult> => {
   }
 
   return {
+    skip: false,
     localDate: localDateTime.date,
     localHour: localDateTime.hour,
     localMinute: localDateTime.minute,
@@ -113,3 +115,6 @@ function getLocalDateTime(date: Date, timezoneName: string): LocalDateTime {
     minute,
   };
 }
+
+const result = await run();
+if (!result.skip) console.log(JSON.stringify(result));
