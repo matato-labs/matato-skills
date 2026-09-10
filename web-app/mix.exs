@@ -63,6 +63,7 @@ defmodule WebApp.MixProject do
       {:opentelemetry_exporter, "~> 1.10"},
       {:opentelemetry, "~> 1.7"},
       {:opentelemetry_phoenix, "~> 2.0"},
+      {:opentelemetry_bandit, "~> 0.2"},
       {:gettext, "~> 1.0"},
       {:jason, "~> 1.2"},
       {:mdex, "~> 0.13.5"},

@@ -36,15 +36,22 @@ config :web_app,
 
 config :opentelemetry, :resource, service: [name: "matato-pi-web"]
 
-case System.get_env("OTEL_ENDPOINT") do
+otel_endpoint =
+  case System.get_env("OTEL_ENDPOINT") do
+    nil -> nil
+    endpoint -> String.trim(endpoint)
+  end
+
+case otel_endpoint do
+  "" ->
+    config :opentelemetry, traces_exporter: :none
+
   nil ->
     config :opentelemetry, traces_exporter: :none
 
   endpoint ->
-    config :opentelemetry, :processors,
-      otel_batch_processor: %{
-        exporter: {:opentelemetry_exporter, %{endpoints: [endpoint]}}
-      }
+    config :opentelemetry, traces_exporter: :otlp
+    config :opentelemetry_exporter, otlp_protocol: :http_protobuf, otlp_endpoint: endpoint
 end
 
 # config/runtime.exs is executed for all environments, including
