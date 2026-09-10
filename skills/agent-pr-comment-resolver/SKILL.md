@@ -1,6 +1,6 @@
 ---
 name: agent-pr-comment-resolver
-description: Resolve GitHub pull-request feedback explicitly prefixed with AGENT:. Use for scheduled or requested implementation of actionable AGENT: comments on open PRs labelled resolve-comments.
+description: "Resolve GitHub pull-request feedback explicitly prefixed with AGENT:. Use for scheduled or requested implementation of actionable AGENT: comments on open PRs labelled resolve-comments."
 disable-model-invocation: true
 ---
 

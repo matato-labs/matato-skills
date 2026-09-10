@@ -1,5 +1,5 @@
 ---
-name: gh-pr-comment-resolver
+name: interactive-pr-comment-resolver
 description: Use when a user asks you to resolve the comments in a PR.
 disable-model-invocation: true
 ---
