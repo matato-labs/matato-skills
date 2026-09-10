@@ -1,7 +1,7 @@
 defmodule WebAppWeb.AgentLive do
   use WebAppWeb, :live_view
 
-  alias WebApp.{AgentFanout, AgentSession, AgentState, RemoteRegistry}
+  alias WebApp.{AgentFanout, AgentSession, AgentState, ProjectSessionCatalog, RemoteRegistry}
   alias WebAppWeb.SessionComponents
 
   @max_prompt_bytes 100_000
@@ -12,7 +12,9 @@ defmodule WebAppWeb.AgentLive do
       assign(socket,
         page_title: "Matato Agent",
         sessions: RemoteRegistry.list(),
+        groups: ProjectSessionCatalog.groups(RemoteRegistry.list()),
         session_id: nil,
+        delete_session_id: nil,
         session: nil,
         draft: "",
         interaction_owner: false,
@@ -50,6 +52,22 @@ defmodule WebAppWeb.AgentLive do
   def handle_event(event, _params, %{assigns: %{interaction_owner: false}} = socket)
       when event in ["compose", "abort", "clear_queue", "stop", "dialog"] do
     {:noreply, assign(socket, error: "Take interaction control before changing this session")}
+  end
+
+  def handle_event("confirm_delete_session", %{"id" => id}, socket),
+    do: {:noreply, assign(socket, delete_session_id: id)}
+
+  def handle_event("delete_session", %{"id" => id}, socket) do
+    case RemoteRegistry.delete(id) do
+      :ok when id == socket.assigns.session_id ->
+        {:noreply, push_navigate(socket, to: ~p"/")}
+
+      :ok ->
+        {:noreply, socket |> assign_sessions() |> assign(delete_session_id: nil)}
+
+      {:error, error} ->
+        {:noreply, assign(socket, error: error, delete_session_id: nil)}
+    end
   end
 
   def handle_event(
@@ -137,7 +155,8 @@ defmodule WebAppWeb.AgentLive do
 
     {:noreply,
      socket
-     |> assign(sessions: RemoteRegistry.list(), dialog_form: dialog_form, error: nil)
+     |> assign_sessions()
+     |> assign(dialog_form: dialog_form, error: nil)
      |> sync_session(snapshot)}
   end
 
@@ -260,8 +279,6 @@ defmodule WebAppWeb.AgentLive do
 
   def visible_message?(_message), do: false
 
-  def status_label(:waiting_for_input), do: "Waiting for input"
-  def status_label(status), do: status |> to_string() |> String.capitalize()
   def partial_text(session), do: AgentState.partial_text(session)
   def partial_thinking(session), do: AgentState.partial_thinking(session)
 
@@ -356,6 +373,11 @@ defmodule WebAppWeb.AgentLive do
 
   defp set_draft(socket, draft) do
     assign(socket, draft: draft, composer_form: to_form(%{"message" => draft}, as: :composer))
+  end
+
+  defp assign_sessions(socket) do
+    sessions = RemoteRegistry.list()
+    assign(socket, sessions: sessions, groups: ProjectSessionCatalog.groups(sessions))
   end
 
   defp sync_session(socket, snapshot) do

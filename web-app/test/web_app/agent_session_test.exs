@@ -107,6 +107,25 @@ defmodule WebApp.AgentSessionTest do
              })
   end
 
+  test "handles Pi exiting before the first command", context do
+    executable = Path.join(context.root, "exit-immediately")
+    File.write!(executable, "#!/bin/sh\nexit 1\n")
+    File.chmod!(executable, 0o700)
+    id = "test-#{System.unique_integer([:positive])}"
+
+    log =
+      capture_log(fn ->
+        start_supervised!(
+          {AgentSession,
+           id: id, name: "test", project: context.root, executable: executable, interrupted: false}
+        )
+
+        assert {:error, _reason} = AgentSession.await_ready(id)
+      end)
+
+    refute log =~ "GenServer {WebApp.ProcessRegistry"
+  end
+
   test "quarantines a child after an invalid protocol record", context do
     id = "test-#{System.unique_integer([:positive])}"
 

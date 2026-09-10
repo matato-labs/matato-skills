@@ -1,7 +1,7 @@
 defmodule WebAppWeb.SessionLive do
   use WebAppWeb, :live_view
 
-  alias WebApp.{RemoteRegistry, Workspace}
+  alias WebApp.{ProjectSessionCatalog, RemoteRegistry, Workspace}
   alias WebAppWeb.SessionComponents
 
   @impl true
@@ -10,14 +10,35 @@ defmodule WebAppWeb.SessionLive do
      assign(socket,
        page_title: "New Matato session",
        projects: Workspace.directories(),
-       sessions: RemoteRegistry.list(),
+       groups: ProjectSessionCatalog.groups(RemoteRegistry.list()),
        session_id: nil,
+       delete_session_id: nil,
        error: nil,
        start_form: to_form(%{"project" => ""}, as: :session)
      )}
   end
 
   @impl true
+  def handle_event("confirm_delete_session", %{"id" => id}, socket),
+    do: {:noreply, assign(socket, delete_session_id: id)}
+
+  def handle_event("delete_session", %{"id" => id}, socket) do
+    case RemoteRegistry.delete(id) do
+      :ok ->
+        sessions = RemoteRegistry.list()
+
+        {:noreply,
+         assign(socket,
+           groups: ProjectSessionCatalog.groups(sessions),
+           delete_session_id: nil,
+           error: nil
+         )}
+
+      {:error, error} ->
+        {:noreply, assign(socket, error: error, delete_session_id: nil)}
+    end
+  end
+
   def handle_event("start", %{"session" => params}, socket) do
     relative = params["project"] || ""
 
