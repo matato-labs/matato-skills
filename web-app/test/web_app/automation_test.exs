@@ -37,6 +37,7 @@ defmodule WebApp.AutomationTest do
   end
 
   test "validates every schedule before atomically replacing enabled jobs" do
+    refute Process.whereis(WebApp.AutomationWatcher)
     previous = automation("previous", "*/5 * * * * *")
     invalid_disabled = %{automation("disabled", "not a cron expression") | enabled: false}
 
@@ -93,6 +94,9 @@ defmodule WebApp.AutomationTest do
     File.rm!(path)
     reload_watcher(path)
     assert AutomationScheduler.jobs() == []
+
+    restart_watcher(original_path)
+    assert :sys.get_state(WebApp.AutomationWatcher).path == Path.expand(original_path)
   end
 
   test "empty pre-script output skips Pi and post-script" do
