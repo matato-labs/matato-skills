@@ -134,7 +134,7 @@ defmodule WebApp.AutomationRunner do
 
   defp send_prompt(port, automation, output) do
     prompt = ["/skill:#{automation.job_name}", "", automation.user_prompt]
-    prompt = if is_nil(output), do: prompt, else: prompt ++ ["", "Pre-script output:", output]
+    prompt = if is_nil(output), do: prompt, else: prompt ++ ["", "Automation context:", output]
     message = %{id: automation.job_name, type: "prompt", message: Enum.join(prompt, "\n")}
 
     if Port.command(port, Jason.encode!(message) <> "\n"),

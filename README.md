@@ -46,7 +46,7 @@ Researches are under `/researches` and they are stored in `~/.config/matato-pi/r
 
 
 ### Scheduled jobs
-Scheduled jobs are configured via `$MATATO_PI_CONFIG/automations/config.json` (default: `~/.config/matato-pi/automations/config.json`). The web app loads and schedules them. An automation is tied to a skill; before it runs, it executes `{skillName}/scripts/preScript.ts` when present and passes its output to the skill.
+Scheduled jobs are configured via `$MATATO_PI_CONFIG/automations/config.json` (default: `~/.config/matato-pi/automations/config.json`). The web app loads and schedules them. An automation can run `{skillName}/scripts/preScript.ts` beforehand; non-empty output is included as automation context.
 
 To create/read/update/delete cron jobs, use `/automations`.
 ### Telegram

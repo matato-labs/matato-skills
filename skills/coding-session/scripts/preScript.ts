@@ -11,12 +11,7 @@ type Issue = {
 
 const main = async (): Promise<void> => {
   const projects = await listWorkspaceRepos();
-  if (!projects.length) {
-    console.log(
-      JSON.stringify({ skip: true, reason: "No workspace repositories found" }),
-    );
-    return;
-  }
+  if (!projects.length) return;
 
   for (const project of projects) {
     const number = await run(
@@ -64,13 +59,6 @@ const main = async (): Promise<void> => {
     );
     return;
   }
-
-  console.log(
-    JSON.stringify({
-      skip: true,
-      reason: "No unassigned issue with the ai label",
-    }),
-  );
 };
 
 await main();

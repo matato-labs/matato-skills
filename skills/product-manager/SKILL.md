@@ -57,7 +57,7 @@ Use this JSON shape:
 
 ## Workflow
 
-1. Read the pre-script result to get the project name, repository URL, local date, state file path, and output directory.
+1. Use the supplied project name, repository URL, local date, state file path, and output directory.
 2. Use the `web-search` skill to run focused searches about current trends in agentic AI, coding agents, AI personal assistants, workflow automation, and competing or adjacent systems.
 3. Synthesize one product opportunity that could make Matato better or more differentiated.
 4. Write a concise proposal with:
@@ -90,8 +90,6 @@ Paragraph 2: business pitch for the feature and why Matato should offer it.
 Paragraph 3: expected product value, differentiation, or success signal.
 ```
 
-## If You Skip
+## Idempotency
 
-- If the pre-script says a proposal already exists for today, stop quietly.
-- If the pre-script says an open product proposal pull request already exists for today, stop quietly.
-- Do not create, update, or replace a second proposal for the same local date.
+Do not create, update, or replace a second proposal for the same local date.

@@ -9,14 +9,6 @@ type Proposal = Record<string, string>;
 type State = { lastProposalDate?: string; proposals?: Proposal[] };
 type RepositoryFile = { type: string; name: string };
 type PullRequest = { title: string; number: number; url: string };
-type SkipDetails = {
-  localDate?: string;
-  file?: string;
-  pullRequests?: PullRequest[];
-};
-
-const skip = (reason: string, details: SkipDetails = {}): void =>
-  console.log(JSON.stringify({ skip: true, reason, ...details }));
 
 const localDate = (timezone: string): string => {
   const values = new Intl.DateTimeFormat("en", {
@@ -106,34 +98,19 @@ const main = async (): Promise<void> => {
   const outputDirectory = "docs/productDevelopment";
   const stateFile = `${storagePath}/agent/product-manager.json`;
   const project = parseProject(await run("matato", ["project", "list"]));
-  if (!project)
-    return skip("Matato project is not configured with a repository");
+  if (!project) return;
 
   const files = await listRepositoryFiles(project.repository, outputDirectory);
   const proposal = files.find(
     (file) => file.type === "file" && file.name.startsWith(`${date}-`),
   );
-  if (proposal)
-    return skip(`Product proposal already exists for ${date}`, {
-      localDate: date,
-      file: `${outputDirectory}/${proposal.name}`,
-    });
+  if (proposal) return;
 
   const openPullRequests = await matchingPullRequests(project.repository, date);
-  if (openPullRequests.length)
-    return skip(
-      `Open product proposal pull request already exists for ${date}`,
-      {
-        localDate: date,
-        pullRequests: openPullRequests,
-      },
-    );
+  if (openPullRequests.length) return;
 
   const state = await readState(stateFile);
-  if (state.lastProposalDate === date)
-    return skip(`Product proposal already created for ${date}`, {
-      localDate: date,
-    });
+  if (state.lastProposalDate === date) return;
 
   console.log(
     JSON.stringify({
