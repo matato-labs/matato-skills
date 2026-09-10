@@ -5,5 +5,5 @@ argument-hint: "<goal>"
 
 Create a concise plan for: $@
 
-Save the plan inside $WORKSPACE/plans/{working-project}/{name}.md
+Save the plan inside $MATATO_PI_CONFIG/plans/{working-project}/{name}.md
 
