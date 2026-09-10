@@ -8,6 +8,7 @@ defmodule WebApp.Application do
   @impl true
   def start(_type, _args) do
     WebApp.Workspace.validate!()
+    OpentelemetryPhoenix.setup(adapter: :bandit, liveview: true)
 
     children = [
       WebAppWeb.Telemetry,

@@ -14,13 +14,6 @@ pi install /absolute/path/to/matato-pi
 | `TELEGRAM_BOT_TOKEN` | Telegram | Bot API token. |
 | `TELEGRAM_OWNER_ID` | Telegram | Owner chat ID allowed to use the inbox and receive replies. |
 | `WORKSPACE` | Workspace skills | Directory containing your repositories. |
-| `OTEL_ENDPOINT` | Telemetry | Base OTLP/HTTP collector URL, such as `http://localhost:4318`. When set, Matato Pi best-effort exports metrics and lifecycle logs to `/v1/metrics` and `/v1/logs`. |
-
-## Telemetry
-
-Set `OTEL_ENDPOINT` to the local Grafana OTEL-LGTM collector (normally `http://localhost:4318`) to export privacy-safe prompt, token, cost, tool, result, and duration telemetry. Export failures are ignored so they cannot interrupt Pi runs. Telemetry never includes prompt or assistant text, tool arguments or results, credentials, filesystem paths, or other request content.
-
-`matato_agent_skill_duration_seconds` measures only commands entered as `/skill:<name>`; it does not infer or measure implicit skill selection.
 
 ## Remote Agent Web App
 
