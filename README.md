@@ -20,7 +20,7 @@ pi install /absolute/path/to/matato-pi
 A database-free Phoenix LiveView client for `pi --mode rpc` lives in [`web-app/`](web-app/README.md).
 
 ## Features
-* Subagents
+* Subagents, including bounded parallel batches
 * Scheduled jobs
 * Plans and researches storage in local files
 * E2E software lifecycle skills
@@ -37,6 +37,21 @@ npm run check
 ```
 
 ## Examples
+
+### Subagents
+
+`subagent` accepts its existing single-task form with `prompt` and optional `cwd`. For independent work, use `tasks` instead; the modes are mutually exclusive. Batches accept up to 16 tasks and run no more than four child Pi processes at once. Progress shows aggregate completion while every task's ordered success or failure is retained in the final tool result.
+
+```json
+{
+  "tasks": [
+    { "prompt": "Review the API changes." },
+    { "prompt": "Review the test coverage.", "cwd": "/path/to/project" }
+  ]
+}
+```
+
+Cancelling a batch stops every running child. A failed task is reported alongside, rather than replacing, successful sibling outputs.
 
 ### Plans
 You can see all plans you have created with matato-pi with `/plans`, plans are stored in `~/.config/matato-pi/plans/{repo}/{name}.md`
