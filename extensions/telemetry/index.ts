@@ -18,7 +18,7 @@ const resultFor = (event: AgentEndEvent): string => {
 
 export default function (pi: ExtensionAPI): void {
   const exporter = new OtlpExporter(process.env.OTEL_ENDPOINT);
-  const pendingSkills: Array<string | undefined> = [];
+  const pendingSkills: Array<string> = [];
   const toolStarts = new Map<string, number>();
   let promptStartedAt: number | undefined;
   let activeSkill: ActiveSkill | undefined;
@@ -39,18 +39,22 @@ export default function (pi: ExtensionAPI): void {
 
   pi.on("input", (event) => {
     const skill = event.text.match(/^\/skill:([\w-]+)(?:\s|$)/)?.[1];
-    pendingSkills.push(skill);
+    if (skill) pendingSkills.push(skill);
   });
 
-  pi.on("before_agent_start", (_event, ctx) => {
+  pi.on("before_agent_start", (event, ctx) => {
     promptStartedAt = Date.now();
-    const skill = pendingSkills.shift();
+    const skillIndex = pendingSkills.findIndex((skill) =>
+      event.prompt.startsWith(`<skill name="${skill}" `),
+    );
+    const skill =
+      skillIndex === -1 ? undefined : pendingSkills.splice(skillIndex, 1)[0];
     activeSkill = skill
       ? { name: skill, startedAt: promptStartedAt }
       : undefined;
     void exporter.exportMetrics([
       {
-        name: "matato_pi_prompts_total",
+        name: "matato_agent_prompts_total",
         value: 1,
         labels: { source: ctx.mode },
       },
@@ -74,9 +78,14 @@ export default function (pi: ExtensionAPI): void {
       .find((message) => message.role === "assistant");
     const usage = assistant?.role === "assistant" ? assistant.usage : undefined;
     const metrics: Array<Metric> = [
-      { name: "matato_pi_agent_runs_total", value: 1, labels: { result } },
       {
-        name: "matato_pi_agent_duration_seconds",
+        name: "matato_agent_prompt_results_total",
+        value: 1,
+        labels: { result },
+      },
+      {
+        name: "matato_agent_duration_seconds",
+        type: "histogram",
         value: duration,
         labels: { result },
       },
@@ -84,26 +93,22 @@ export default function (pi: ExtensionAPI): void {
     if (usage) {
       metrics.push(
         {
-          name: "matato_pi_tokens_total",
+          name: "matato_agent_token_input_total",
           value: usage.input,
-          labels: { type: "input" },
         },
         {
-          name: "matato_pi_tokens_total",
+          name: "matato_agent_token_output_total",
           value: usage.output,
-          labels: { type: "output" },
         },
         {
-          name: "matato_pi_tokens_total",
+          name: "matato_agent_token_cache_read_total",
           value: usage.cacheRead,
-          labels: { type: "cache_read" },
         },
         {
-          name: "matato_pi_tokens_total",
+          name: "matato_agent_token_cache_write_total",
           value: usage.cacheWrite,
-          labels: { type: "cache_write" },
         },
-        { name: "matato_pi_cost_dollars_total", value: usage.cost.total },
+        { name: "matato_agent_cost_usd_total", value: usage.cost.total },
       );
     }
     void exporter.exportMetrics(metrics);
@@ -114,7 +119,8 @@ export default function (pi: ExtensionAPI): void {
     if (promptStartedAt) {
       void exporter.exportMetrics([
         {
-          name: "matato_pi_prompt_duration_seconds",
+          name: "matato_agent_prompt_duration_seconds",
+          type: "histogram",
           value: secondsSince(promptStartedAt),
           labels: { result: lastResult },
         },
@@ -123,7 +129,8 @@ export default function (pi: ExtensionAPI): void {
     if (activeSkill) {
       void exporter.exportMetrics([
         {
-          name: "matato_pi_explicit_skill_duration_seconds",
+          name: "matato_agent_skill_duration_seconds",
+          type: "histogram",
           value: secondsSince(activeSkill.startedAt),
           labels: { skill_name: activeSkill.name },
         },
@@ -149,12 +156,13 @@ export default function (pi: ExtensionAPI): void {
     const result = event.isError ? "error" : "success";
     void exporter.exportMetrics([
       {
-        name: "matato_pi_tools_total",
+        name: "matato_agent_tool_executions_total",
         value: 1,
         labels: { tool_name: event.toolName, result },
       },
       {
-        name: "matato_pi_tool_duration_seconds",
+        name: "matato_agent_tool_duration_seconds",
+        type: "histogram",
         value: startedAt ? secondsSince(startedAt) : 0,
         labels: { tool_name: event.toolName, result },
       },
