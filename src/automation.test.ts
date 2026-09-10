@@ -16,8 +16,8 @@ describe("automation configuration", () => {
   });
 
   test("resolves configured scripts and skips jobs without one", () => {
-    expect(scriptPath("/skills/daily-review", "pre-script.ts")).toBe(
-      "/skills/daily-review/scripts/pre-script.ts",
+    expect(scriptPath("/skills/daily-review", "preScript.ts")).toBe(
+      "/skills/daily-review/scripts/preScript.ts",
     );
     expect(scriptPath("/skills/daily-review", undefined)).toBeUndefined();
     expect(scriptPath("/skills/daily-review", "../secret.ts")).toBeUndefined();
