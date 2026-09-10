@@ -20,7 +20,7 @@ const main = async (): Promise<void> => {
         "issue",
         "list",
         "--search",
-        "label:ai no:assignee state:open",
+        "label:AI no:assignee state:open",
         "--limit",
         "1",
         "--json",
