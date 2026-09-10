@@ -23,7 +23,6 @@
   },
   "scripts": {
     "check": "tsc --noEmit",
-    "worker": "bun worker/index.ts",
     "test": "bun test",
     "lint": "eslint ."
   },
@@ -46,8 +45,5 @@
     "typebox": "*",
     "typescript": "^5.7.3",
     "typescript-eslint": "^8.69.0"
-  },
-  "dependencies": {
-    "croner": "^10.0.1"
   }
 }

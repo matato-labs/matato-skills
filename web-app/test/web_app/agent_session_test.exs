@@ -61,6 +61,7 @@ defmodule WebApp.AgentSessionTest do
     arguments = context.root |> Path.join("arguments.json") |> File.read!() |> Jason.decode!()
     assert "--approve" in arguments
     refute "--no-approve" in arguments
+    refute "--session-dir" in arguments
   end
 
   test "discovers in order, keeps rejection nonfatal, and enforces dialog ownership", context do

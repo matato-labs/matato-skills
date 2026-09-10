@@ -21,12 +21,16 @@ matato_pi_config =
 
 matato_pi_config = expand_path.(matato_pi_config)
 
-storage_root = Path.join(matato_pi_config, "web-app")
+pi_session_dir =
+  System.get_env("PI_CODING_AGENT_SESSION_DIR") ||
+    Path.join([System.user_home!(), ".pi", "agent", "sessions"])
+
+pi_session_dir = expand_path.(pi_session_dir)
 
 config :web_app,
   workspace: workspace || System.tmp_dir!(),
-  session_dir: Path.join(storage_root, "sessions"),
-  metadata_file: Path.join(storage_root, "sessions.json"),
+  session_dir: pi_session_dir,
+  metadata_file: Path.join(matato_pi_config, "sessions/sessions.json"),
   automations_config_path: Path.join(matato_pi_config, "automations/config.json"),
   automation_storage_path: matato_pi_config
 
