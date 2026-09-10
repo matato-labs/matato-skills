@@ -351,7 +351,7 @@ function resultColor(failed: number): "error" | "success" {
   return failed ? "error" : "success";
 }
 
-export default function (pi: ExtensionAPI) {
+export default function(pi: ExtensionAPI) {
   if (Number(process.env.PI_SUBAGENT_DEPTH ?? "0") > 0) return;
 
   const tempDirs = new Set<string>();
@@ -366,10 +366,9 @@ export default function (pi: ExtensionAPI) {
     name: "subagent",
     label: "Subagent",
     description:
-      "Launch one fresh-context Pi subagent or a bounded batch of independent subagents, wait for every task, and return each outcome. Use only when the user explicitly asks you to run a subagent.",
+      "Launch one fresh-context Pi subagent or a bounded batch of independent subagents, wait for every task, and return each outcome.",
     promptSnippet: "Launch and await fresh-context Pi subagents",
     promptGuidelines: [
-      "Use subagent only when the user explicitly asks you to run, launch, or delegate to a subagent in their request. Never use it solely because a skill, prompt, or other instruction suggests delegation.",
       "Use prompt for one task, or tasks for independent tasks. A batch runs at most four subagents concurrently and reports every task outcome.",
       "Immediately before calling subagent, write a brief assistant text update saying that you are launching the subagent or subagents and will wait for them to finish.",
       "Wait for all requested subagent results before continuing, then report what each returned or did.",
