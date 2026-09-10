@@ -1,7 +1,11 @@
 <Layouts.app flash={@flash}>
   <div class="h-screen overflow-hidden bg-base-300 text-base-content">
     <div class="grid h-full lg:grid-cols-[17rem_minmax(0,1fr)]">
-      <SessionComponents.sidebar sessions={@sessions} session_id={@session_id} />
+      <SessionComponents.sidebar
+        groups={@groups}
+        session_id={@session_id}
+        delete_session_id={@delete_session_id}
+      />
 
       <main class="grid h-full min-h-0 place-items-center overflow-y-auto bg-base-300 px-5 py-12">
         <div class="w-full max-w-lg">

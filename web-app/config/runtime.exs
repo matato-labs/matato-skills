@@ -6,12 +6,20 @@ if config_env() != :test and (is_nil(workspace) or String.trim(workspace) == "")
   raise "WORKSPACE is required and must point to an accessible directory"
 end
 
+expand_path = fn
+  "~" -> System.user_home!()
+  "~/" <> path -> Path.join(System.user_home!(), path)
+  path -> Path.expand(path)
+end
+
 matato_pi_config =
   System.get_env("MATATO_PI_CONFIG") ||
     if(config_env() == :test,
       do: Path.join(System.tmp_dir!(), "matato-pi-test"),
-      else: Path.expand("~/.config/matato-pi")
+      else: Path.join(System.user_home!(), ".config/matato-pi")
     )
+
+matato_pi_config = expand_path.(matato_pi_config)
 
 storage_root = Path.join(matato_pi_config, "web-app")
 

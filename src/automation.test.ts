@@ -1,5 +1,7 @@
 import { describe, expect, test } from "bun:test";
+import { homedir } from "node:os";
 import { dailySessionArgs, scriptPath, type Automation } from "./automation.ts";
+import { storagePath } from "./storagePath.ts";
 
 const automation = {
   jobName: "daily-review",
@@ -20,6 +22,17 @@ describe("automation configuration", () => {
         new Date(2026, 8, 7),
       ).slice(0, 2),
     ).toEqual(["--session-id", "daily-review-2026-09-07"]);
+  });
+
+  test("expands a home-relative MATATO_PI_CONFIG", () => {
+    const original = process.env.MATATO_PI_CONFIG;
+    process.env.MATATO_PI_CONFIG = "~/.config/matato-pi";
+    try {
+      expect(storagePath()).toBe(`${homedir()}/.config/matato-pi`);
+    } finally {
+      if (original === undefined) delete process.env.MATATO_PI_CONFIG;
+      else process.env.MATATO_PI_CONFIG = original;
+    }
   });
 
   test("honors MATATO_PI_CONFIG for the session directory", () => {

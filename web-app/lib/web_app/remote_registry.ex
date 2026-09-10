@@ -25,6 +25,7 @@ defmodule WebApp.RemoteRegistry do
   end
 
   def stop(id), do: GenServer.call(__MODULE__, {:stop, id}, 20_000)
+  def delete(id), do: GenServer.call(__MODULE__, {:delete, id}, 20_000)
 
   @impl true
   def init(:ok) do
@@ -80,6 +81,21 @@ defmodule WebApp.RemoteRegistry do
     {:reply, :ok, next}
   catch
     :exit, _reason -> {:reply, :ok, put_status(state, id, :interrupted)}
+  end
+
+  def handle_call({:delete, id}, _from, state) do
+    with metadata when not is_nil(metadata) <- state.sessions[id],
+         {:ok, _session_file} <- validate_session_file(metadata["session_file"]) do
+      if AgentSession.whereis(id), do: AgentSession.stop(id)
+      next = %{state | sessions: Map.delete(state.sessions, id)}
+      persist(next)
+      {:reply, :ok, next}
+    else
+      nil -> {:reply, {:error, "Session not found"}, state}
+      {:error, error} -> {:reply, {:error, format_error(error)}, state}
+    end
+  catch
+    :exit, _reason -> {:reply, {:error, "Session could not be deleted"}, state}
   end
 
   @impl true

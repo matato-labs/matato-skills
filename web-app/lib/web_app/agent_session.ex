@@ -236,10 +236,15 @@ defmodule WebApp.AgentSession do
   defp send_command(state, command, kind, from) do
     id = "#{state.id}-#{state.sequence + 1}"
     payload = Map.put(command, "id", id)
-    true = Port.command(state.port, Jason.encode!(payload) <> "\n")
-    timer = Process.send_after(self(), {:command_timeout, id}, @command_timeout)
-    pending = Map.put(state.pending, id, %{kind: kind, from: from, timer: timer})
-    %{state | pending: pending, sequence: state.sequence + 1}
+
+    try do
+      true = Port.command(state.port, Jason.encode!(payload) <> "\n")
+      timer = Process.send_after(self(), {:command_timeout, id}, @command_timeout)
+      pending = Map.put(state.pending, id, %{kind: kind, from: from, timer: timer})
+      %{state | pending: pending, sequence: state.sequence + 1}
+    rescue
+      ArgumentError -> protocol_failure(state, "Pi exited before accepting a command")
+    end
   end
 
   defp decode(_line, %{closing: true} = state), do: state

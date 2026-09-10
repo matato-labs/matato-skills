@@ -53,7 +53,7 @@ defmodule WebApp.Workspace do
     end
   end
 
-  defp canonical(path) do
+  def canonical(path) do
     case System.cmd("readlink", ["-f", "--", path], stderr_to_stdout: true) do
       {result, 0} -> {:ok, String.trim_trailing(result)}
       {error, _status} -> {:error, String.trim(error)}
