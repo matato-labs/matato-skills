@@ -10,7 +10,7 @@ When invoked, use the supplied pull-request and repository data. The user will e
 
 If you were given a PR, add the label `in-review`, if the label do not exist create it and add it to the PR. Remove the label `ai-review`, YOU MUST DELETE THE `ai-review` LABEL.
 
-Run the following specialists in order, launching each as a fresh-context subagent. Give each subagent only the stable inputs and its own task, never prior subagent conversations or conclusions. Each subagent will have its own skill with instructions on what to do; each subagent must fix all the findings. They must return a concise evidence, changes and a summary.
+Create a worktree to isolate your self from other agents running. Run the following specialists in order, launching each as a fresh-context subagent. Give each subagent only the stable inputs and its own task, never prior subagent conversations or conclusions. Each subagent will have its own skill with instructions on what to do; each subagent must fix all the findings. They must return a concise evidence, changes and a summary.
 
 1. Invoke `$acceptance-criteria-review` for the supplied acceptance criteria.
 2. Invoke `$general-change-review` for an independent review of the change.
