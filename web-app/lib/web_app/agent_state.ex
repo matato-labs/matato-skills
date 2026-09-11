@@ -21,7 +21,9 @@ defmodule WebApp.AgentState do
       model: nil,
       session_file: nil,
       session_id: nil,
-      error: nil
+      error: nil,
+      commands: [],
+      commands_error: nil
     }
   end
 
@@ -141,6 +143,8 @@ defmodule WebApp.AgentState do
 
   def clear_dialog(state), do: %{state | dialog: nil, status: :working}
   def command_error(state, error), do: %{state | error: error}
+  def commands_ready(state, commands), do: %{state | commands: commands, commands_error: nil}
+  def commands_failed(state, error), do: %{state | commands: [], commands_error: error}
 
   def exit(state, error) do
     status = if state.status in @active_statuses, do: :interrupted, else: :failed

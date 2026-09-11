@@ -203,14 +203,54 @@
               id="composer-form"
               phx-submit="compose"
               phx-change="draft"
-              phx-hook="ComposerSubmit"
-              class="mx-auto max-w-3xl"
+              phx-hook="Composer"
+              class="relative mx-auto max-w-3xl"
             >
+              <div
+                :if={@draft != "" && String.starts_with?(@draft, "/")}
+                id="slash-command-picker"
+                role="listbox"
+                class="absolute inset-x-0 bottom-full mb-2 max-h-72 overflow-y-auto rounded-xl border border-base-content/15 bg-base-100 p-1 shadow-xl"
+              >
+                <button
+                  :for={command <- @session.commands}
+                  id={"slash-command-#{command["name"]}"}
+                  type="button"
+                  role="option"
+                  data-slash-command={command["name"]}
+                  title={command_path(command)}
+                  class="slash-command-option flex w-full items-start gap-3 rounded-lg px-3 py-2 text-left transition hover:bg-base-200 focus:bg-base-200 focus:outline-none"
+                >
+                  <span class="font-mono text-sm font-semibold text-primary">/{command["name"]}</span>
+                  <span class="min-w-0 flex-1">
+                    <span :if={command["description"]} class="block truncate text-sm">{command[
+                      "description"
+                    ]}</span>
+                    <span class="block text-xs text-base-content/45">{command["source"]} · {command_location(
+                      command
+                    )}</span>
+                  </span>
+                </button>
+                <p :if={@session.commands == []} class="px-3 py-2 text-sm text-base-content/50">
+                  No commands match this session.
+                </p>
+              </div>
+              <p
+                :if={@session.commands_error}
+                id="command-discovery-error"
+                class="mb-2 text-xs text-warning"
+                role="status"
+              >
+                {@session.commands_error}
+              </p>
               <.input
+                id="composer-message"
                 field={@composer_form[:message]}
                 type="textarea"
                 rows="3"
                 placeholder="Ask Pi to work on this project…"
+                aria-controls="slash-command-picker"
+                aria-expanded={@draft != "" && String.starts_with?(@draft, "/")}
                 class="textarea w-full resize-none border-base-content/15 bg-base-200 text-sm leading-6 placeholder:text-base-content/30 focus:border-primary focus:outline-none"
               />
               <div class="mt-2 flex items-center gap-2">

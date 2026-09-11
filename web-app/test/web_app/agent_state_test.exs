@@ -130,6 +130,17 @@ defmodule WebApp.AgentStateTest do
     assert AgentState.command_error(state, "rejected").status == :working
   end
 
+  test "keeps command discovery failures separate from session errors" do
+    state = AgentState.new() |> AgentState.commands_failed("Command discovery failed")
+    assert state.commands == []
+    assert state.commands_error == "Command discovery failed"
+    assert state.error == nil
+
+    state = AgentState.commands_ready(state, [%{"name" => "plan"}])
+    assert state.commands == [%{"name" => "plan"}]
+    assert state.commands_error == nil
+  end
+
   test "keeps warm reconnect snapshots bounded" do
     long_text = String.duplicate("x", 30_000)
 

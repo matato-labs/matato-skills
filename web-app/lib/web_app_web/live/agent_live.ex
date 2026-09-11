@@ -263,6 +263,8 @@ defmodule WebAppWeb.AgentLive do
   end
 
   def markdown(text), do: {:safe, MDEx.to_html!(text)}
+  def command_location(command), do: get_in(command, ["sourceInfo", "scope"]) || "unknown"
+  def command_path(command), do: get_in(command, ["sourceInfo", "path"]) || ""
 
   def message_text(%{"content" => content}) when is_binary(content), do: content
 
