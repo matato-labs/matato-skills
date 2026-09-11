@@ -6,8 +6,7 @@ defmodule WebApp.AutomationTest do
   alias WebApp.{Automation, AutomationRunner, AutomationScheduler}
 
   setup do
-    AutomationScheduler.replace([])
-    :ok
+    :ok = Automation.replace([])
   end
 
   test "loads automations and preserves daily sessions" do
@@ -24,6 +23,41 @@ defmodule WebApp.AutomationTest do
     assert automation.job_name == "enabled"
     assert automation.daily_session
     refute disabled.enabled
+  end
+
+  test "stores replacement automations for the shared database" do
+    automation = %{automation("stored", "* * * * *") | can_launch_sub_agents: true}
+
+    assert :ok = Automation.replace([automation])
+
+    assert [
+             %Automation{job_name: "stored", can_launch_sub_agents: true}
+           ] = Automation.list()
+  end
+
+  test "rejects replacement automations with duplicate job names" do
+    assert {:error, "Automation job names must be unique"} =
+             Automation.replace([
+               automation("duplicate", "* * * * *"),
+               automation("duplicate", "*/5 * * * *")
+             ])
+  end
+
+  test "imports legacy automations once and backs up the JSON file" do
+    path = temp_path()
+
+    File.write!(
+      path,
+      ~s({"automations":[{"jobName":"imported","enabled":true,"schedule":"* * * * *","userPrompt":"Run it","model":"model","thinkingLevel":"off"}]})
+    )
+
+    assert :ok = Automation.import(path)
+    assert [%Automation{job_name: "imported"}] = Automation.list()
+    refute File.exists?(path)
+    assert [_backup] = Path.wildcard("#{path}.imported-*.json")
+
+    assert :ok = Automation.import(path)
+    assert [%Automation{job_name: "imported"}] = Automation.list()
   end
 
   test "logs the failed automation and reason" do

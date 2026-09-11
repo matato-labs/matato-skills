@@ -1,9 +1,19 @@
 import Config
 
+test_storage =
+  Path.join(System.tmp_dir!(), "matato-pi-test-#{System.system_time(:microsecond)}")
+
+database_path = Path.join(test_storage, "matato-pi.sqlite3")
+File.mkdir_p!(test_storage)
+
+config :web_app,
+  database_path: database_path,
+  legacy_sessions_file: Path.join(test_storage, "sessions/sessions.json"),
+  legacy_automations_file: Path.join(test_storage, "automations/config.json"),
+  automation_storage_path: test_storage
+
 config :web_app, WebApp.Repo,
-  database:
-    Path.join(System.tmp_dir!(), "matato-pi-test-#{System.system_time(:microsecond)}.sqlite3"),
-  pool: Ecto.Adapters.SQL.Sandbox,
+  database: database_path,
   pool_size: 1,
   busy_timeout: 5_000
 

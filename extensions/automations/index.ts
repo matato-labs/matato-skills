@@ -1,4 +1,6 @@
 import { Database } from "bun:sqlite";
+import { mkdirSync } from "node:fs";
+import { dirname } from "node:path";
 import {
   type Automation,
   type AutomationConfig,
@@ -22,7 +24,11 @@ type BrowserResult = {
   index: number;
 };
 
-const database = new Database(databasePath(), { strict: true });
+const configDatabasePath = databasePath();
+
+mkdirSync(dirname(configDatabasePath), { recursive: true, mode: 0o700 });
+
+const database = new Database(configDatabasePath, { strict: true });
 
 database.run("PRAGMA busy_timeout = 5000");
 
@@ -33,7 +39,7 @@ type AutomationRow = {
   user_prompt: string;
   daily_session: number;
   model: string;
-  thinking_level: string;
+  thinking_level: Automation["thinkingLevel"];
   can_launch_sub_agents: number;
 };
 
@@ -42,19 +48,44 @@ function parseAutomation(text: string): Automation {
 }
 
 function fromRow(row: AutomationRow): Automation {
-  return { jobName: row.job_name, enabled: Boolean(row.enabled), schedule: row.schedule, userPrompt: row.user_prompt, dailySession: Boolean(row.daily_session), model: row.model, thinkingLevel: row.thinking_level, canLaunchSubAgents: Boolean(row.can_launch_sub_agents) };
+  return {
+    jobName: row.job_name,
+    enabled: Boolean(row.enabled),
+    schedule: row.schedule,
+    userPrompt: row.user_prompt,
+    dailySession: Boolean(row.daily_session),
+    model: row.model,
+    thinkingLevel: row.thinking_level,
+    canLaunchSubAgents: Boolean(row.can_launch_sub_agents),
+  };
 }
 
 async function loadConfig(): Promise<AutomationConfig> {
-  const rows = database.query<AutomationRow, []>("SELECT job_name, enabled, schedule, user_prompt, daily_session, model, thinking_level, can_launch_sub_agents FROM automations ORDER BY id").all();
+  const rows = database
+    .query<AutomationRow, []>(
+      "SELECT job_name, enabled, schedule, user_prompt, daily_session, model, thinking_level, can_launch_sub_agents FROM automations ORDER BY id",
+    )
+    .all();
   return { automations: rows.map(fromRow) };
 }
 
 async function saveConfig(config: AutomationConfig): Promise<void> {
   const replace = database.transaction((automations: Array<Automation>) => {
     database.run("DELETE FROM automations");
-    const statement = database.prepare("INSERT INTO automations (job_name, enabled, schedule, user_prompt, daily_session, model, thinking_level, can_launch_sub_agents, inserted_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))");
-    for (const automation of automations) statement.run(automation.jobName, automation.enabled, automation.schedule, automation.userPrompt, automation.dailySession ?? false, automation.model, automation.thinkingLevel, automation.canLaunchSubAgents ?? false);
+    const statement = database.prepare(
+      "INSERT INTO automations (job_name, enabled, schedule, user_prompt, daily_session, model, thinking_level, can_launch_sub_agents, inserted_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))",
+    );
+    for (const automation of automations)
+      statement.run(
+        automation.jobName,
+        automation.enabled,
+        automation.schedule,
+        automation.userPrompt,
+        automation.dailySession ?? false,
+        automation.model,
+        automation.thinkingLevel,
+        automation.canLaunchSubAgents ?? false,
+      );
   });
   replace(config.automations);
 }

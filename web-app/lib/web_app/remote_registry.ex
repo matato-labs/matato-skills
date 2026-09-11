@@ -47,7 +47,7 @@ defmodule WebApp.RemoteRegistry do
 
   def handle_call({:open, id}, _from, state) do
     with metadata when not is_nil(metadata) <- RemoteSessions.get(id),
-         {:ok, metadata} <- validate_metadata(metadata),
+         {:ok, metadata} <- RemoteSessions.validate_metadata(metadata),
          :ok <- ensure_unique_writer(metadata),
          :ok <- start_or_reuse(metadata) do
       {:reply, :ok, state}
@@ -77,7 +77,7 @@ defmodule WebApp.RemoteRegistry do
 
   def handle_call({:delete, id}, _from, state) do
     with metadata when not is_nil(metadata) <- RemoteSessions.get(id),
-         {:ok, _session_file} <- validate_session_file(metadata["session_file"]),
+         {:ok, _session_file} <- RemoteSessions.validate_session_file(metadata["session_file"]),
          :ok <- RemoteSessions.delete(id) do
       if AgentSession.whereis(id), do: AgentSession.stop(id)
       {:reply, :ok, state}
@@ -107,23 +107,6 @@ defmodule WebApp.RemoteRegistry do
   def handle_cast({:status, id, status}, state) do
     put_status(id, status)
     {:noreply, state}
-  end
-
-  defp validate_metadata(metadata) do
-    with true <- valid_id?(metadata["id"]),
-         relative when is_binary(relative) <- metadata["relative_project"],
-         project <- Workspace.resolve(relative),
-         {:ok, session_file} <- validate_session_file(metadata["session_file"]) do
-      {:ok,
-       metadata
-       |> Map.put("name", Path.basename(project))
-       |> Map.put("project", project)
-       |> Map.put("session_file", session_file)}
-    else
-      _ -> {:error, "Invalid session metadata"}
-    end
-  rescue
-    error in [ArgumentError, File.Error] -> {:error, Exception.message(error)}
   end
 
   defp create_session(relative, state) do
@@ -221,46 +204,6 @@ defmodule WebApp.RemoteRegistry do
   end
 
   defp put_status(id, status), do: RemoteSessions.update(id, %{status: to_string(status)})
-  defp validate_session_file(nil), do: {:ok, nil}
-
-  defp validate_session_file(path) when is_binary(path) do
-    root = Application.fetch_env!(:web_app, :session_dir) |> Path.expand()
-
-    cond do
-      !session_path_allowed?(path, root) -> {:error, "Invalid session path"}
-      File.exists?(path) and !File.regular?(path) -> {:error, "Invalid session path"}
-      File.exists?(path) -> {:ok, path}
-      true -> {:ok, nil}
-    end
-  end
-
-  defp validate_session_file(_path), do: {:error, "Invalid session path"}
-  defp valid_id?(id), do: is_binary(id) and Regex.match?(~r/\A[A-Za-z0-9_-]{12}\z/, id)
-
-  defp session_path_allowed?(path, root),
-    do:
-      with(
-        {:ok, canonical_root} <- canonical(root),
-        {:ok, canonical_path} <- canonical(path),
-        do: String.starts_with?(canonical_path, canonical_root <> "/"),
-        else: (_ -> false)
-      )
-
-  defp canonical(path) do
-    target = if File.exists?(path), do: path, else: Path.dirname(path)
-
-    case System.cmd("readlink", ["-f", "--", target], stderr_to_stdout: true) do
-      {canonical, 0} ->
-        canonical = String.trim(canonical)
-
-        {:ok,
-         if(File.exists?(path), do: canonical, else: Path.join(canonical, Path.basename(path)))}
-
-      {_error, _status} ->
-        :error
-    end
-  end
-
   defp notify(event), do: GenServer.cast(__MODULE__, event)
   defp format_error(reason) when is_binary(reason), do: reason
   defp format_error(reason), do: inspect(reason)

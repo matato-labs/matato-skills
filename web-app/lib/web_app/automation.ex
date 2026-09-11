@@ -21,10 +21,12 @@ defmodule WebApp.Automation do
     :daily_session,
     :model,
     :thinking_level,
-    :can_launch_sub_agents
+    can_launch_sub_agents: false
   ]
 
   @thinking_levels ~w(off minimal low medium high xhigh max)
+
+  def exists?, do: Repo.exists?(AutomationRecord)
 
   def list,
     do:
@@ -33,10 +35,11 @@ defmodule WebApp.Automation do
 
   def replace(automations) when is_list(automations) do
     with :ok <- validate_schedules(automations),
+         :ok <- validate_job_names(automations),
          {:ok, _} <-
            Repo.transaction(fn ->
              Repo.delete_all(AutomationRecord)
-             Enum.each(automations, &insert!/1)
+             Enum.each(automations, &insert/1)
            end) do
       notify()
       :ok
@@ -46,7 +49,7 @@ defmodule WebApp.Automation do
   end
 
   def import(path) do
-    if Repo.exists?(AutomationRecord) do
+    if exists?() do
       :ok
     else
       with {:ok, automations} <- load(path), :ok <- replace(automations) do
@@ -67,17 +70,34 @@ defmodule WebApp.Automation do
     end
   end
 
-  defp insert!(automation) do
-    %AutomationRecord{}
-    |> AutomationRecord.changeset(Map.from_struct(automation))
-    |> Repo.insert!()
+  defp insert(automation) do
+    changeset = AutomationRecord.changeset(%AutomationRecord{}, Map.from_struct(automation))
+
+    case Repo.insert(changeset) do
+      {:ok, _record} -> :ok
+      {:error, reason} -> Repo.rollback(reason)
+    end
   end
 
   defp validate_schedules(automations) do
-    case WebApp.AutomationScheduler.validate(automations) do
-      :ok -> :ok
-      {:error, reason} -> {:error, reason}
-    end
+    Enum.reduce_while(automations, :ok, fn automation, :ok ->
+      case Crontab.CronExpression.Parser.parse(
+             automation.schedule,
+             String.split(automation.schedule) |> length() == 6
+           ) do
+        {:ok, _schedule} ->
+          {:cont, :ok}
+
+        {:error, reason} ->
+          {:halt, {:error, "Invalid schedule for #{automation.job_name}: #{inspect(reason)}"}}
+      end
+    end)
+  end
+
+  defp validate_job_names(automations) do
+    if Enum.uniq_by(automations, & &1.job_name) == automations,
+      do: :ok,
+      else: {:error, "Automation job names must be unique"}
   end
 
   defp parse(automations) do

@@ -1,8 +1,7 @@
 defmodule WebApp.LegacyImporter do
   require Logger
 
-  alias WebApp.{Automation, RemoteSessions, Repo, Workspace}
-  alias WebApp.RemoteSessions.RemoteSession
+  alias WebApp.{Automation, RemoteSessions}
 
   def import do
     import_sessions(Application.fetch_env!(:web_app, :legacy_sessions_file))
@@ -10,7 +9,7 @@ defmodule WebApp.LegacyImporter do
   end
 
   defp import_sessions(path) do
-    if Repo.exists?(RemoteSession) do
+    if RemoteSessions.exists?() do
       :ok
     else
       case File.read(path) do
@@ -35,25 +34,22 @@ defmodule WebApp.LegacyImporter do
     end
   end
 
-  defp import_session(
-         {_id, %{"id" => id, "relative_project" => relative, "status" => status} = metadata}
-       ) do
-    project = Workspace.resolve(relative)
-
-    attributes = %{
-      id: id,
-      name: Map.get(metadata, "name", Path.basename(project)),
-      project_path: project,
-      relative_project: Path.relative_to(project, Workspace.root()),
-      session_file: Map.get(metadata, "session_file"),
-      pi_session_id: Map.get(metadata, "pi_session_id"),
-      source: Map.get(metadata, "source", "web"),
-      status: status
-    }
-
-    case RemoteSessions.create(attributes) do
-      {:ok, _session} -> :ok
-      {:error, _changeset} -> Logger.warning("Skipping invalid legacy remote session", id: id)
+  defp import_session({_id, %{"id" => id, "status" => status} = metadata}) do
+    with {:ok, validated} <- RemoteSessions.validate_metadata(metadata),
+         {:ok, _session} <-
+           RemoteSessions.create(%{
+             id: id,
+             name: validated["name"],
+             project_path: validated["project"],
+             relative_project: validated["relative_project"],
+             session_file: validated["session_file"],
+             pi_session_id: Map.get(metadata, "pi_session_id"),
+             source: Map.get(metadata, "source", "web"),
+             status: status
+           }) do
+      :ok
+    else
+      _ -> Logger.warning("Skipping invalid legacy remote session", id: id)
     end
   rescue
     error in [ArgumentError, File.Error] ->
