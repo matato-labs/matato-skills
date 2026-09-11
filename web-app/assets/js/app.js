@@ -24,96 +24,9 @@ import {Socket} from "phoenix"
 import {LiveSocket} from "phoenix_live_view"
 import {hooks as colocatedHooks} from "phoenix-colocated/web_app"
 import topbar from "../vendor/topbar.cjs"
+import {composer} from "./composer"
 
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
-const composer = {
-  mounted() {
-    this.activeIndex = 0
-    this.textarea = this.el.querySelector("#composer-message")
-    this.picker = this.el.querySelector("#slash-command-picker")
-    this.handleInput = () => this.filterCommands()
-    this.handleKeydown = event => this.handleComposerKeydown(event)
-    this.handleMouseDown = event => event.preventDefault()
-    this.handleClick = event => {
-      const option = event.target.closest("[data-slash-command]")
-      if (option) this.insertCommand(option.dataset.slashCommand)
-    }
-
-    this.textarea.addEventListener("input", this.handleInput)
-    this.el.addEventListener("keydown", this.handleKeydown)
-    this.el.addEventListener("mousedown", this.handleMouseDown)
-    this.el.addEventListener("click", this.handleClick)
-    this.filterCommands()
-  },
-  updated() {
-    this.textarea = this.el.querySelector("#composer-message")
-    this.picker = this.el.querySelector("#slash-command-picker")
-    this.filterCommands()
-  },
-  destroyed() {
-    this.textarea.removeEventListener("input", this.handleInput)
-    this.el.removeEventListener("keydown", this.handleKeydown)
-    this.el.removeEventListener("mousedown", this.handleMouseDown)
-    this.el.removeEventListener("click", this.handleClick)
-  },
-  commandOptions() {
-    return Array.from(this.el.querySelectorAll("[data-slash-command]"))
-  },
-  visibleOptions() {
-    return this.commandOptions().filter(option => !option.hidden)
-  },
-  filterCommands() {
-    const query = this.textarea?.value.match(/^\/(\S*)/)?.[1].toLowerCase()
-    if (query === undefined) return
-    this.picker.hidden = false
-
-    this.commandOptions().forEach(option => {
-      const text = `${option.dataset.slashCommand} ${option.textContent}`.toLowerCase()
-      option.hidden = !text.includes(query)
-    })
-    this.activeIndex = 0
-    this.updateActiveOption()
-  },
-  updateActiveOption() {
-    const options = this.visibleOptions()
-    options.forEach((option, index) => option.classList.toggle("bg-base-200", index === this.activeIndex))
-  },
-  insertCommand(command) {
-    const value = this.textarea.value
-    const match = value.match(/^\/\S*/)
-    if (!match) return
-
-    const next = `/${command}${value.slice(match[0].length)}`
-    this.textarea.value = next
-    this.textarea.setSelectionRange(command.length + 1, command.length + 1)
-    this.textarea.dispatchEvent(new Event("input", {bubbles: true}))
-    this.textarea.focus()
-  },
-  handleComposerKeydown(event) {
-    const options = this.visibleOptions()
-    if (options.length && ["ArrowDown", "ArrowUp"].includes(event.key)) {
-      event.preventDefault()
-      this.activeIndex = (this.activeIndex + (event.key === "ArrowDown" ? 1 : options.length - 1)) % options.length
-      this.updateActiveOption()
-      return
-    }
-    if (options.length && ["Enter", "Tab"].includes(event.key) && !event.shiftKey && !event.isComposing) {
-      event.preventDefault()
-      this.insertCommand(options[this.activeIndex].dataset.slashCommand)
-      return
-    }
-    if (event.key === "Escape") {
-      this.picker.hidden = true
-      return
-    }
-    if (event.key !== "Enter" || event.shiftKey || event.isComposing) return
-    const sendButton = this.el.querySelector("button[name='behavior'][value='send']")
-    if (!sendButton || sendButton.disabled) return
-
-    event.preventDefault()
-    this.el.requestSubmit(sendButton)
-  },
-}
 
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,

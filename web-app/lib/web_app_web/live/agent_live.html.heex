@@ -207,9 +207,9 @@
               class="relative mx-auto max-w-3xl"
             >
               <div
-                :if={@draft != "" && String.starts_with?(@draft, "/")}
                 id="slash-command-picker"
                 role="listbox"
+                hidden={@draft == "" || !String.starts_with?(@draft, "/")}
                 class="absolute inset-x-0 bottom-full mb-2 max-h-72 overflow-y-auto rounded-xl border border-base-content/15 bg-base-100 p-1 shadow-xl"
               >
                 <button
@@ -231,7 +231,7 @@
                     )}</span>
                   </span>
                 </button>
-                <p :if={@session.commands == []} class="px-3 py-2 text-sm text-base-content/50">
+                <p id="slash-command-empty" class="px-3 py-2 text-sm text-base-content/50">
                   No commands match this session.
                 </p>
               </div>
