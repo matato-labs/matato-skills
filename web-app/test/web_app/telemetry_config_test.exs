@@ -2,16 +2,17 @@ defmodule WebApp.TelemetryConfigTest do
   use ExUnit.Case, async: true
 
   test "exports traces to the local collector when OTEL_ENDPOINT is absent" do
-    assert runtimeConfig(nil) == "{:otlp, :http_protobuf, \"http://localhost:4318\"}"
+    assert runtimeConfig(nil) ==
+             "{:otlp, :http_protobuf, \"http://localhost:4318\", \"http://localhost:4318\"}"
   end
 
   test "disables trace export when OTEL_ENDPOINT is blank" do
-    assert runtimeConfig("   ") == "{:none, nil, nil}"
+    assert runtimeConfig("   ") == "{:none, nil, nil, nil}"
   end
 
   test "configures OTLP HTTP export at OTEL_ENDPOINT" do
     assert runtimeConfig("http://collector:4318") ==
-             "{:otlp, :http_protobuf, \"http://collector:4318\"}"
+             "{:otlp, :http_protobuf, \"http://collector:4318\", \"http://collector:4318\"}"
   end
 
   test "instruments Bandit HTTP and Phoenix LiveView events" do
@@ -30,7 +31,7 @@ defmodule WebApp.TelemetryConfigTest do
 
   defp runtimeConfig(endpoint) do
     expression =
-      "IO.inspect({Application.get_env(:opentelemetry, :traces_exporter), Application.get_env(:opentelemetry_exporter, :otlp_protocol), Application.get_env(:opentelemetry_exporter, :otlp_endpoint)})"
+      "IO.inspect({Application.get_env(:opentelemetry, :traces_exporter), Application.get_env(:opentelemetry_exporter, :otlp_protocol), Application.get_env(:opentelemetry_exporter, :otlp_endpoint), Application.get_env(:web_app, :otel_endpoint)})"
 
     environment = [{"MIX_ENV", "test"}, {"OTEL_ENDPOINT", endpoint}]
     {output, 0} = System.cmd("mix", ["run", "--no-start", "-e", expression], env: environment)

@@ -41,10 +41,12 @@ otel_endpoint = System.get_env("OTEL_ENDPOINT", "http://localhost:4318") |> Stri
 case otel_endpoint do
   "" ->
     config :opentelemetry, traces_exporter: :none
+    config :web_app, otel_endpoint: nil
 
   endpoint ->
     config :opentelemetry, traces_exporter: :otlp
     config :opentelemetry_exporter, otlp_protocol: :http_protobuf, otlp_endpoint: endpoint
+    config :web_app, otel_endpoint: endpoint
 end
 
 # config/runtime.exs is executed for all environments, including
