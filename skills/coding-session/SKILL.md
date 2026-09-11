@@ -6,7 +6,7 @@ disable-model-invocation: true
 
 # Task Implementation
 
-When invoked, use the supplied issue and repository data. Given a plan from a ticket, GH Issue, or user's prompt, you must implement the changes in the target repository the user provides. Create a worktree to isolate yourself from other agents running in the same repository. Understand the code involved in the user change. Decide the implementation approach yourself, then analyse the files that need to be changed and the code surrounding those files that impacts the change in the overall architecture and E2E workflow. Do not limit your scope to the most obvious files.
+When invoked, use the supplied issue and repository data. Given a plan from a ticket, GH Issue, or user's prompt, you must implement the changes in the target repository the user provides. Create a worktree under `/tmp` to isolate yourself from other agents running in the same repository. Understand the code involved in the user change. Decide the implementation approach yourself, then analyse the files that need to be changed and the code surrounding those files that impacts the change in the overall architecture and E2E workflow. Do not limit your scope to the most obvious files.
 
 ## Testing
 
