@@ -32,7 +32,8 @@ config :web_app,
   session_dir: pi_session_dir,
   metadata_file: Path.join(matato_pi_config, "sessions/sessions.json"),
   automations_config_path: Path.join(matato_pi_config, "automations/config.json"),
-  automation_storage_path: matato_pi_config
+  automation_storage_path: matato_pi_config,
+  pi_package_root: System.get_env("MATATO_PI_PACKAGE_ROOT") || Path.expand("../..", __DIR__)
 
 config :opentelemetry, :resource, service: [name: "matato-pi-web"]
 

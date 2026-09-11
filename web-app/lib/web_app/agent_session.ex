@@ -45,10 +45,7 @@ defmodule WebApp.AgentSession do
     File.mkdir_p!(stderr_dir)
     File.chmod!(stderr_dir, 0o700)
 
-    args = ["--mode", "rpc", "--name", options[:name], "--approve"]
-
-    args =
-      if options[:session_file], do: args ++ ["--session", options[:session_file]], else: args
+    args = pi_args(options)
 
     stderr_path =
       Path.join(stderr_dir, ".stderr-#{options[:id]}-#{System.unique_integer([:positive])}")
@@ -191,6 +188,11 @@ defmodule WebApp.AgentSession do
         Port.close(state.port)
         {:noreply, protocol_failure(%{state | pending: rest}, error)}
 
+      {%{kind: :commands}, rest} ->
+        error = "Command discovery failed: Pi did not respond"
+        view = AgentState.commands_failed(state.view, error)
+        {:noreply, publish(%{state | pending: rest, view: view})}
+
       {pending, rest} ->
         error = "Pi command timed out; delivery is uncertain and was not retried"
         reply(pending.from, {:error, error})
@@ -217,6 +219,38 @@ defmodule WebApp.AgentSession do
     if Port.info(state.port), do: Port.close(state.port)
     File.rm(state.stderr_path)
     :ok
+  end
+
+  defp pi_args(options) do
+    package_root = Application.fetch_env!(:web_app, :pi_package_root)
+    project_skills = Path.join(options[:project], ".pi/skills")
+    project_prompts = Path.join(options[:project], ".pi/prompts")
+
+    [
+      "--mode",
+      "rpc",
+      "--name",
+      options[:name],
+      "--approve",
+      "--no-extensions",
+      "--extension",
+      package_root,
+      "--no-skills",
+      "--skill",
+      Path.join(package_root, "skills"),
+      "--no-prompt-templates",
+      "--prompt-template",
+      Path.join(package_root, "prompts")
+    ]
+    |> add_resource("--skill", project_skills)
+    |> add_resource("--prompt-template", project_prompts)
+    |> then(fn args ->
+      if options[:session_file], do: args ++ ["--session", options[:session_file]], else: args
+    end)
+  end
+
+  defp add_resource(args, flag, path) do
+    if File.dir?(path), do: args ++ [flag, path], else: args
   end
 
   defp open_port(executable, args, project, stderr_path) do
@@ -285,6 +319,11 @@ defmodule WebApp.AgentSession do
 
   defp handle_response(_response, state), do: state
 
+  defp apply_response(%{"success" => false} = response, %{kind: :commands}, state) do
+    error = "Command discovery failed: #{response["error"] || "Pi rejected the request"}"
+    publish(%{state | view: AgentState.commands_failed(state.view, error)})
+  end
+
   defp apply_response(%{"success" => false} = response, pending, state) do
     error = response["error"] || "Pi rejected the command"
     reply(pending.from, {:error, error})
@@ -300,12 +339,20 @@ defmodule WebApp.AgentSession do
   defp apply_response(%{"data" => data}, %{kind: :state}, state) do
     view = AgentState.discover(state.view, data)
     state.notifier.({:identity, state.id, data["sessionFile"], data["sessionId"]})
-    state |> Map.put(:view, view) |> send_command(%{"type" => "get_messages"}, :messages, nil)
+
+    state
+    |> Map.put(:view, view)
+    |> send_command(%{"type" => "get_messages"}, :messages, nil)
+    |> send_command(%{"type" => "get_commands"}, :commands, nil)
   end
 
   defp apply_response(%{"data" => data}, %{kind: :messages}, state) do
     reply_waiters(state.startup_waiters, :ok)
     publish(%{state | startup_waiters: [], view: AgentState.hydrate(state.view, data)})
+  end
+
+  defp apply_response(%{"data" => %{"commands" => commands}}, %{kind: :commands}, state) do
+    publish(%{state | view: AgentState.commands_ready(state.view, commands)})
   end
 
   defp apply_response(response, pending, state) do

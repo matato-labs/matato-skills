@@ -263,6 +263,8 @@ defmodule WebAppWeb.AgentLive do
   end
 
   def markdown(text), do: {:safe, MDEx.to_html!(text)}
+  def command_location(command), do: get_in(command, ["sourceInfo", "scope"]) || "unknown"
+  def command_path(command), do: get_in(command, ["sourceInfo", "path"]) || ""
 
   def message_text(%{"content" => content}) when is_binary(content), do: content
 
@@ -274,6 +276,18 @@ defmodule WebAppWeb.AgentLive do
 
   def message_text(%{"summary" => summary}), do: summary
   def message_text(_message), do: ""
+
+  def display_message_text(message) do
+    case Regex.run(~r/^<skill name="([^"]+)"[^>]*>.*<\/skill>(.*)$/s, message_text(message)) do
+      [_, name, arguments] ->
+        command = "/skill:#{name}"
+        arguments = String.trim(arguments)
+        if arguments == "", do: command, else: command <> "\n\n" <> arguments
+
+      nil ->
+        message_text(message)
+    end
+  end
 
   def visible_message?(%{"role" => role}),
     do: role in ["user", "assistant", "custom", "branchSummary", "compactionSummary"]
@@ -449,7 +463,7 @@ defmodule WebAppWeb.AgentLive do
 
   defp message_items(%{"role" => role} = message, message_index, _session)
        when role in ["user", "custom", "branchSummary", "compactionSummary"] do
-    text = message_text(message)
+    text = display_message_text(message)
     role = if role == "user", do: :user, else: :agent
 
     if text == "",

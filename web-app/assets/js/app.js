@@ -24,30 +24,14 @@ import {Socket} from "phoenix"
 import {LiveSocket} from "phoenix_live_view"
 import {hooks as colocatedHooks} from "phoenix-colocated/web_app"
 import topbar from "../vendor/topbar.cjs"
+import {composer} from "./composer"
 
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
-const composerSubmit = {
-  mounted() {
-    this.handleKeydown = event => {
-      if (event.key !== "Enter" || event.shiftKey || event.isComposing) return
-      const sendButton = this.el.querySelector("button[name='behavior'][value='send']")
-      if (!sendButton || sendButton.disabled) return
-
-      event.preventDefault()
-      this.el.requestSubmit(sendButton)
-    }
-
-    this.el.addEventListener("keydown", this.handleKeydown)
-  },
-  destroyed() {
-    this.el.removeEventListener("keydown", this.handleKeydown)
-  },
-}
 
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
   params: {_csrf_token: csrfToken},
-  hooks: {...colocatedHooks, ComposerSubmit: composerSubmit},
+  hooks: {...colocatedHooks, Composer: composer},
 })
 
 // Show progress bar on live navigation and form submits

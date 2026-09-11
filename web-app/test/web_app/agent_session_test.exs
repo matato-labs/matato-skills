@@ -12,11 +12,13 @@ defmodule WebApp.AgentSessionTest do
 
     File.write!(executable, """
     #!/usr/bin/env python3
-    import json, sys
+    import json, os, sys
     with open("#{root}/arguments.json", "w") as file:
       json.dump(sys.argv[1:], file)
     for line in sys.stdin:
       command = json.loads(line)
+      with open("#{root}/commands.jsonl", "a") as file:
+        file.write(json.dumps(command) + "\\n")
       id = command.get("id")
       type = command["type"]
       if type == "get_state":
@@ -24,6 +26,12 @@ defmodule WebApp.AgentSessionTest do
         print(json.dumps({"id": id, "type": "response", "command": type, "success": True, "data": data}), flush=True)
       elif type == "get_messages":
         print(json.dumps({"id": id, "type": "response", "command": type, "success": True, "data": {"messages": []}}), flush=True)
+      elif type == "get_commands":
+        if os.environ.get("REJECT_COMMANDS"):
+          print(json.dumps({"id": id, "type": "response", "command": type, "success": False, "error": "unavailable"}), flush=True)
+        else:
+          data = {"commands": [{"name": "plan", "description": "Plan the work", "source": "prompt", "sourceInfo": {"path": "#{root}/.pi/prompts/plan.md", "scope": "project"}}, {"name": "skill:review", "description": "Review the work", "source": "skill", "sourceInfo": {"path": "#{root}/.pi/skills/review/SKILL.md", "scope": "project"}}]}
+          print(json.dumps({"id": id, "type": "response", "command": type, "success": True, "data": data}), flush=True)
       elif type == "reject":
         print(json.dumps({"id": id, "type": "response", "command": type, "success": False, "error": "rejected"}), flush=True)
       elif type == "dialog":
@@ -44,7 +52,10 @@ defmodule WebApp.AgentSessionTest do
     %{executable: executable, root: root}
   end
 
-  test "always starts Pi with full permissions", context do
+  test "loads only Matato and project .pi command resources", context do
+    File.mkdir_p!(Path.join(context.root, ".pi/skills"))
+    File.mkdir_p!(Path.join(context.root, ".pi/prompts"))
+    File.mkdir_p!(Path.join(context.root, ".agents/skills"))
     id = "test-#{System.unique_integer([:positive])}"
 
     start_supervised!(
@@ -60,6 +71,14 @@ defmodule WebApp.AgentSessionTest do
     assert :ok = AgentSession.await_ready(id)
     arguments = context.root |> Path.join("arguments.json") |> File.read!() |> Jason.decode!()
     assert "--approve" in arguments
+    assert "--extension" in arguments
+    assert "--no-extensions" in arguments
+    assert Application.fetch_env!(:web_app, :pi_package_root) in arguments
+    assert "--no-skills" in arguments
+    assert "--no-prompt-templates" in arguments
+    assert Path.join(context.root, ".pi/skills") in arguments
+    assert Path.join(context.root, ".pi/prompts") in arguments
+    refute Path.join(context.root, ".agents/skills") in arguments
     refute "--no-approve" in arguments
     refute "--session-dir" in arguments
   end
@@ -78,6 +97,8 @@ defmodule WebApp.AgentSessionTest do
     )
 
     assert_receive {:agent_snapshot, %{status: :settled}}, 2_000
+    assert_receive {:agent_snapshot, %{commands: commands}}, 2_000
+    assert Enum.map(commands, & &1["name"]) == ["plan", "skill:review"]
     assert {:error, "rejected"} = AgentSession.command(id, %{"type" => "reject"})
     assert AgentSession.snapshot(id).status == :settled
 
@@ -106,6 +127,62 @@ defmodule WebApp.AgentSessionTest do
                "id" => dialog["id"],
                "confirmed" => true
              })
+  end
+
+  test "keeps a session usable when command discovery fails", context do
+    id = "test-#{System.unique_integer([:positive])}"
+    AgentFanout.subscribe(id)
+    System.put_env("REJECT_COMMANDS", "1")
+    on_exit(fn -> System.delete_env("REJECT_COMMANDS") end)
+
+    start_supervised!(
+      {AgentSession,
+       id: id,
+       name: "test",
+       project: context.root,
+       executable: context.executable,
+       interrupted: false}
+    )
+
+    assert :ok = AgentSession.await_ready(id)
+    assert_receive {:agent_snapshot, %{commands_error: "Command discovery failed: unavailable"}}
+    assert AgentSession.snapshot(id).commands == []
+    assert :ok = AgentSession.command(id, %{"type" => "prompt", "message" => "still works"})
+  end
+
+  test "forwards slash commands unchanged through every submission mode", context do
+    id = "test-#{System.unique_integer([:positive])}"
+
+    start_supervised!(
+      {AgentSession,
+       id: id,
+       name: "test",
+       project: context.root,
+       executable: context.executable,
+       interrupted: false}
+    )
+
+    assert :ok = AgentSession.await_ready(id)
+    assert :ok = AgentSession.command(id, %{"type" => "prompt", "message" => "/plan API work"})
+
+    assert :ok =
+             AgentSession.command(id, %{"type" => "steer", "message" => "/skill:review API work"})
+
+    assert :ok =
+             AgentSession.command(id, %{"type" => "follow_up", "message" => "/plan API work"})
+
+    commands =
+      context.root
+      |> Path.join("commands.jsonl")
+      |> File.read!()
+      |> String.split("\n", trim: true)
+      |> Enum.map(&Jason.decode!/1)
+
+    assert Enum.filter(commands, &(&1["type"] in ["prompt", "steer", "follow_up"])) == [
+             %{"id" => "#{id}-4", "type" => "prompt", "message" => "/plan API work"},
+             %{"id" => "#{id}-5", "type" => "steer", "message" => "/skill:review API work"},
+             %{"id" => "#{id}-6", "type" => "follow_up", "message" => "/plan API work"}
+           ]
   end
 
   test "handles Pi exiting before the first command", context do

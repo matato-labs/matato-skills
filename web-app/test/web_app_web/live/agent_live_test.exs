@@ -1,0 +1,93 @@
+defmodule WebAppWeb.AgentLiveTest do
+  use WebAppWeb.ConnCase, async: false
+
+  import Phoenix.LiveViewTest
+
+  alias WebApp.{AgentFanout, AgentSession, RemoteRegistry, Workspace}
+
+  setup do
+    root = Path.join(System.tmp_dir!(), "agent-live-#{System.unique_integer([:positive])}")
+    File.mkdir_p!(root)
+    executable = Path.join(root, "fakepi")
+
+    File.write!(executable, """
+    #!/usr/bin/env python3
+    import json, sys
+    for line in sys.stdin:
+      command = json.loads(line)
+      response = {"id": command["id"], "type": "response", "command": command["type"], "success": True}
+      if command["type"] == "get_state":
+        response["data"] = {"model": None, "isStreaming": False, "isCompacting": False, "sessionFile": None, "sessionId": "pi-1"}
+      elif command["type"] == "get_messages":
+        response["data"] = {"messages": []}
+      elif command["type"] == "get_commands":
+        response["data"] = {"commands": [{"name": "plan", "description": "Plan the work", "source": "prompt", "sourceInfo": {"path": "#{root}/.pi/prompts/plan.md", "scope": "project"}}]}
+      print(json.dumps(response), flush=True)
+    """)
+
+    File.chmod!(executable, 0o700)
+    id = Base.url_encode64(:crypto.strong_rand_bytes(9), padding: false)
+    project = Path.join(Workspace.root(), "agent-live-#{id}")
+    File.mkdir_p!(project)
+    AgentFanout.subscribe(id)
+
+    start_supervised!(
+      {AgentSession,
+       id: id, name: "test", project: project, executable: executable, interrupted: false},
+      id: id
+    )
+
+    assert :ok = AgentSession.await_ready(id)
+    assert_receive {:agent_snapshot, %{commands: [_command]}}, 2_000
+
+    :sys.replace_state(RemoteRegistry, fn state ->
+      put_in(state.sessions[id], %{
+        "id" => id,
+        "name" => "test",
+        "project" => project,
+        "relative_project" => Path.relative_to(project, Workspace.root()),
+        "session_file" => nil,
+        "pi_session_id" => nil,
+        "status" => "settled",
+        "created_at" => DateTime.utc_now() |> DateTime.to_iso8601()
+      })
+    end)
+
+    on_exit(fn ->
+      :sys.replace_state(RemoteRegistry, fn state ->
+        %{state | sessions: Map.delete(state.sessions, id)}
+      end)
+
+      File.rm_rf!(root)
+      File.rm_rf!(project)
+    end)
+
+    %{id: id}
+  end
+
+  test "hides expanded skill content in the transcript" do
+    message = %{
+      "content" =>
+        "<skill name=\"review\" location=\"/skills/review/SKILL.md\">\nReview instructions\n</skill>\n\nCheck the API"
+    }
+
+    assert WebAppWeb.AgentLive.display_message_text(message) == "/skill:review\n\nCheck the API"
+  end
+
+  test "renders discovered slash commands when the composer starts with a slash", %{
+    conn: conn,
+    id: id
+  } do
+    {:ok, view, _html} = live(conn, ~p"/sessions/#{id}")
+
+    assert has_element?(view, "#composer-form")
+    assert has_element?(view, "#slash-command-picker[hidden]")
+
+    view
+    |> form("#composer-form", composer: %{message: "/"})
+    |> render_change()
+
+    assert has_element?(view, "#slash-command-picker:not([hidden])")
+    assert has_element?(view, "#slash-command-plan[title$='.pi/prompts/plan.md']")
+  end
+end
