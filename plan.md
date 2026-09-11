@@ -1,2 +1,0 @@
-- Bring the other skills
-- Can I hook my pi sessions from automations into herdr so I can track them? 
