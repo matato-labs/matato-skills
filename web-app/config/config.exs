@@ -8,7 +8,8 @@
 import Config
 
 config :web_app,
-  generators: [timestamp_type: :utc_datetime]
+  generators: [timestamp_type: :utc_datetime],
+  feature_flags: %{agent_traces: false}
 
 # Configure the endpoint
 config :web_app, WebAppWeb.Endpoint,

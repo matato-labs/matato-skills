@@ -3,7 +3,7 @@ defmodule WebAppWeb.AgentLiveTest do
 
   import Phoenix.LiveViewTest
 
-  alias WebApp.{AgentFanout, AgentSession, RemoteRegistry, Workspace}
+  alias WebApp.{AgentFanout, AgentSession, AgentState, FeatureFlags, RemoteRegistry, Workspace}
 
   setup do
     root = Path.join(System.tmp_dir!(), "agent-live-#{System.unique_integer([:positive])}")
@@ -74,6 +74,39 @@ defmodule WebAppWeb.AgentLiveTest do
     assert WebAppWeb.AgentLive.display_message_text(message) == "/skill:review\n\nCheck the API"
   end
 
+  test "keeps agent traces disabled by default" do
+    refute FeatureFlags.enabled?(:agent_traces)
+  end
+
+  test "hides thinking and tool partials when traces are disabled" do
+    session = %{
+      AgentState.new()
+      | partial: %{
+          blocks: %{
+            0 => %{type: :thinking, content: "Private reasoning"},
+            1 => %{type: :tool_call, content: "call-1"}
+          }
+        },
+        tools: %{
+          "call-1" => %{id: "call-1", name: "bash", args: "pwd", result: nil, status: :running}
+        }
+    }
+
+    assert [%{kind: :thinking}, %{kind: :tool}] = WebAppWeb.AgentLive.partial_items(session)
+    assert [] = WebAppWeb.AgentLive.partial_items(session, false)
+  end
+
+  test "renders agent replies in a message bubble" do
+    html =
+      render_component(&WebAppWeb.AgentLive.transcript_item/1,
+        id: "agent-message",
+        item: %{kind: :message, role: :agent, text: "Done"}
+      )
+
+    assert html =~ "rounded-2xl"
+    assert html =~ "bg-base-200/35"
+  end
+
   test "renders discovered slash commands when the composer starts with a slash", %{
     conn: conn,
     id: id
@@ -89,5 +122,21 @@ defmodule WebAppWeb.AgentLiveTest do
 
     assert has_element?(view, "#slash-command-picker:not([hidden])")
     assert has_element?(view, "#slash-command-plan[title$='.pi/prompts/plan.md']")
+  end
+
+  test "opens and closes the mobile session drawer", %{conn: conn, id: id} do
+    {:ok, view, _html} = live(conn, ~p"/sessions/#{id}")
+
+    assert has_element?(view, "#mobile-menu-button[aria-expanded='false']")
+    refute has_element?(view, "#mobile-sidebar-backdrop")
+
+    view |> element("#mobile-menu-button") |> render_click()
+
+    assert has_element?(view, "#mobile-menu-button[aria-expanded='true']")
+    assert has_element?(view, "#mobile-sidebar-backdrop")
+
+    view |> element("#mobile-sidebar-backdrop") |> render_click()
+
+    refute has_element?(view, "#mobile-sidebar-backdrop")
   end
 end

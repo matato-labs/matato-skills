@@ -5,44 +5,20 @@
         groups={@groups}
         session_id={@session_id}
         delete_session_id={@delete_session_id}
+        mobile_sidebar_open={@mobile_sidebar_open}
       />
+      <div
+        :if={@mobile_sidebar_open}
+        id="mobile-sidebar-backdrop"
+        phx-click="close_mobile_sidebar"
+        class="fixed inset-0 z-20 bg-base-300/70 lg:hidden"
+        aria-hidden="true"
+      >
+      </div>
 
       <main class="flex h-full min-h-0 flex-col overflow-hidden bg-base-300">
+        <SessionComponents.mobile_header mobile_sidebar_open={@mobile_sidebar_open} />
         <%= if @session do %>
-          <header class="flex min-h-16 shrink-0 items-center justify-between gap-4 border-b border-base-content/10 px-5 lg:px-8">
-            <div class="min-w-0">
-              <h1 class="truncate text-sm font-semibold">
-                {Path.basename(
-                  Enum.find(@sessions, %{}, &(&1["id"] == @session_id))["project"] ||
-                    "Agent session"
-                )}
-              </h1>
-            </div>
-            <div class="flex items-center gap-2">
-              <button
-                :if={@session.status in [:working, :retrying, :compacting, :waiting_for_input]}
-                id="abort-button"
-                phx-click="abort"
-                disabled={!@interaction_owner}
-                class="btn btn-sm btn-ghost text-error"
-              >
-                <.icon name="hero-stop" class="size-4" /> Abort
-              </button>
-              <button
-                :if={!@interaction_owner && @session.status not in [:stopped, :failed]}
-                id="takeover-button"
-                phx-click="takeover"
-                class="btn btn-sm btn-outline"
-              >Take control</button>
-              <button
-                :if={@session.status in [:stopped, :failed]}
-                id="resume-button"
-                phx-click="resume"
-                class="btn btn-sm btn-primary"
-              >Resume</button>
-            </div>
-          </header>
-
           <section
             id="transcript"
             class="min-h-0 flex-1 overflow-y-auto px-5 py-8 lg:px-8"
@@ -74,9 +50,6 @@
                   <.icon name="hero-sparkles" class="size-5" />
                 </div>
                 <h2 class="text-base font-semibold">Ready for a task</h2>
-                <p class="mx-auto mt-2 max-w-sm text-sm leading-6 text-base-content/50">
-                  Pi is connected to this project. Describe the outcome you want.
-                </p>
               </div>
 
               <div id="messages" phx-update="stream" class="contents">
@@ -84,7 +57,7 @@
               </div>
 
               <.transcript_item
-                :for={item <- activity_items(partial_items(@session), true)}
+                :for={item <- activity_items(partial_items(@session, @show_agent_traces), true)}
                 id={item.id}
                 item={item}
                 streaming

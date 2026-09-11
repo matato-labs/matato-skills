@@ -1,7 +1,15 @@
 defmodule WebAppWeb.AgentLive do
   use WebAppWeb, :live_view
 
-  alias WebApp.{AgentFanout, AgentSession, AgentState, ProjectSessionCatalog, RemoteRegistry}
+  alias WebApp.{
+    AgentFanout,
+    AgentSession,
+    AgentState,
+    FeatureFlags,
+    ProjectSessionCatalog,
+    RemoteRegistry
+  }
+
   alias WebAppWeb.SessionComponents
 
   @max_prompt_bytes 100_000
@@ -15,6 +23,8 @@ defmodule WebAppWeb.AgentLive do
         groups: ProjectSessionCatalog.groups(RemoteRegistry.list()),
         session_id: nil,
         delete_session_id: nil,
+        mobile_sidebar_open: false,
+        show_agent_traces: FeatureFlags.enabled?(:agent_traces),
         session: nil,
         draft: "",
         interaction_owner: false,
@@ -56,6 +66,12 @@ defmodule WebAppWeb.AgentLive do
 
   def handle_event("confirm_delete_session", %{"id" => id}, socket),
     do: {:noreply, assign(socket, delete_session_id: id)}
+
+  def handle_event("toggle_mobile_sidebar", _params, socket),
+    do: {:noreply, update(socket, :mobile_sidebar_open, &(!&1))}
+
+  def handle_event("close_mobile_sidebar", _params, socket),
+    do: {:noreply, assign(socket, mobile_sidebar_open: false)}
 
   def handle_event("delete_session", %{"id" => id}, socket) do
     case RemoteRegistry.delete(id) do
@@ -197,9 +213,10 @@ defmodule WebAppWeb.AgentLive do
       id={@id}
       class={[
         "text-sm leading-6 text-base-content/85",
-        @item.role == :agent && "mt-8 max-w-none",
-        @item.role == :user &&
-          "ml-auto w-fit max-w-[92%] rounded-2xl border border-base-content/12 bg-base-200/35 px-3.5 py-2.5 text-left"
+        @item.role == :agent && "mt-8",
+        @item.role in [:agent, :user] &&
+          "w-fit max-w-[92%] rounded-2xl border border-base-content/12 bg-base-200/35 px-3.5 py-2.5 text-left",
+        @item.role == :user && "ml-auto"
       ]}
     >
       <div :if={!@streaming} class="markdown">{markdown(@item.text)}</div>
@@ -297,7 +314,9 @@ defmodule WebAppWeb.AgentLive do
   def partial_text(session), do: AgentState.partial_text(session)
   def partial_thinking(session), do: AgentState.partial_thinking(session)
 
-  def partial_items(session) do
+  def partial_items(session), do: partial_items(session, true)
+
+  def partial_items(session, show_agent_traces) do
     session.partial.blocks
     |> Enum.sort_by(&elem(&1, 0))
     |> Enum.flat_map(fn {index, block} ->
@@ -315,6 +334,7 @@ defmodule WebAppWeb.AgentLive do
           []
       end
     end)
+    |> hide_agent_traces(show_agent_traces)
   end
 
   def activity_items(items, active?) do
@@ -398,18 +418,27 @@ defmodule WebAppWeb.AgentLive do
   defp sync_session(socket, snapshot) do
     socket
     |> assign(session: snapshot)
-    |> stream(:messages, transcript_items(snapshot), reset: true)
+    |> stream(:messages, transcript_items(snapshot, socket.assigns.show_agent_traces),
+      reset: true
+    )
   end
 
-  defp transcript_items(session) do
+  defp transcript_items(session, show_agent_traces) do
     items =
       session.messages
       |> Enum.with_index()
       |> Enum.flat_map(fn {message, message_index} ->
         message_items(message, message_index, session)
       end)
+      |> hide_agent_traces(show_agent_traces)
 
     activity_items(items, agent_active?(session.status))
+  end
+
+  defp hide_agent_traces(items, true), do: items
+
+  defp hide_agent_traces(items, false) do
+    Enum.reject(items, &(&1.kind in [:thinking, :tool]))
   end
 
   defp append_activity(items, []), do: items

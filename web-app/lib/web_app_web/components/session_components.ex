@@ -4,15 +4,32 @@ defmodule WebAppWeb.SessionComponents do
   attr :groups, :list, required: true
   attr :session_id, :string, default: nil
   attr :delete_session_id, :string, default: nil
+  attr :mobile_sidebar_open, :boolean, required: true
 
   def sidebar(assigns) do
     ~H"""
-    <aside class="overflow-y-auto border-b border-base-content/10 bg-base-200 lg:border-r lg:border-b-0">
-      <div class="flex items-center gap-3 px-5 py-5">
-        <div class="grid size-8 place-items-center rounded-lg bg-primary text-primary-content">
-          <.icon name="hero-command-line" class="size-4" />
+    <aside
+      id="session-sidebar"
+      class={[
+        "fixed inset-y-0 left-0 z-30 w-72 overflow-y-auto border-r border-base-content/10 bg-base-200 shadow-2xl transition-transform duration-200 ease-out lg:static lg:z-auto lg:w-auto lg:translate-x-0 lg:shadow-none",
+        !@mobile_sidebar_open && "-translate-x-full"
+      ]}
+    >
+      <div class="flex items-center justify-between gap-3 px-5 py-5">
+        <div class="flex items-center gap-3">
+          <div class="grid size-8 place-items-center rounded-lg bg-primary text-primary-content">
+            <.icon name="hero-command-line" class="size-4" />
+          </div>
+          <p class="text-sm font-semibold tracking-tight">Matato Agent</p>
         </div>
-        <p class="text-sm font-semibold tracking-tight">Matato Agent</p>
+        <button
+          type="button"
+          phx-click="close_mobile_sidebar"
+          class="grid size-8 place-items-center rounded-md text-base-content/50 transition-colors hover:bg-base-content/8 hover:text-base-content focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary lg:hidden"
+          aria-label="Close menu"
+        >
+          <.icon name="hero-x-mark" class="size-4" />
+        </button>
       </div>
 
       <div class="border-t border-base-content/10 px-3 py-4">
@@ -37,9 +54,6 @@ defmodule WebAppWeb.SessionComponents do
                 class="size-3 shrink-0 transition-transform group-open:rotate-90"
               />
               <span class="truncate">{group.label}</span>
-              <span class="ml-auto rounded-full bg-base-content/8 px-1.5 py-0.5 text-[0.65rem] tabular-nums text-base-content/45">
-                {group.count}
-              </span>
             </summary>
 
             <div class="mt-0.5 space-y-0.5 pl-2">
@@ -57,6 +71,27 @@ defmodule WebAppWeb.SessionComponents do
         </nav>
       </div>
     </aside>
+    """
+  end
+
+  attr :mobile_sidebar_open, :boolean, required: true
+
+  def mobile_header(assigns) do
+    ~H"""
+    <header class="flex min-h-16 shrink-0 items-center gap-3 border-b border-base-content/10 px-5 lg:hidden">
+      <button
+        id="mobile-menu-button"
+        type="button"
+        phx-click="toggle_mobile_sidebar"
+        class="grid size-9 place-items-center rounded-md text-base-content/65 transition-colors hover:bg-base-content/8 hover:text-base-content focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+        aria-controls="session-sidebar"
+        aria-expanded={to_string(@mobile_sidebar_open)}
+        aria-label="Open menu"
+      >
+        <.icon name="hero-bars-3" class="size-5" />
+      </button>
+      <p class="text-sm font-semibold tracking-tight">Matato Agent</p>
+    </header>
     """
   end
 
