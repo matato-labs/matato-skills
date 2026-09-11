@@ -135,6 +135,27 @@ defmodule WebApp.AgentStateTest do
     assert state.thinking_level == "high"
   end
 
+  test "retains failed assistant messages after settling and hydrating" do
+    message = %{
+      "role" => "assistant",
+      "content" => [],
+      "stopReason" => "error",
+      "errorMessage" => "The model is unavailable"
+    }
+
+    state =
+      AgentState.new()
+      |> AgentState.apply(%{"type" => "message_end", "message" => message})
+      |> AgentState.apply(%{"type" => "agent_settled"})
+
+    assert state.status == :settled
+    assert state.messages == [message]
+
+    assert AgentState.hydrate(AgentState.new(), %{"messages" => state.messages}).messages == [
+             message
+           ]
+  end
+
   test "hydrates the discovered active status with compaction taking precedence" do
     state =
       AgentState.discover(AgentState.new(), %{"isStreaming" => true, "isCompacting" => true})
