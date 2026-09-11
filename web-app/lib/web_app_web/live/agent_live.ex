@@ -48,11 +48,17 @@ defmodule WebAppWeb.AgentLive do
 
         {:noreply,
          socket
-         |> assign(session_id: id, interaction_owner: owner, error: nil)
+         |> assign(
+           session_id: id,
+           interaction_owner: owner,
+           mobile_sidebar_open: false,
+           error: nil
+         )
          |> sync_session(snapshot)}
 
       {:error, error} ->
-        {:noreply, assign(socket, session_id: id, session: nil, error: error)}
+        {:noreply,
+         assign(socket, session_id: id, session: nil, mobile_sidebar_open: false, error: error)}
     end
   end
 
@@ -76,7 +82,7 @@ defmodule WebAppWeb.AgentLive do
   def handle_event("delete_session", %{"id" => id}, socket) do
     case RemoteRegistry.delete(id) do
       :ok when id == socket.assigns.session_id ->
-        {:noreply, push_navigate(socket, to: ~p"/")}
+        {:noreply, push_navigate(socket, to: "/")}
 
       :ok ->
         {:noreply, socket |> assign_sessions() |> assign(delete_session_id: nil)}

@@ -55,7 +55,7 @@ defmodule WebAppWeb.SessionLive do
 
       true ->
         case RemoteRegistry.create(relative) do
-          {:ok, id} -> {:noreply, push_navigate(socket, to: ~p"/sessions/#{id}")}
+          {:ok, id} -> {:noreply, push_navigate(socket, to: "/sessions/#{id}")}
           {:error, error} -> {:noreply, assign(socket, error: error)}
         end
     end

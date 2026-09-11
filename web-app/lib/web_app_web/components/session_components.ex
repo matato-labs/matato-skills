@@ -1,5 +1,7 @@
 defmodule WebAppWeb.SessionComponents do
-  use WebAppWeb, :html
+  use Phoenix.Component
+
+  import WebAppWeb.CoreComponents
 
   attr :groups, :list, required: true
   attr :session_id, :string, default: nil
@@ -38,7 +40,7 @@ defmodule WebAppWeb.SessionComponents do
             Sessions
           </h2>
           <.link
-            navigate={~p"/"}
+            navigate="/"
             class="rounded-md p-1 text-base-content/45 transition-colors hover:bg-base-content/5 hover:text-base-content focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
             aria-label="New session"
           >
@@ -86,7 +88,7 @@ defmodule WebAppWeb.SessionComponents do
         class="grid size-9 place-items-center rounded-md text-base-content/65 transition-colors hover:bg-base-content/8 hover:text-base-content focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
         aria-controls="session-sidebar"
         aria-expanded={to_string(@mobile_sidebar_open)}
-        aria-label="Open menu"
+        aria-label={if @mobile_sidebar_open, do: "Close menu", else: "Open menu"}
       >
         <.icon name="hero-bars-3" class="size-5" />
       </button>
@@ -104,7 +106,7 @@ defmodule WebAppWeb.SessionComponents do
     <div id={"session-#{@session.id}"} class={session_row_class(@selected)}>
       <.link
         :if={@session.source == "web"}
-        navigate={~p"/sessions/#{@session.id}"}
+        navigate={"/sessions/#{@session.id}"}
         class="flex min-w-0 flex-1 items-center gap-2"
       >
         <.session_row_content session={@session} />

@@ -74,8 +74,9 @@ defmodule WebAppWeb.AgentLiveTest do
     assert WebAppWeb.AgentLive.display_message_text(message) == "/skill:review\n\nCheck the API"
   end
 
-  test "keeps agent traces disabled by default" do
+  test "keeps agent traces and unconfigured flags disabled by default" do
     refute FeatureFlags.enabled?(:agent_traces)
+    refute FeatureFlags.enabled?(:unconfigured_flag)
   end
 
   test "hides thinking and tool partials when traces are disabled" do
@@ -127,14 +128,27 @@ defmodule WebAppWeb.AgentLiveTest do
   test "opens and closes the mobile session drawer", %{conn: conn, id: id} do
     {:ok, view, _html} = live(conn, ~p"/sessions/#{id}")
 
-    assert has_element?(view, "#mobile-menu-button[aria-expanded='false']")
+    assert has_element?(
+             view,
+             "#mobile-menu-button[aria-expanded='false'][aria-label='Open menu']"
+           )
+
     refute has_element?(view, "#mobile-sidebar-backdrop")
 
     view |> element("#mobile-menu-button") |> render_click()
 
-    assert has_element?(view, "#mobile-menu-button[aria-expanded='true']")
+    assert has_element?(
+             view,
+             "#mobile-menu-button[aria-expanded='true'][aria-label='Close menu']"
+           )
+
     assert has_element?(view, "#mobile-sidebar-backdrop")
 
+    render_patch(view, ~p"/sessions/#{id}")
+
+    refute has_element?(view, "#mobile-sidebar-backdrop")
+
+    view |> element("#mobile-menu-button") |> render_click()
     view |> element("#mobile-sidebar-backdrop") |> render_click()
 
     refute has_element?(view, "#mobile-sidebar-backdrop")
