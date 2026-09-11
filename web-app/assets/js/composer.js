@@ -39,12 +39,13 @@ export const composer = {
     return Array.from(this.el.querySelectorAll("[data-slash-command]"))
   },
   visibleOptions() {
+    if (this.picker.hidden) return []
     return this.commandOptions().filter(option => !option.hidden)
   },
   filterCommands() {
     const query = this.textarea.value.match(/^\/(\S*)/)?.[1]?.toLowerCase()
     if (query === undefined) return this.hidePicker()
-    if (this.pickerDismissed && this.textarea.value === this.dismissedValue) return
+    if (this.pickerDismissed && this.textarea.value === this.dismissedValue) return this.hidePicker()
 
     this.pickerDismissed = false
     this.picker.hidden = false

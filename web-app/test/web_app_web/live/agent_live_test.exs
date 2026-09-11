@@ -65,6 +65,15 @@ defmodule WebAppWeb.AgentLiveTest do
     %{id: id}
   end
 
+  test "hides expanded skill content in the transcript" do
+    message = %{
+      "content" =>
+        "<skill name=\"review\" location=\"/skills/review/SKILL.md\">\nReview instructions\n</skill>\n\nCheck the API"
+    }
+
+    assert WebAppWeb.AgentLive.display_message_text(message) == "/skill:review\n\nCheck the API"
+  end
+
   test "renders discovered slash commands when the composer starts with a slash", %{
     conn: conn,
     id: id
