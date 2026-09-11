@@ -41,6 +41,7 @@ defmodule WebAppWeb.Endpoint do
 
   plug Plug.RequestId
   plug Plug.Telemetry, event_prefix: [:phoenix, :endpoint]
+  plug CORSPlug, origin: "https://leon.tail3cac52.ts.net:4000"
 
   plug Plug.Parsers,
     parsers: [:urlencoded, :multipart, :json],

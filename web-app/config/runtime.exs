@@ -37,17 +37,22 @@ config :web_app,
 
 config :opentelemetry, :resource, service: [name: "matato-pi-web"]
 
-otel_endpoint = System.get_env("OTEL_ENDPOINT", "http://localhost:4318") |> String.trim()
+if config_env() == :prod do
+  otel_endpoint = System.get_env("OTEL_ENDPOINT", "http://localhost:4318") |> String.trim()
 
-case otel_endpoint do
-  "" ->
-    config :opentelemetry, traces_exporter: :none
-    config :web_app, otel_endpoint: nil
+  case otel_endpoint do
+    "" ->
+      config :opentelemetry, traces_exporter: :none
+      config :web_app, otel_endpoint: nil
 
-  endpoint ->
-    config :opentelemetry, traces_exporter: :otlp
-    config :opentelemetry_exporter, otlp_protocol: :http_protobuf, otlp_endpoint: endpoint
-    config :web_app, otel_endpoint: if(config_env() == :test, do: nil, else: endpoint)
+    endpoint ->
+      config :opentelemetry, traces_exporter: :otlp
+      config :opentelemetry_exporter, otlp_protocol: :http_protobuf, otlp_endpoint: endpoint
+      config :web_app, otel_endpoint: endpoint
+  end
+else
+  config :opentelemetry, traces_exporter: :none
+  config :web_app, otel_endpoint: nil
 end
 
 # config/runtime.exs is executed for all environments, including
@@ -108,7 +113,7 @@ if config_env() == :prod do
   config :web_app, :dns_cluster_query, System.get_env("DNS_CLUSTER_QUERY")
 
   config :web_app, WebAppWeb.Endpoint,
-    url: [host: host, port: 443, scheme: "https"],
+    url: [host: host, port: 4000, scheme: "https"],
     http: [
       # Bind to loopback. Put an authenticated TLS ingress in front for remote access.
       # See the documentation on https://bandit.hexdocs.pm/Bandit.html#t:options/0

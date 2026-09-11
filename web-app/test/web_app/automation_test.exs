@@ -6,7 +6,9 @@ defmodule WebApp.AutomationTest do
   alias WebApp.{Automation, AutomationRunner, AutomationScheduler}
 
   setup do
+    stop_watcher()
     AutomationScheduler.replace([])
+    on_exit(&start_watcher/0)
     :ok
   end
 
@@ -35,6 +37,7 @@ defmodule WebApp.AutomationTest do
   end
 
   test "validates every schedule before atomically replacing enabled jobs" do
+    refute Process.whereis(WebApp.AutomationWatcher)
     previous = automation("previous", "*/5 * * * * *")
     invalid_disabled = %{automation("disabled", "not a cron expression") | enabled: false}
 
@@ -91,6 +94,9 @@ defmodule WebApp.AutomationTest do
     File.rm!(path)
     reload_watcher(path)
     assert AutomationScheduler.jobs() == []
+
+    restart_watcher(original_path)
+    assert :sys.get_state(WebApp.AutomationWatcher).path == Path.expand(original_path)
   end
 
   test "empty pre-script output skips Pi and post-script" do
@@ -170,9 +176,20 @@ defmodule WebApp.AutomationTest do
   defp restart_watcher(path) do
     original_path = Application.fetch_env!(:web_app, :automations_config_path)
     Application.put_env(:web_app, :automations_config_path, path)
-    :ok = Supervisor.terminate_child(WebApp.Supervisor, WebApp.AutomationWatcher)
-    {:ok, _pid} = Supervisor.restart_child(WebApp.Supervisor, WebApp.AutomationWatcher)
+    stop_watcher()
+    start_watcher()
     original_path
+  end
+
+  defp stop_watcher,
+    do: :ok = Supervisor.terminate_child(WebApp.Supervisor, WebApp.AutomationWatcher)
+
+  defp start_watcher do
+    case Supervisor.restart_child(WebApp.Supervisor, WebApp.AutomationWatcher) do
+      {:ok, _pid} -> :ok
+      {:error, :running} -> :ok
+      {:error, {:already_started, _pid}} -> :ok
+    end
   end
 
   defp scheduled?(job_name) do
