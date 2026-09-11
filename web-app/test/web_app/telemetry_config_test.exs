@@ -1,8 +1,8 @@
 defmodule WebApp.TelemetryConfigTest do
   use ExUnit.Case, async: true
 
-  test "disables trace export when OTEL_ENDPOINT is absent" do
-    assert runtimeConfig(nil) == "{:none, nil, nil}"
+  test "exports traces to the local collector when OTEL_ENDPOINT is absent" do
+    assert runtimeConfig(nil) == "{:otlp, :http_protobuf, \"http://localhost:4318\"}"
   end
 
   test "disables trace export when OTEL_ENDPOINT is blank" do

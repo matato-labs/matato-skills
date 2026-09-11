@@ -36,17 +36,10 @@ config :web_app,
 
 config :opentelemetry, :resource, service: [name: "matato-pi-web"]
 
-otel_endpoint =
-  case System.get_env("OTEL_ENDPOINT") do
-    nil -> nil
-    endpoint -> String.trim(endpoint)
-  end
+otel_endpoint = System.get_env("OTEL_ENDPOINT", "http://localhost:4318") |> String.trim()
 
 case otel_endpoint do
   "" ->
-    config :opentelemetry, traces_exporter: :none
-
-  nil ->
     config :opentelemetry, traces_exporter: :none
 
   endpoint ->
