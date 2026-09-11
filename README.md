@@ -17,7 +17,7 @@ pi install /absolute/path/to/matato-pi
 
 ## Remote Agent Web App
 
-A database-free Phoenix LiveView client for `pi --mode rpc` lives in [`web-app/`](web-app/README.md).
+A Phoenix LiveView client for `pi --mode rpc` lives in [`web-app/`](web-app/README.md). It stores remote-session metadata and automations in `$MATATO_PI_CONFIG/matato-pi.sqlite3`; Pi JSONL remains the conversation source of truth.
 
 ## Features
 * Subagents, including bounded parallel batches
@@ -61,7 +61,7 @@ Researches are under `/researches` and they are stored in `~/.config/matato-pi/r
 
 
 ### Scheduled jobs
-Scheduled jobs are configured via `$MATATO_PI_CONFIG/automations/config.json` (default: `~/.config/matato-pi/automations/config.json`). The web app loads and schedules them. An automation can run `{skillName}/scripts/preScript.ts` beforehand; non-empty output is included as automation context.
+Scheduled jobs are stored in `$MATATO_PI_CONFIG/matato-pi.sqlite3` (default root: `~/.config/matato-pi`). Existing `automations/config.json` is imported once on startup and renamed to a timestamped backup. An automation can run `{skillName}/scripts/preScript.ts` beforehand; non-empty output is included as automation context.
 
 To create/read/update/delete cron jobs, use `/automations`.
 ### Telegram

@@ -1,4 +1,9 @@
 defmodule WebApp.Automation do
+  import Ecto.Query
+
+  alias WebApp.Automations.AutomationRecord
+  alias WebApp.Repo
+
   @enforce_keys [
     :job_name,
     :enabled,
@@ -15,10 +20,40 @@ defmodule WebApp.Automation do
     :user_prompt,
     :daily_session,
     :model,
-    :thinking_level
+    :thinking_level,
+    :can_launch_sub_agents
   ]
 
   @thinking_levels ~w(off minimal low medium high xhigh max)
+
+  def list,
+    do:
+      Repo.all(from(record in AutomationRecord, order_by: [asc: record.id]))
+      |> Enum.map(&to_domain/1)
+
+  def replace(automations) when is_list(automations) do
+    with :ok <- validate_schedules(automations),
+         {:ok, _} <-
+           Repo.transaction(fn ->
+             Repo.delete_all(AutomationRecord)
+             Enum.each(automations, &insert!/1)
+           end) do
+      notify()
+      :ok
+    else
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  def import(path) do
+    if Repo.exists?(AutomationRecord) do
+      :ok
+    else
+      with {:ok, automations} <- load(path), :ok <- replace(automations) do
+        backup(path)
+      end
+    end
+  end
 
   def load(path) do
     with {:ok, body} <- File.read(path),
@@ -32,11 +67,24 @@ defmodule WebApp.Automation do
     end
   end
 
+  defp insert!(automation) do
+    %AutomationRecord{}
+    |> AutomationRecord.changeset(Map.from_struct(automation))
+    |> Repo.insert!()
+  end
+
+  defp validate_schedules(automations) do
+    case WebApp.AutomationScheduler.validate(automations) do
+      :ok -> :ok
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
   defp parse(automations) do
     automations
     |> Enum.reduce_while({:ok, []}, fn automation, {:ok, parsed} ->
       case parse_automation(automation) do
-        {:ok, automation} -> {:cont, {:ok, [automation | parsed]}}
+        {:ok, value} -> {:cont, {:ok, [value | parsed]}}
         :error -> {:halt, :error}
       end
     end)
@@ -53,29 +101,51 @@ defmodule WebApp.Automation do
     end
   end
 
-  defp parse_automation(%{"dailySession" => _daily_session}), do: :error
+  defp parse_automation(%{"dailySession" => _}), do: :error
 
-  defp parse_automation(%{
-         "jobName" => job_name,
-         "enabled" => enabled,
-         "schedule" => schedule,
-         "userPrompt" => user_prompt,
-         "model" => model,
-         "thinkingLevel" => thinking_level
-       })
+  defp parse_automation(
+         %{
+           "jobName" => job_name,
+           "enabled" => enabled,
+           "schedule" => schedule,
+           "userPrompt" => user_prompt,
+           "model" => model,
+           "thinkingLevel" => thinking_level
+         } = automation
+       )
        when is_binary(job_name) and is_boolean(enabled) and is_binary(schedule) and
               is_binary(user_prompt) and is_binary(model) and thinking_level in @thinking_levels do
-    {:ok,
-     %__MODULE__{
-       job_name: job_name,
-       enabled: enabled,
-       schedule: schedule,
-       user_prompt: user_prompt,
-       daily_session: false,
-       model: model,
-       thinking_level: thinking_level
-     }}
+    can_launch_sub_agents = Map.get(automation, "canLaunchSubAgents", false)
+
+    if is_boolean(can_launch_sub_agents),
+      do:
+        {:ok,
+         %__MODULE__{
+           job_name: job_name,
+           enabled: enabled,
+           schedule: schedule,
+           user_prompt: user_prompt,
+           daily_session: false,
+           model: model,
+           thinking_level: thinking_level,
+           can_launch_sub_agents: can_launch_sub_agents
+         }},
+      else: :error
   end
 
-  defp parse_automation(_automation), do: :error
+  defp parse_automation(_), do: :error
+
+  defp to_domain(record),
+    do:
+      struct(__MODULE__, Map.take(record, __struct__() |> Map.keys() |> List.delete(:__struct__)))
+
+  defp notify, do: Phoenix.PubSub.broadcast(WebApp.PubSub, "automations", :changed)
+
+  defp backup(path),
+    do:
+      if(File.exists?(path),
+        do:
+          File.rename(path, "#{path}.imported-#{DateTime.utc_now() |> DateTime.to_unix()}.json"),
+        else: :ok
+      )
 end

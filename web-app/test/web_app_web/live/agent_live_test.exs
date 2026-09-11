@@ -3,7 +3,7 @@ defmodule WebAppWeb.AgentLiveTest do
 
   import Phoenix.LiveViewTest
 
-  alias WebApp.{AgentFanout, AgentSession, RemoteRegistry, Workspace}
+  alias WebApp.{AgentFanout, AgentSession, RemoteSessions, Workspace}
 
   setup do
     root = Path.join(System.tmp_dir!(), "agent-live-#{System.unique_integer([:positive])}")
@@ -40,23 +40,18 @@ defmodule WebAppWeb.AgentLiveTest do
     assert :ok = AgentSession.await_ready(id)
     assert_receive {:agent_snapshot, %{commands: [_command]}}, 2_000
 
-    :sys.replace_state(RemoteRegistry, fn state ->
-      put_in(state.sessions[id], %{
-        "id" => id,
-        "name" => "test",
-        "project" => project,
-        "relative_project" => Path.relative_to(project, Workspace.root()),
-        "session_file" => nil,
-        "pi_session_id" => nil,
-        "status" => "settled",
-        "created_at" => DateTime.utc_now() |> DateTime.to_iso8601()
+    {:ok, _session} =
+      RemoteSessions.create(%{
+        id: id,
+        name: "test",
+        project_path: project,
+        relative_project: Path.relative_to(project, Workspace.root()),
+        source: "web",
+        status: "settled"
       })
-    end)
 
     on_exit(fn ->
-      :sys.replace_state(RemoteRegistry, fn state ->
-        %{state | sessions: Map.delete(state.sessions, id)}
-      end)
+      :ok = RemoteSessions.delete(id)
 
       File.rm_rf!(root)
       File.rm_rf!(project)

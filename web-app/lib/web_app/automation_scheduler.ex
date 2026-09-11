@@ -13,6 +13,13 @@ defmodule WebApp.AutomationScheduler do
     end
   end
 
+  def validate(automations) when is_list(automations) do
+    case build_jobs(automations) do
+      {:ok, _jobs} -> :ok
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
   defp build_jobs(automations) do
     automations
     |> Enum.reduce_while({:ok, []}, fn automation, {:ok, jobs} ->

@@ -6,9 +6,7 @@ defmodule WebApp.AutomationTest do
   alias WebApp.{Automation, AutomationRunner, AutomationScheduler}
 
   setup do
-    stop_watcher()
     AutomationScheduler.replace([])
-    on_exit(&start_watcher/0)
     :ok
   end
 
@@ -37,7 +35,6 @@ defmodule WebApp.AutomationTest do
   end
 
   test "validates every schedule before atomically replacing enabled jobs" do
-    refute Process.whereis(WebApp.AutomationWatcher)
     previous = automation("previous", "*/5 * * * * *")
     invalid_disabled = %{automation("disabled", "not a cron expression") | enabled: false}
 
@@ -64,39 +61,6 @@ defmodule WebApp.AutomationTest do
 
     assert [{_, job}] = AutomationScheduler.jobs()
     assert inspect(job.schedule) == "~e[*/5 * * * * * *]e"
-  end
-
-  test "watcher boot-loads, handles atomic replacement, skips unchanged content, retains invalid config, and clears missing config" do
-    path = temp_path()
-    File.mkdir_p!(Path.dirname(path))
-    File.write!(path, config("boot"))
-    original_path = restart_watcher(path)
-    on_exit(fn -> restart_watcher(original_path) end)
-
-    _ = :sys.get_state(WebApp.AutomationWatcher)
-    assert scheduled?("boot")
-
-    replacement = path <> ".new"
-    File.write!(replacement, config("replacement"))
-    File.rename!(replacement, path)
-    reload_watcher(path)
-    assert scheduled?("replacement")
-
-    jobs = AutomationScheduler.jobs()
-    File.write!(path, config("replacement"))
-    reload_watcher(path)
-    assert AutomationScheduler.jobs() == jobs
-
-    File.write!(path, config("invalid", "not a cron expression"))
-    reload_watcher(path)
-    assert AutomationScheduler.jobs() == jobs
-
-    File.rm!(path)
-    reload_watcher(path)
-    assert AutomationScheduler.jobs() == []
-
-    restart_watcher(original_path)
-    assert :sys.get_state(WebApp.AutomationWatcher).path == Path.expand(original_path)
   end
 
   test "empty pre-script output skips Pi and post-script" do
@@ -173,40 +137,6 @@ defmodule WebApp.AutomationTest do
     assert {:error, "Invalid automations configuration"} = Automation.load(path)
   end
 
-  defp restart_watcher(path) do
-    original_path = Application.fetch_env!(:web_app, :automations_config_path)
-    Application.put_env(:web_app, :automations_config_path, path)
-    stop_watcher()
-    start_watcher()
-    original_path
-  end
-
-  defp stop_watcher,
-    do: :ok = Supervisor.terminate_child(WebApp.Supervisor, WebApp.AutomationWatcher)
-
-  defp start_watcher do
-    case Supervisor.restart_child(WebApp.Supervisor, WebApp.AutomationWatcher) do
-      {:ok, _pid} -> :ok
-      {:error, :running} -> :ok
-      {:error, {:already_started, _pid}} -> :ok
-    end
-  end
-
-  defp scheduled?(job_name) do
-    Enum.any?(AutomationScheduler.jobs(), fn {_, job} ->
-      match?({AutomationRunner, :run, [%{job_name: ^job_name}]}, job.task)
-    end)
-  end
-
-  defp reload_watcher(path) do
-    watcher = :sys.get_state(WebApp.AutomationWatcher).watcher
-    send(WebApp.AutomationWatcher, {:file_event, watcher, {path, [:modified]}})
-    %{reload_ref: reload_ref, timer: timer} = :sys.get_state(WebApp.AutomationWatcher)
-    Process.cancel_timer(timer)
-    send(WebApp.AutomationWatcher, {:reload, reload_ref})
-    _ = :sys.get_state(WebApp.AutomationWatcher)
-  end
-
   defp automation(job_name, schedule) do
     %Automation{
       job_name: job_name,
@@ -217,10 +147,6 @@ defmodule WebApp.AutomationTest do
       model: "model",
       thinking_level: "off"
     }
-  end
-
-  defp config(job_name, schedule \\ "* * * * * *") do
-    ~s({"automations":[{"jobName":"#{job_name}","enabled":true,"schedule":"#{schedule}","userPrompt":"Run it","model":"model","thinkingLevel":"off"}]})
   end
 
   defp temp_path do

@@ -1,10 +1,9 @@
-import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
-import { dirname } from "node:path";
+import { Database } from "bun:sqlite";
 import {
   type Automation,
   type AutomationConfig,
 } from "../../src/automation.ts";
-import { automationConfigPath } from "../../src/storagePath.ts";
+import { databasePath } from "../../src/storagePath.ts";
 import type {
   ExtensionAPI,
   ExtensionCommandContext,
@@ -23,30 +22,41 @@ type BrowserResult = {
   index: number;
 };
 
-const configPath = automationConfigPath();
+const database = new Database(databasePath(), { strict: true });
+
+database.run("PRAGMA busy_timeout = 5000");
+
+type AutomationRow = {
+  job_name: string;
+  enabled: number;
+  schedule: string;
+  user_prompt: string;
+  daily_session: number;
+  model: string;
+  thinking_level: string;
+  can_launch_sub_agents: number;
+};
 
 function parseAutomation(text: string): Automation {
   return JSON.parse(text) as Automation;
 }
 
+function fromRow(row: AutomationRow): Automation {
+  return { jobName: row.job_name, enabled: Boolean(row.enabled), schedule: row.schedule, userPrompt: row.user_prompt, dailySession: Boolean(row.daily_session), model: row.model, thinkingLevel: row.thinking_level, canLaunchSubAgents: Boolean(row.can_launch_sub_agents) };
+}
+
 async function loadConfig(): Promise<AutomationConfig> {
-  try {
-    return JSON.parse(await readFile(configPath, "utf8")) as AutomationConfig;
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT")
-      return { automations: [] };
-    throw error;
-  }
+  const rows = database.query<AutomationRow, []>("SELECT job_name, enabled, schedule, user_prompt, daily_session, model, thinking_level, can_launch_sub_agents FROM automations ORDER BY id").all();
+  return { automations: rows.map(fromRow) };
 }
 
 async function saveConfig(config: AutomationConfig): Promise<void> {
-  await mkdir(dirname(configPath), { recursive: true });
-  const temporaryPath = `${configPath}.tmp`;
-  await writeFile(temporaryPath, `${JSON.stringify(config, null, 2)}\n`, {
-    encoding: "utf8",
-    mode: 0o600,
+  const replace = database.transaction((automations: Array<Automation>) => {
+    database.run("DELETE FROM automations");
+    const statement = database.prepare("INSERT INTO automations (job_name, enabled, schedule, user_prompt, daily_session, model, thinking_level, can_launch_sub_agents, inserted_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))");
+    for (const automation of automations) statement.run(automation.jobName, automation.enabled, automation.schedule, automation.userPrompt, automation.dailySession ?? false, automation.model, automation.thinkingLevel, automation.canLaunchSubAgents ?? false);
   });
-  await rename(temporaryPath, configPath);
+  replace(config.automations);
 }
 
 function defaultAutomation(ctx: ExtensionCommandContext): Automation {

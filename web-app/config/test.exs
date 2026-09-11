@@ -1,5 +1,12 @@
 import Config
 
+config :web_app, WebApp.Repo,
+  database:
+    Path.join(System.tmp_dir!(), "matato-pi-test-#{System.system_time(:microsecond)}.sqlite3"),
+  pool: Ecto.Adapters.SQL.Sandbox,
+  pool_size: 1,
+  busy_timeout: 5_000
+
 # We don't run a server during test. If one is required,
 # you can enable the server option below.
 config :web_app, WebAppWeb.Endpoint,
