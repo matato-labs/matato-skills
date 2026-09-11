@@ -137,6 +137,36 @@ defmodule WebApp.AutomationTest do
     refute File.exists?(post_marker)
   end
 
+  test "runs an agent when the pre-script returns work" do
+    job_name = "automation-#{System.unique_integer([:positive])}"
+    skill_path = Path.join([System.user_home!(), ".pi", "agent", "skills", job_name])
+    pi_dir = Path.join(System.tmp_dir!(), "pi-#{System.unique_integer([:positive])}")
+    pi_path = Path.join(pi_dir, "pi")
+    pi_marker = temp_path()
+    File.mkdir_p!(Path.join(skill_path, "scripts"))
+    File.mkdir_p!(pi_dir)
+    File.write!(Path.join(skill_path, "scripts/preScript.ts"), "console.log(\"work\")")
+
+    File.write!(
+      pi_path,
+      "#!/bin/sh\ntouch #{pi_marker}\nprintf '%s\\n' '{\"type\":\"tool_execution_start\",\"toolName\":\"bash\"}' '{\"type\":\"tool_execution_end\",\"toolName\":\"bash\",\"isError\":false}' '{\"type\":\"agent_settled\"}'\n"
+    )
+
+    File.chmod!(pi_path, 0o755)
+    original_path = System.get_env("PATH")
+    System.put_env("PATH", "#{pi_dir}:#{original_path}")
+
+    on_exit(fn ->
+      System.put_env("PATH", original_path)
+      File.rm_rf!(skill_path)
+      File.rm(pi_marker)
+      File.rm_rf!(pi_dir)
+    end)
+
+    AutomationRunner.run(automation(job_name, "* * * * *"))
+    assert File.exists?(pi_marker)
+  end
+
   test "rejects malformed automations" do
     path = temp_path()
     File.write!(path, ~s({"automations":[{"jobName":"missing fields"}]}))

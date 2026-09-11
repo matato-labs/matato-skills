@@ -351,7 +351,7 @@ function resultColor(failed: number): "error" | "success" {
   return failed ? "error" : "success";
 }
 
-export default function(pi: ExtensionAPI) {
+export default function (pi: ExtensionAPI) {
   if (Number(process.env.PI_SUBAGENT_DEPTH ?? "0") > 0) return;
 
   const tempDirs = new Set<string>();

@@ -34,6 +34,21 @@ config :web_app,
   automations_config_path: Path.join(matato_pi_config, "automations/config.json"),
   automation_storage_path: matato_pi_config
 
+config :opentelemetry, :resource, service: [name: "matato-pi-web"]
+
+otel_endpoint = System.get_env("OTEL_ENDPOINT", "http://localhost:4318") |> String.trim()
+
+case otel_endpoint do
+  "" ->
+    config :opentelemetry, traces_exporter: :none
+    config :web_app, otel_endpoint: nil
+
+  endpoint ->
+    config :opentelemetry, traces_exporter: :otlp
+    config :opentelemetry_exporter, otlp_protocol: :http_protobuf, otlp_endpoint: endpoint
+    config :web_app, otel_endpoint: if(config_env() == :test, do: nil, else: endpoint)
+end
+
 # config/runtime.exs is executed for all environments, including
 # during releases. It is executed after compilation and before the
 # system starts, so it is typically used to load production configuration

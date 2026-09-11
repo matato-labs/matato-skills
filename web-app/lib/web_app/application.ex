@@ -8,24 +8,40 @@ defmodule WebApp.Application do
   @impl true
   def start(_type, _args) do
     WebApp.Workspace.validate!()
+    OpentelemetryBandit.setup()
+    OpentelemetryPhoenix.setup(adapter: :bandit, liveview: true)
 
-    children = [
-      WebAppWeb.Telemetry,
-      {DNSCluster, query: Application.get_env(:web_app, :dns_cluster_query) || :ignore},
-      {Phoenix.PubSub, name: WebApp.PubSub},
-      {Registry, keys: :unique, name: WebApp.ProcessRegistry},
-      {Registry, keys: :duplicate, name: WebApp.SubscriberRegistry},
-      {DynamicSupervisor, strategy: :one_for_one, name: WebApp.AgentSupervisor},
-      WebApp.RemoteRegistry,
-      WebApp.AutomationScheduler,
-      WebApp.AutomationWatcher,
-      WebAppWeb.Endpoint
-    ]
+    endpoint = Application.get_env(:web_app, :otel_endpoint)
+
+    log_exporter = if endpoint, do: [{WebApp.OtelLogExporter, endpoint}], else: []
+
+    children =
+      log_exporter ++
+        [
+          WebAppWeb.Telemetry,
+          {DNSCluster, query: Application.get_env(:web_app, :dns_cluster_query) || :ignore},
+          {Phoenix.PubSub, name: WebApp.PubSub},
+          {Registry, keys: :unique, name: WebApp.ProcessRegistry},
+          {Registry, keys: :duplicate, name: WebApp.SubscriberRegistry},
+          {DynamicSupervisor, strategy: :one_for_one, name: WebApp.AgentSupervisor},
+          WebApp.RemoteRegistry,
+          WebApp.AutomationScheduler,
+          WebApp.AutomationWatcher,
+          WebAppWeb.Endpoint
+        ]
 
     # See https://elixir.hexdocs.pm/Supervisor.html
     # for other strategies and supported options
     opts = [strategy: :one_for_one, name: WebApp.Supervisor]
-    Supervisor.start_link(children, opts)
+
+    case Supervisor.start_link(children, opts) do
+      {:ok, pid} ->
+        if endpoint, do: LoggerBackends.add(WebApp.OtelLoggerBackend)
+        {:ok, pid}
+
+      error ->
+        error
+    end
   end
 
   # Tell Phoenix to update the endpoint configuration
