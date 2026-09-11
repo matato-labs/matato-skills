@@ -21,11 +21,25 @@ Optional configuration:
 | `MATATO_PI_CONFIG` | Matato data root. Stores automation configuration and the web session catalog at `sessions/sessions.json`. Defaults to `~/.config/matato-pi`. |
 | `PI_CODING_AGENT_SESSION_DIR` | Optional Pi session directory. Defaults to `~/.pi/agent/sessions`. |
 | `PORT` | HTTP port, default `4000`. |
-| `OTEL_ENDPOINT` | OTLP/HTTP collector base URL. Defaults to `http://localhost:4318`; set it blank to disable trace and log export. |
+| `OTEL_ENDPOINT` | Production-only OTLP/HTTP collector base URL. Defaults to `http://localhost:4318`; set it blank to disable trace and log export. |
 
 Production binds to loopback by default. Put an authenticated TLS ingress or private tunnel in front. Pi is not sandboxed and runs with the web server user's host permissions.
 
-When `OTEL_ENDPOINT` is configured, the web app exports Phoenix HTTP and LiveView traces to `/v1/traces` and application logs to `/v1/logs`, with the service name `matato-pi-web`. Log export is disabled in tests. Pi extensions, skills, prompts, tool calls, and agent content are not instrumented.
+## Production
+
+Set `SECRET_KEY_BASE`, `PHX_HOST`, and `WORKSPACE` once in the production environment. Build a production deployment with:
+
+```bash
+bin/deploy
+```
+
+The script installs only production dependencies, compiles the application, and builds/digests assets. It never creates or changes secrets. Start the built application with:
+
+```bash
+MIX_ENV=prod mix phx.server
+```
+
+In production, when `OTEL_ENDPOINT` is configured, the web app exports Phoenix HTTP and LiveView traces to `/v1/traces` and application logs to `/v1/logs`, with the service name `matato-pi-web`. Telemetry export is disabled in development and tests. Pi extensions, skills, prompts, tool calls, and agent content are not instrumented.
 
 ## Supported flow
 
