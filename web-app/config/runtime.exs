@@ -46,7 +46,7 @@ case otel_endpoint do
   endpoint ->
     config :opentelemetry, traces_exporter: :otlp
     config :opentelemetry_exporter, otlp_protocol: :http_protobuf, otlp_endpoint: endpoint
-    config :web_app, otel_endpoint: endpoint
+    config :web_app, otel_endpoint: if(config_env() == :test, do: nil, else: endpoint)
 end
 
 # config/runtime.exs is executed for all environments, including

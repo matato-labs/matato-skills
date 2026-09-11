@@ -1,9 +1,8 @@
 defmodule WebApp.TelemetryConfigTest do
   use ExUnit.Case, async: true
 
-  test "exports traces to the local collector when OTEL_ENDPOINT is absent" do
-    assert runtimeConfig(nil) ==
-             "{:otlp, :http_protobuf, \"http://localhost:4318\", \"http://localhost:4318\"}"
+  test "does not configure log export in the test environment" do
+    assert runtimeConfig(nil) == "{:otlp, :http_protobuf, \"http://localhost:4318\", nil}"
   end
 
   test "disables trace export when OTEL_ENDPOINT is blank" do
@@ -12,7 +11,7 @@ defmodule WebApp.TelemetryConfigTest do
 
   test "configures OTLP HTTP export at OTEL_ENDPOINT" do
     assert runtimeConfig("http://collector:4318") ==
-             "{:otlp, :http_protobuf, \"http://collector:4318\", \"http://collector:4318\"}"
+             "{:otlp, :http_protobuf, \"http://collector:4318\", nil}"
   end
 
   test "instruments Bandit HTTP and Phoenix LiveView events" do

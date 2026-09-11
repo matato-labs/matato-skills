@@ -25,7 +25,7 @@ Optional configuration:
 
 Production binds to loopback by default. Put an authenticated TLS ingress or private tunnel in front. Pi is not sandboxed and runs with the web server user's host permissions.
 
-When `OTEL_ENDPOINT` is configured, the web app exports Phoenix HTTP and LiveView traces to `/v1/traces` and application logs to `/v1/logs`, with the service name `matato-pi-web`. Pi extensions, skills, prompts, tool calls, and agent content are not instrumented.
+When `OTEL_ENDPOINT` is configured, the web app exports Phoenix HTTP and LiveView traces to `/v1/traces` and application logs to `/v1/logs`, with the service name `matato-pi-web`. Log export is disabled in tests. Pi extensions, skills, prompts, tool calls, and agent content are not instrumented.
 
 ## Supported flow
 
