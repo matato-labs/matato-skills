@@ -4,7 +4,7 @@ defmodule WebApp.AutomationRunner do
   alias WebApp.Automation
 
   def run(%Automation{} = automation) do
-    Logger.info("Automation started: #{automation.job_name}")
+    Logger.debug("Automation started: #{automation.job_name}")
 
     with {:ok, skill_path} <- skill_path(automation.job_name),
          {:ok, output} <- script(skill_path, "preScript.ts") do
@@ -16,10 +16,12 @@ defmodule WebApp.AutomationRunner do
   end
 
   defp run_automation(automation, _skill_path, "") do
-    Logger.info("Automation skipped: #{automation.job_name} (pre-script returned no work)")
+    Logger.debug("Automation skipped: #{automation.job_name} (pre-script returned no work)")
   end
 
   defp run_automation(automation, skill_path, output) do
+    Logger.info("Automation agent started: #{automation.job_name}")
+
     with :ok <- run_pi(automation, skill_path, output),
          {:ok, _output} <- script(skill_path, "postScript.ts") do
       Logger.info("Automation completed: #{automation.job_name}")
@@ -82,7 +84,7 @@ defmodule WebApp.AutomationRunner do
     with {:ok, executable} <- executable("pi"),
          {:ok, port} <- open_port(executable, pi_args(automation, skill_path), File.cwd!()),
          :ok <- send_prompt(port, automation, output) do
-      await_settled(port, "")
+      await_settled(port, "", automation)
     end
   end
 
@@ -142,34 +144,57 @@ defmodule WebApp.AutomationRunner do
       else: {:error, "Could not send Pi prompt"}
   end
 
-  defp await_settled(port, buffer) do
+  defp await_settled(port, buffer, automation) do
     receive do
-      {^port, {:data, chunk}} -> process_output(port, buffer <> chunk)
+      {^port, {:data, chunk}} -> process_output(port, buffer <> chunk, automation)
       {^port, {:exit_status, 0}} -> {:error, "Pi exited before settling"}
       {^port, {:exit_status, status}} -> {:error, "Pi exited with status #{status}"}
     end
   end
 
-  defp process_output(port, output) do
+  defp process_output(port, output, automation) do
     case String.split(output, "\n") do
       [partial] ->
-        await_settled(port, partial)
+        await_settled(port, partial, automation)
 
       lines ->
         {complete, [partial]} = Enum.split(lines, -1)
+        Enum.each(complete, &log_progress(automation, &1))
 
         case Enum.find_value(complete, &rpc_state/1) do
           :settled ->
-            Port.close(port)
+            close_port(port)
             :ok
 
           {:error, reason} ->
-            Port.close(port)
+            close_port(port)
             {:error, reason}
 
           nil ->
-            await_settled(port, partial)
+            await_settled(port, partial, automation)
         end
+    end
+  end
+
+  defp close_port(port) do
+    Port.close(port)
+  rescue
+    ArgumentError -> :ok
+  end
+
+  defp log_progress(automation, line) do
+    case Jason.decode(line) do
+      {:ok, %{"type" => "tool_execution_start", "toolName" => tool_name}} ->
+        Logger.info("Automation agent tool started: #{automation.job_name} (#{tool_name})")
+
+      {:ok, %{"type" => "tool_execution_end", "toolName" => tool_name, "isError" => true}} ->
+        Logger.warning("Automation agent tool failed: #{automation.job_name} (#{tool_name})")
+
+      {:ok, %{"type" => "tool_execution_end", "toolName" => tool_name}} ->
+        Logger.info("Automation agent tool completed: #{automation.job_name} (#{tool_name})")
+
+      _ ->
+        :ok
     end
   end
 
