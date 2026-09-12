@@ -25,6 +25,7 @@ type AutomationRecord = {
   schedule: string;
   user_prompt: string;
   daily_session: boolean;
+  can_overlap: boolean;
   model: string;
   thinking_level: Automation["thinkingLevel"];
   can_launch_sub_agents: boolean;
@@ -40,6 +41,7 @@ function fromRecord(record: AutomationRecord): Automation {
     schedule: record.schedule,
     userPrompt: record.user_prompt,
     dailySession: record.daily_session,
+    canOverlap: record.can_overlap,
     model: record.model,
     thinkingLevel: record.thinking_level,
     canLaunchSubAgents: record.can_launch_sub_agents,
@@ -202,6 +204,7 @@ class AutomationBrowser {
       `Reasoning: ${automation.thinkingLevel}`,
       `Sub-agents: ${automation.canLaunchSubAgents ? "allowed" : "not allowed"}`,
       `Daily session: ${automation.dailySession ? "enabled" : "disabled"}`,
+      `Overlapping runs: ${automation.canOverlap ? "allowed" : "blocked"}`,
       `Skill: ${automation.useSkill ? automation.jobName : "none"}`,
       "",
       this.theme.fg("muted", "Prompt"),

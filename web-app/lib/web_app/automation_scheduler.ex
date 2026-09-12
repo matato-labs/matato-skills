@@ -41,7 +41,7 @@ defmodule WebApp.AutomationScheduler do
          new_job()
          |> Job.set_schedule(schedule)
          |> Job.set_task({WebApp.AutomationRunner, :run, [automation]})
-         |> Job.set_overlap(false)}
+         |> Job.set_overlap(automation.can_overlap)}
 
       {:error, reason} ->
         {:error, "Invalid schedule for #{automation.job_name}: #{inspect(reason)}"}

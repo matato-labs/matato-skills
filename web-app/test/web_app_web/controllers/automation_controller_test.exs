@@ -14,6 +14,7 @@ defmodule WebAppWeb.AutomationControllerTest do
       "schedule" => "0 9 * * *",
       "user_prompt" => "Review open work.",
       "daily_session" => false,
+      "can_overlap" => true,
       "model" => "model",
       "thinking_level" => "low",
       "can_launch_sub_agents" => false,
@@ -21,7 +22,9 @@ defmodule WebAppWeb.AutomationControllerTest do
     }
 
     conn = post(conn, "/api/automations", attributes)
-    assert %{"id" => id, "job_name" => "daily-review"} = json_response(conn, 201)["automation"]
+
+    assert %{"id" => id, "job_name" => "daily-review", "can_overlap" => true} =
+             json_response(conn, 201)["automation"]
 
     conn = get(build_conn(), "/api/automations")
     assert [%{"id" => ^id}] = json_response(conn, 200)["automations"]

@@ -8,6 +8,7 @@ export type Automation = {
   schedule: string;
   userPrompt: string;
   dailySession?: boolean;
+  canOverlap: boolean;
   model: string;
   thinkingLevel: ThinkingLevel;
   canLaunchSubAgents: boolean;

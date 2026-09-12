@@ -10,12 +10,20 @@ defmodule WebApp.AutomationTest do
   end
 
   test "stores replacement automations for the shared database" do
-    automation = %{automation("stored", "* * * * *") | can_launch_sub_agents: true}
+    automation = %{
+      automation("stored", "* * * * *")
+      | can_launch_sub_agents: true,
+        can_overlap: true
+    }
 
     assert :ok = Automation.replace([automation])
 
     assert [
-             %Automation{job_name: "stored", can_launch_sub_agents: true}
+             %Automation{
+               job_name: "stored",
+               can_launch_sub_agents: true,
+               can_overlap: true
+             }
            ] = Automation.list()
   end
 
@@ -68,7 +76,8 @@ defmodule WebApp.AutomationTest do
     previous = automation("previous", "*/5 * * * * *")
     invalid_disabled = %{automation("disabled", "not a cron expression") | enabled: false}
 
-    assert :ok = AutomationScheduler.replace([previous])
+    assert :ok = Automation.replace([previous])
+    sync_subscription()
 
     assert {:error, "Invalid schedule for disabled: " <> _reason} =
              AutomationScheduler.replace([automation("next", "* * * * * *"), invalid_disabled])
@@ -86,11 +95,13 @@ defmodule WebApp.AutomationTest do
              AutomationScheduler.jobs()
   end
 
-  test "uses the seconds parser for six-field schedules" do
-    assert :ok = AutomationScheduler.replace([automation("seconds", "*/5 * * * * *")])
+  test "uses the seconds parser and overlap setting" do
+    automation = %{automation("seconds", "*/5 * * * * *") | can_overlap: true}
+    assert :ok = AutomationScheduler.replace([automation])
 
     assert [{_, job}] = AutomationScheduler.jobs()
     assert inspect(job.schedule) == "~e[*/5 * * * * * *]e"
+    assert job.overlap
   end
 
   test "empty pre-script output skips Pi and post-script" do
@@ -161,6 +172,15 @@ defmodule WebApp.AutomationTest do
     assert File.exists?(pi_marker)
   end
 
+  defp sync_subscription do
+    {WebApp.AutomationSubscription, pid, _, _} =
+      Enum.find(Supervisor.which_children(WebApp.Supervisor), fn {id, _, _, _} ->
+        id == WebApp.AutomationSubscription
+      end)
+
+    _ = :sys.get_state(pid)
+  end
+
   defp automation(job_name, schedule) do
     %Automation{
       job_name: job_name,
@@ -168,6 +188,7 @@ defmodule WebApp.AutomationTest do
       schedule: schedule,
       user_prompt: "Run it",
       daily_session: false,
+      can_overlap: false,
       model: "model",
       thinking_level: "off",
       use_skill: true

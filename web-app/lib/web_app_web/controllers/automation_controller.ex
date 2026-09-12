@@ -59,6 +59,7 @@ defmodule WebAppWeb.AutomationController do
       :schedule,
       :user_prompt,
       :daily_session,
+      :can_overlap,
       :model,
       :thinking_level,
       :can_launch_sub_agents,

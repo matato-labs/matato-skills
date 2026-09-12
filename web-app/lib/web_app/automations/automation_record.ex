@@ -8,6 +8,7 @@ defmodule WebApp.Automations.AutomationRecord do
     field(:schedule, :string)
     field(:user_prompt, :string)
     field(:daily_session, :boolean, default: false)
+    field(:can_overlap, :boolean, default: false)
     field(:model, :string)
     field(:thinking_level, :string)
     field(:can_launch_sub_agents, :boolean, default: false)
@@ -23,6 +24,7 @@ defmodule WebApp.Automations.AutomationRecord do
       :schedule,
       :user_prompt,
       :daily_session,
+      :can_overlap,
       :model,
       :thinking_level,
       :can_launch_sub_agents,
@@ -34,6 +36,7 @@ defmodule WebApp.Automations.AutomationRecord do
       :schedule,
       :user_prompt,
       :daily_session,
+      :can_overlap,
       :model,
       :thinking_level,
       :can_launch_sub_agents,

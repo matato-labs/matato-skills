@@ -10,6 +10,7 @@ defmodule WebApp.Automation do
     :schedule,
     :user_prompt,
     :daily_session,
+    :can_overlap,
     :model,
     :thinking_level,
     :use_skill
@@ -24,7 +25,8 @@ defmodule WebApp.Automation do
     :model,
     :thinking_level,
     can_launch_sub_agents: false,
-    use_skill: false
+    use_skill: false,
+    can_overlap: false
   ]
 
   def list,
