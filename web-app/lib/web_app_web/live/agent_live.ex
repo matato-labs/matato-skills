@@ -5,7 +5,6 @@ defmodule WebAppWeb.AgentLive do
     AgentFanout,
     AgentSession,
     AgentState,
-    FeatureFlags,
     ProjectSessionCatalog,
     RemoteRegistry
   }
@@ -24,7 +23,6 @@ defmodule WebAppWeb.AgentLive do
         session_id: nil,
         delete_session_id: nil,
         mobile_sidebar_open: false,
-        show_agent_traces: FeatureFlags.enabled?(:agent_traces),
         session: nil,
         draft: "",
         interaction_owner: false,
@@ -219,10 +217,11 @@ defmodule WebAppWeb.AgentLive do
       id={@id}
       class={[
         "text-sm leading-6 text-base-content/85",
-        @item.role == :agent && "mt-8",
-        @item.role in [:agent, :user] &&
-          "w-fit max-w-[92%] rounded-2xl border border-base-content/12 bg-base-200/35 px-3.5 py-2.5 text-left",
-        @item.role == :user && "ml-auto"
+        @item.role == :agent &&
+          if(Map.get(@item, :after_activity?, false), do: "mt-4", else: "mt-8"),
+        @item.role == :user && "mt-8 first:mt-0",
+        @item.role == :user &&
+          "ml-auto w-fit max-w-[92%] rounded-2xl border border-base-content/12 bg-base-200/35 px-3.5 py-2.5 text-left"
       ]}
     >
       <div :if={!@streaming} class="markdown">{markdown(@item.text)}</div>
@@ -235,22 +234,30 @@ defmodule WebAppWeb.AgentLive do
     </article>
 
     <details
-      :if={@item.kind == :activity}
+      :if={@item.kind == :work_turn}
       id={@id}
-      open={!@item.collapsed?}
-      class="group w-full py-2 text-xs text-base-content/55"
+      class="group mt-8 w-full text-sm text-base-content/70"
     >
-      <summary class="flex cursor-pointer list-none items-center gap-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+      <summary class="flex cursor-pointer list-none items-center gap-2 border-b border-base-content/10 pb-2 text-xs font-medium text-base-content/55 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">
         <.icon name="hero-chevron-down" class="size-3 transition-transform group-open:rotate-180" />
-        <span>Activity ({length(@item.items)})</span>
+        <span>{work_label(@item)}</span>
       </summary>
-      <div class="mt-3 space-y-2">
-        <.transcript_item
-          :for={trace <- @item.items}
-          id={trace.id}
-          item={trace}
-          expanded={false}
-        />
+      <div class="space-y-4 pt-4">
+        <p :for={message <- @item.messages} class="whitespace-pre-wrap">{message.text}</p>
+        <details :if={@item.traces != []} class="group/activity text-xs text-base-content/60">
+          <summary class="flex cursor-pointer list-none items-center gap-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+            <.icon name="hero-wrench-screwdriver" class="size-3.5" />
+            <span>Activity ({length(@item.traces)})</span>
+          </summary>
+          <div class="mt-3 max-h-96 space-y-2 overflow-y-auto rounded-lg bg-base-content/5 p-3">
+            <.transcript_item
+              :for={trace <- @item.traces}
+              id={trace.id}
+              item={trace}
+              expanded={false}
+            />
+          </div>
+        </details>
       </div>
     </details>
 
@@ -261,7 +268,7 @@ defmodule WebAppWeb.AgentLive do
       class="group w-full py-2 text-xs text-base-content/55"
     >
       <summary class="flex cursor-pointer list-none items-center gap-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">
-        <.icon name="hero-chevron-down" class="size-3 transition-transform group-open:rotate-180" />
+        <span class="text-sm leading-none" role="img" aria-label="Thinking">🧠</span>
         <span>Thinking</span>
       </summary>
       <p class="mt-3 whitespace-pre-wrap">{@item.text}</p>
@@ -277,13 +284,25 @@ defmodule WebAppWeb.AgentLive do
         "flex cursor-pointer list-none items-center gap-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary",
         @item.tool.error && "text-error"
       ]}>
-        <.icon name="hero-chevron-down" class="size-3 transition-transform group-open:rotate-180" />
+        <.icon name="hero-command-line" class="size-3.5" />
         <span class="font-mono font-medium">{@item.tool.name}</span>
       </summary>
       <pre class="mt-3 max-h-72 overflow-auto rounded-lg bg-base-200 p-3 font-mono text-[0.7rem] leading-5 text-base-content/65">{tool_output(@item.tool)}</pre>
     </details>
     """
   end
+
+  def work_label(%{active?: true}), do: "Working"
+
+  def work_label(%{duration: duration}) when is_integer(duration),
+    do: "Worked for #{format_duration(duration)}"
+
+  def work_label(_item), do: "Worked"
+
+  defp format_duration(duration) when duration < 60_000, do: "#{max(div(duration, 1_000), 1)}s"
+
+  defp format_duration(duration),
+    do: "#{div(duration, 60_000)}m #{rem(div(duration, 1_000), 60)}s"
 
   def markdown(text), do: {:safe, MDEx.to_html!(text)}
   def command_location(command), do: get_in(command, ["sourceInfo", "scope"]) || "unknown"
@@ -320,9 +339,7 @@ defmodule WebAppWeb.AgentLive do
   def partial_text(session), do: AgentState.partial_text(session)
   def partial_thinking(session), do: AgentState.partial_thinking(session)
 
-  def partial_items(session), do: partial_items(session, true)
-
-  def partial_items(session, show_agent_traces) do
+  def partial_items(session) do
     session.partial.blocks
     |> Enum.sort_by(&elem(&1, 0))
     |> Enum.flat_map(fn {index, block} ->
@@ -340,21 +357,6 @@ defmodule WebAppWeb.AgentLive do
           []
       end
     end)
-    |> hide_agent_traces(show_agent_traces)
-  end
-
-  def activity_items(items, active?) do
-    {result, traces} =
-      Enum.reduce(items, {[], []}, fn item, {result, traces} ->
-        if item.kind in [:thinking, :tool] do
-          {result, traces ++ [item]}
-        else
-          {append_activity(result, traces) ++ [item], []}
-        end
-      end)
-
-    result = append_activity(result, traces)
-    if active?, do: expand_latest_activity(result), else: result
   end
 
   def tool_status(tool) do
@@ -424,52 +426,105 @@ defmodule WebAppWeb.AgentLive do
   defp sync_session(socket, snapshot) do
     socket
     |> assign(session: snapshot)
-    |> stream(:messages, transcript_items(snapshot, socket.assigns.show_agent_traces),
+    |> stream(
+      :messages,
+      transcript_items(snapshot),
       reset: true
     )
   end
 
-  defp transcript_items(session, show_agent_traces) do
-    items =
-      session.messages
-      |> Enum.with_index()
-      |> Enum.flat_map(fn {message, message_index} ->
-        message_items(message, message_index, session)
+  defp transcript_items(session) do
+    session
+    |> message_items_for_session()
+    |> work_turn_items(
+      partial_items(session),
+      agent_active?(session.status),
+      session.last_run_duration
+    )
+  end
+
+  defp message_items_for_session(session) do
+    session.messages
+    |> Enum.with_index()
+    |> Enum.flat_map(fn {message, message_index} ->
+      message_items(message, message_index, session)
+    end)
+  end
+
+  def work_turn_items(items, partial, active?), do: work_turn_items(items, partial, active?, nil)
+
+  def work_turn_items(items, partial, active?, duration) do
+    {result, current} =
+      Enum.reduce(items, {[], []}, fn item, {result, current} ->
+        if item.kind == :message && item.role == :user do
+          {result ++ finish_work_turn(current, false), [item]}
+        else
+          {result, current ++ [item]}
+        end
       end)
-      |> hide_agent_traces(show_agent_traces)
 
-    activity_items(items, agent_active?(session.status))
+    result
+    |> Kernel.++(finish_work_turn(current ++ partial, active?))
+    |> put_work_duration(duration)
   end
 
-  defp hide_agent_traces(items, true), do: items
+  defp put_work_duration(items, nil), do: items
 
-  defp hide_agent_traces(items, false) do
-    Enum.reject(items, &(&1.kind in [:thinking, :tool]))
-  end
-
-  defp append_activity(items, []), do: items
-
-  defp append_activity(items, traces) do
-    items ++
-      [
-        %{
-          id: "activity-#{List.first(traces).id}",
-          kind: :activity,
-          items: traces,
-          collapsed?: true
-        }
-      ]
-  end
-
-  defp expand_latest_activity(items) do
-    case List.last(items) do
-      %{kind: :activity} ->
-        List.update_at(items, length(items) - 1, &Map.put(&1, :collapsed?, false))
-
-      _item ->
+  defp put_work_duration(items, duration) do
+    case Enum.find_index(Enum.reverse(items), &(&1.kind == :work_turn)) do
+      nil ->
         items
+
+      reverse_index ->
+        List.update_at(
+          items,
+          length(items) - reverse_index - 1,
+          &Map.put(&1, :duration, duration)
+        )
     end
   end
+
+  defp finish_work_turn([], _active?), do: []
+
+  defp finish_work_turn([%{kind: :message, role: :user} = user | items], active?) do
+    {final, work} = split_final_message(items, active?)
+    work_item = work_turn_item(user, work, active?)
+    [user] ++ List.wrap(work_item) ++ List.wrap(final)
+  end
+
+  defp finish_work_turn(items, _active?), do: items
+
+  defp split_final_message(items, true), do: {nil, items}
+
+  defp split_final_message(items, false) do
+    case Enum.find_index(Enum.reverse(items), &agent_message?/1) do
+      nil ->
+        {nil, items}
+
+      reverse_index ->
+        index = length(items) - reverse_index - 1
+        {Enum.at(items, index), List.delete_at(items, index)}
+    end
+  end
+
+  defp work_turn_item(_user, [], _active?), do: nil
+
+  defp work_turn_item(user, items, active?) do
+    traces = Enum.filter(items, &(&1.kind in [:thinking, :tool]))
+    messages = Enum.filter(items, &agent_message?/1)
+
+    %{
+      id: "work-#{user.id}-#{if active?, do: "active", else: "settled"}",
+      kind: :work_turn,
+      active?: active?,
+      duration: nil,
+      messages: messages,
+      traces: Enum.reverse(traces)
+    }
+  end
+
+  defp agent_message?(%{kind: :message, role: :agent}), do: true
+  defp agent_message?(_item), do: false
 
   defp agent_active?(status), do: status in [:working, :retrying, :compacting, :waiting_for_input]
 

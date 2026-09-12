@@ -56,13 +56,6 @@
                 <.transcript_item :for={{id, item} <- @streams.messages} id={id} item={item} />
               </div>
 
-              <.transcript_item
-                :for={item <- activity_items(partial_items(@session, @show_agent_traces), true)}
-                id={item.id}
-                item={item}
-                streaming
-              />
-
               <div
                 :if={@session.queue["steering"] != [] || @session.queue["followUp"] != []}
                 class="flex items-center gap-3 rounded-lg border border-warning/25 bg-warning/5 px-3 py-2 text-xs text-warning-content"

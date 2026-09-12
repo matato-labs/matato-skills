@@ -3,7 +3,7 @@ defmodule WebAppWeb.AgentLiveTest do
 
   import Phoenix.LiveViewTest
 
-  alias WebApp.{AgentFanout, AgentSession, AgentState, FeatureFlags, RemoteRegistry, Workspace}
+  alias WebApp.{AgentFanout, AgentSession, RemoteRegistry, Workspace}
 
   setup do
     root = Path.join(System.tmp_dir!(), "agent-live-#{System.unique_integer([:positive])}")
@@ -74,38 +74,63 @@ defmodule WebAppWeb.AgentLiveTest do
     assert WebAppWeb.AgentLive.display_message_text(message) == "/skill:review\n\nCheck the API"
   end
 
-  test "keeps agent traces and unconfigured flags disabled by default" do
-    refute FeatureFlags.enabled?(:agent_traces)
-    refute FeatureFlags.enabled?(:unconfigured_flag)
-  end
+  test "groups live work and keeps the settled final reply outside it" do
+    user = %{id: "user", kind: :message, role: :user, text: "Fix it"}
+    progress = %{id: "progress", kind: :message, role: :agent, text: "I will inspect it"}
 
-  test "hides thinking and tool partials when traces are disabled" do
-    session = %{
-      AgentState.new()
-      | partial: %{
-          blocks: %{
-            0 => %{type: :thinking, content: "Private reasoning"},
-            1 => %{type: :tool_call, content: "call-1"}
-          }
-        },
-        tools: %{
-          "call-1" => %{id: "call-1", name: "bash", args: "pwd", result: nil, status: :running}
-        }
+    trace = %{
+      id: "tool",
+      kind: :tool,
+      tool: %{name: "bash", args: "pwd", result: nil, error: false}
     }
 
-    assert [%{kind: :thinking}, %{kind: :tool}] = WebAppWeb.AgentLive.partial_items(session)
-    assert [] = WebAppWeb.AgentLive.partial_items(session, false)
+    final = %{id: "final", kind: :message, role: :agent, text: "Fixed"}
+
+    assert [
+             ^user,
+             %{kind: :work_turn, active?: false, messages: [^progress], traces: [^trace]},
+             ^final
+           ] =
+             WebAppWeb.AgentLive.work_turn_items([user, progress, trace, final], [], false)
+
+    assert [
+             ^user,
+             %{kind: :work_turn, active?: true, messages: [^progress, ^final], traces: [^trace]}
+           ] =
+             WebAppWeb.AgentLive.work_turn_items([user, progress, trace], [final], true)
   end
 
-  test "renders agent replies in a message bubble" do
+  test "renders a work disclosure with nested activity" do
+    html =
+      render_component(&WebAppWeb.AgentLive.transcript_item/1,
+        id: "work-user-settled",
+        item: %{
+          kind: :work_turn,
+          active?: false,
+          messages: [%{id: "progress", kind: :message, role: :agent, text: "I will inspect it"}],
+          traces: [
+            %{
+              id: "tool",
+              kind: :tool,
+              tool: %{name: "bash", args: "pwd", result: nil, error: false}
+            }
+          ]
+        }
+      )
+
+    assert html =~ "Worked"
+    assert html =~ "Activity (1)"
+  end
+
+  test "renders agent replies without a message bubble" do
     html =
       render_component(&WebAppWeb.AgentLive.transcript_item/1,
         id: "agent-message",
         item: %{kind: :message, role: :agent, text: "Done"}
       )
 
-    assert html =~ "rounded-2xl"
-    assert html =~ "bg-base-200/35"
+    refute html =~ "max-w-[72ch]"
+    refute html =~ "rounded-2xl"
   end
 
   test "renders discovered slash commands when the composer starts with a slash", %{
