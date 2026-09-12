@@ -2,7 +2,8 @@
   <div class="h-screen overflow-hidden bg-base-300 text-base-content">
     <div class="grid h-full lg:grid-cols-[17rem_minmax(0,1fr)]">
       <SessionComponents.sidebar
-        groups={@groups}
+        workspace_groups={@workspace_groups}
+        automation_groups={@automation_groups}
         session_id={@session_id}
         delete_session_id={@delete_session_id}
         mobile_sidebar_open={@mobile_sidebar_open}

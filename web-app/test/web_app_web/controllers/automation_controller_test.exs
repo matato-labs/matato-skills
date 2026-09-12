@@ -7,6 +7,24 @@ defmodule WebAppWeb.AutomationControllerTest do
     :ok = Automation.replace([])
   end
 
+  test "defaults monitoring to disabled", %{conn: conn} do
+    conn =
+      post(conn, "/api/automations", %{
+        "job_name" => "unmonitored",
+        "enabled" => true,
+        "schedule" => "0 9 * * *",
+        "user_prompt" => "Review open work.",
+        "daily_session" => false,
+        "can_overlap" => false,
+        "model" => "model",
+        "thinking_level" => "low",
+        "can_launch_sub_agents" => false,
+        "use_skill" => false
+      })
+
+    assert %{"monitor" => false} = json_response(conn, 201)["automation"]
+  end
+
   test "creates, reads, updates, and deletes automations", %{conn: conn} do
     attributes = %{
       "job_name" => "daily-review",
@@ -18,13 +36,18 @@ defmodule WebAppWeb.AutomationControllerTest do
       "model" => "model",
       "thinking_level" => "low",
       "can_launch_sub_agents" => false,
+      "monitor" => true,
       "use_skill" => true
     }
 
     conn = post(conn, "/api/automations", attributes)
 
-    assert %{"id" => id, "job_name" => "daily-review", "can_overlap" => true} =
-             json_response(conn, 201)["automation"]
+    assert %{
+             "id" => id,
+             "job_name" => "daily-review",
+             "can_overlap" => true,
+             "monitor" => true
+           } = json_response(conn, 201)["automation"]
 
     conn = get(build_conn(), "/api/automations")
     assert [%{"id" => ^id}] = json_response(conn, 200)["automations"]

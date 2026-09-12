@@ -29,6 +29,7 @@ type AutomationRecord = {
   model: string;
   thinking_level: Automation["thinkingLevel"];
   can_launch_sub_agents: boolean;
+  monitor: boolean;
   use_skill: boolean;
 };
 
@@ -45,6 +46,7 @@ function fromRecord(record: AutomationRecord): Automation {
     model: record.model,
     thinkingLevel: record.thinking_level,
     canLaunchSubAgents: record.can_launch_sub_agents,
+    monitor: record.monitor,
     useSkill: record.use_skill,
   };
 }
@@ -203,6 +205,7 @@ class AutomationBrowser {
       `Model: ${automation.model}`,
       `Reasoning: ${automation.thinkingLevel}`,
       `Sub-agents: ${automation.canLaunchSubAgents ? "allowed" : "not allowed"}`,
+      `Monitoring: ${automation.monitor ? "enabled" : "disabled"}`,
       `Daily session: ${automation.dailySession ? "enabled" : "disabled"}`,
       `Overlapping runs: ${automation.canOverlap ? "allowed" : "blocked"}`,
       `Skill: ${automation.useSkill ? automation.jobName : "none"}`,

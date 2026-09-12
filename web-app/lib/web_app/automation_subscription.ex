@@ -7,7 +7,7 @@ defmodule WebApp.AutomationSubscription do
 
   @poll_interval 1_000
 
-  def start_link(_options), do: GenServer.start_link(__MODULE__, :ok)
+  def start_link(_options), do: GenServer.start_link(__MODULE__, :ok, name: __MODULE__)
 
   @impl true
   def init(:ok) do

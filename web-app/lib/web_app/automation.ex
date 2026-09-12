@@ -25,8 +25,9 @@ defmodule WebApp.Automation do
     :model,
     :thinking_level,
     can_launch_sub_agents: false,
-    use_skill: false,
-    can_overlap: false
+    can_overlap: false,
+    monitor: false,
+    use_skill: false
   ]
 
   def list,

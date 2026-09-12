@@ -12,6 +12,7 @@ defmodule WebApp.Automations.AutomationRecord do
     field(:model, :string)
     field(:thinking_level, :string)
     field(:can_launch_sub_agents, :boolean, default: false)
+    field(:monitor, :boolean, default: false)
     field(:use_skill, :boolean, default: false)
     timestamps(type: :utc_datetime)
   end
@@ -28,6 +29,7 @@ defmodule WebApp.Automations.AutomationRecord do
       :model,
       :thinking_level,
       :can_launch_sub_agents,
+      :monitor,
       :use_skill
     ])
     |> validate_required([
@@ -40,6 +42,7 @@ defmodule WebApp.Automations.AutomationRecord do
       :model,
       :thinking_level,
       :can_launch_sub_agents,
+      :monitor,
       :use_skill
     ])
     |> validate_schedule()

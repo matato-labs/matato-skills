@@ -1,6 +1,14 @@
 defmodule WebApp.ProjectSessionCatalog do
   alias WebApp.Workspace
 
+  def workspace_groups(records), do: groups(Enum.reject(records, &(&1["source"] == "automation")))
+
+  def automation_groups(records) do
+    records
+    |> Enum.filter(&(&1["source"] == "automation" and active?(&1["status"])))
+    |> groups()
+  end
+
   def groups(records) do
     workspace = Workspace.root()
 
@@ -10,6 +18,9 @@ defmodule WebApp.ProjectSessionCatalog do
     |> Enum.map(&group/1)
     |> Enum.sort_by(&{&1.last_activity, &1.label}, :desc)
   end
+
+  defp active?(status),
+    do: status in ["starting", "working", "waiting_for_input", "retrying", "compacting"]
 
   defp normalize(record, workspace) do
     project = canonical_project(record["project"])

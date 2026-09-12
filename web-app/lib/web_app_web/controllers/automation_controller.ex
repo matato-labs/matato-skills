@@ -63,6 +63,7 @@ defmodule WebAppWeb.AutomationController do
       :model,
       :thinking_level,
       :can_launch_sub_agents,
+      :monitor,
       :use_skill
     ])
   end

@@ -3,7 +3,8 @@ defmodule WebAppWeb.SessionComponents do
 
   import WebAppWeb.CoreComponents
 
-  attr :groups, :list, required: true
+  attr :workspace_groups, :list, required: true
+  attr :automation_groups, :list, required: true
   attr :session_id, :string, default: nil
   attr :delete_session_id, :string, default: nil
   attr :mobile_sidebar_open, :boolean, required: true
@@ -37,7 +38,7 @@ defmodule WebAppWeb.SessionComponents do
       <div class="border-t border-base-content/10 px-3 py-4">
         <div class="mb-2 flex items-center justify-between px-2">
           <h2 class="text-[0.68rem] font-semibold uppercase tracking-[0.16em] text-base-content/45">
-            Sessions
+            Workspace
           </h2>
           <.link
             navigate="/"
@@ -48,31 +49,65 @@ defmodule WebAppWeb.SessionComponents do
           </.link>
         </div>
 
-        <nav id="session-groups" class="space-y-1.5" aria-label="Agent sessions">
-          <details :for={group <- @groups} id={"session-group-#{group.key}"} open class="group">
-            <summary class="flex cursor-pointer list-none items-center gap-2 rounded-md px-2 py-1.5 text-xs font-semibold text-base-content/55 transition-colors hover:bg-base-content/5 hover:text-base-content focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">
-              <.icon
-                name="hero-chevron-right"
-                class="size-3 shrink-0 transition-transform group-open:rotate-90"
-              />
-              <span class="truncate">{group.label}</span>
-            </summary>
-
-            <div class="mt-0.5 space-y-0.5 pl-2">
-              <.session_row
-                :for={session <- group.sessions}
-                session={session}
-                selected={session.id == @session_id}
-                delete_session_id={@delete_session_id}
-              />
-            </div>
-          </details>
-          <p :if={@groups == []} class="px-2 py-3 text-xs leading-5 text-base-content/40">
+        <nav id="workspace-session-groups" class="space-y-1.5" aria-label="Workspace agent sessions">
+          <.session_group
+            :for={group <- @workspace_groups}
+            group={group}
+            prefix="workspace"
+            session_id={@session_id}
+            delete_session_id={@delete_session_id}
+          />
+          <p :if={@workspace_groups == []} class="px-2 py-3 text-xs leading-5 text-base-content/40">
             No sessions yet.
           </p>
         </nav>
+
+        <div class="mt-5 border-t border-base-content/10 pt-4">
+          <h2 class="mb-2 px-2 text-[0.68rem] font-semibold uppercase tracking-[0.16em] text-base-content/45">
+            Automations
+          </h2>
+          <nav id="automation-session-groups" class="space-y-1.5" aria-label="Active automation work">
+            <.session_group
+              :for={group <- @automation_groups}
+              group={group}
+              prefix="automation"
+              session_id={@session_id}
+              delete_session_id={@delete_session_id}
+            />
+            <p :if={@automation_groups == []} class="px-2 py-1 text-xs leading-5 text-base-content/40">
+              No active work.
+            </p>
+          </nav>
+        </div>
       </div>
     </aside>
+    """
+  end
+
+  attr :group, :map, required: true
+  attr :prefix, :string, required: true
+  attr :session_id, :string, default: nil
+  attr :delete_session_id, :string, default: nil
+
+  defp session_group(assigns) do
+    ~H"""
+    <details id={"#{@prefix}-session-group-#{@group.key}"} open class="group">
+      <summary class="flex cursor-pointer list-none items-center gap-2 rounded-md px-2 py-1.5 text-xs font-semibold text-base-content/55 transition-colors hover:bg-base-content/5 hover:text-base-content focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+        <.icon
+          name="hero-chevron-right"
+          class="size-3 shrink-0 transition-transform group-open:rotate-90"
+        />
+        <span class="truncate">{@group.label}</span>
+      </summary>
+      <div class="mt-0.5 space-y-0.5 pl-2">
+        <.session_row
+          :for={session <- @group.sessions}
+          session={session}
+          selected={session.id == @session_id}
+          delete_session_id={@delete_session_id}
+        />
+      </div>
+    </details>
     """
   end
 
