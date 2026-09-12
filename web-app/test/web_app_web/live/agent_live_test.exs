@@ -69,6 +69,65 @@ defmodule WebAppWeb.AgentLiveTest do
     assert WebAppWeb.AgentLive.display_message_text(message) == "/skill:review\n\nCheck the API"
   end
 
+  test "groups live work and keeps the settled final reply outside it" do
+    user = %{id: "user", kind: :message, role: :user, text: "Fix it"}
+    progress = %{id: "progress", kind: :message, role: :agent, text: "I will inspect it"}
+
+    trace = %{
+      id: "tool",
+      kind: :tool,
+      tool: %{name: "bash", args: "pwd", result: nil, error: false}
+    }
+
+    final = %{id: "final", kind: :message, role: :agent, text: "Fixed"}
+
+    assert [
+             ^user,
+             %{kind: :work_turn, active?: false, messages: [^progress], traces: [^trace]},
+             ^final
+           ] =
+             WebAppWeb.AgentLive.work_turn_items([user, progress, trace, final], [], false)
+
+    assert [
+             ^user,
+             %{kind: :work_turn, active?: true, messages: [^progress, ^final], traces: [^trace]}
+           ] =
+             WebAppWeb.AgentLive.work_turn_items([user, progress, trace], [final], true)
+  end
+
+  test "renders a work disclosure with nested activity" do
+    html =
+      render_component(&WebAppWeb.AgentLive.transcript_item/1,
+        id: "work-user-settled",
+        item: %{
+          kind: :work_turn,
+          active?: false,
+          messages: [%{id: "progress", kind: :message, role: :agent, text: "I will inspect it"}],
+          traces: [
+            %{
+              id: "tool",
+              kind: :tool,
+              tool: %{name: "bash", args: "pwd", result: nil, error: false}
+            }
+          ]
+        }
+      )
+
+    assert html =~ "Worked"
+    assert html =~ "Activity (1)"
+  end
+
+  test "renders agent replies without a message bubble" do
+    html =
+      render_component(&WebAppWeb.AgentLive.transcript_item/1,
+        id: "agent-message",
+        item: %{kind: :message, role: :agent, text: "Done"}
+      )
+
+    refute html =~ "max-w-[72ch]"
+    refute html =~ "rounded-2xl"
+  end
+
   test "renders discovered slash commands when the composer starts with a slash", %{
     conn: conn,
     id: id
@@ -84,5 +143,34 @@ defmodule WebAppWeb.AgentLiveTest do
 
     assert has_element?(view, "#slash-command-picker:not([hidden])")
     assert has_element?(view, "#slash-command-plan[title$='.pi/prompts/plan.md']")
+  end
+
+  test "opens and closes the mobile session drawer", %{conn: conn, id: id} do
+    {:ok, view, _html} = live(conn, ~p"/sessions/#{id}")
+
+    assert has_element?(
+             view,
+             "#mobile-menu-button[aria-expanded='false'][aria-label='Open menu']"
+           )
+
+    refute has_element?(view, "#mobile-sidebar-backdrop")
+
+    view |> element("#mobile-menu-button") |> render_click()
+
+    assert has_element?(
+             view,
+             "#mobile-menu-button[aria-expanded='true'][aria-label='Close menu']"
+           )
+
+    assert has_element?(view, "#mobile-sidebar-backdrop")
+
+    render_patch(view, ~p"/sessions/#{id}")
+
+    refute has_element?(view, "#mobile-sidebar-backdrop")
+
+    view |> element("#mobile-menu-button") |> render_click()
+    view |> element("#mobile-sidebar-backdrop") |> render_click()
+
+    refute has_element?(view, "#mobile-sidebar-backdrop")
   end
 end

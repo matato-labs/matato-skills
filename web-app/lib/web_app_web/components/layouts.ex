@@ -3,7 +3,13 @@ defmodule WebAppWeb.Layouts do
   This module holds layouts and related functionality
   used by your application.
   """
-  use WebAppWeb, :html
+  use Phoenix.Component
+  use Gettext, backend: WebAppWeb.Gettext
+
+  import Phoenix.Controller, only: [get_csrf_token: 0]
+  import WebAppWeb.CoreComponents
+
+  alias Phoenix.LiveView.JS
 
   # Embed all files in layouts/* within this module.
   # The default root.html.heex file contains the HTML

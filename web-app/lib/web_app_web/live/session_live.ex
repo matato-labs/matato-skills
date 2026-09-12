@@ -13,6 +13,7 @@ defmodule WebAppWeb.SessionLive do
        groups: ProjectSessionCatalog.groups(RemoteRegistry.list()),
        session_id: nil,
        delete_session_id: nil,
+       mobile_sidebar_open: false,
        error: nil,
        start_form: to_form(%{"project" => ""}, as: :session)
      )}
@@ -21,6 +22,12 @@ defmodule WebAppWeb.SessionLive do
   @impl true
   def handle_event("confirm_delete_session", %{"id" => id}, socket),
     do: {:noreply, assign(socket, delete_session_id: id)}
+
+  def handle_event("toggle_mobile_sidebar", _params, socket),
+    do: {:noreply, update(socket, :mobile_sidebar_open, &(!&1))}
+
+  def handle_event("close_mobile_sidebar", _params, socket),
+    do: {:noreply, assign(socket, mobile_sidebar_open: false)}
 
   def handle_event("delete_session", %{"id" => id}, socket) do
     case RemoteRegistry.delete(id) do
@@ -48,7 +55,7 @@ defmodule WebAppWeb.SessionLive do
 
       true ->
         case RemoteRegistry.create(relative) do
-          {:ok, id} -> {:noreply, push_navigate(socket, to: ~p"/sessions/#{id}")}
+          {:ok, id} -> {:noreply, push_navigate(socket, to: "/sessions/#{id}")}
           {:error, error} -> {:noreply, assign(socket, error: error)}
         end
     end

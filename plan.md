@@ -1,2 +1,5 @@
-- Bring the other skills
-- Can I hook my pi sessions from automations into herdr so I can track them? 
+- agents section
+- workspace section
+- display traces as single box only showing the last trace but allowing the user to see the history, when the final message arrives it stays closed.
+- make skill optional and add prompt optional in automations to allow agents to create automations with custom prompts.
+- 

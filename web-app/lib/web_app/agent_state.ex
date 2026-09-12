@@ -23,15 +23,28 @@ defmodule WebApp.AgentState do
       session_id: nil,
       error: nil,
       commands: [],
-      commands_error: nil
+      commands_error: nil,
+      run_started_at: nil,
+      last_run_duration: nil
     }
   end
 
   def apply(state, %{"type" => "agent_start"}),
-    do: %{state | status: :working, interrupted?: false}
+    do: %{state | status: :working, interrupted?: false, run_started_at: now()}
 
-  def apply(state, %{"type" => "agent_settled"}),
-    do: %{state | status: :settled, partial: empty_partial(), dialog: nil, error: nil}
+  def apply(state, %{"type" => "agent_settled"}) do
+    duration = if state.run_started_at, do: now() - state.run_started_at, else: nil
+
+    %{
+      state
+      | status: :settled,
+        partial: empty_partial(),
+        dialog: nil,
+        error: nil,
+        run_started_at: nil,
+        last_run_duration: duration
+    }
+  end
 
   def apply(state, %{"type" => "compaction_start"}), do: %{state | status: :compacting}
   def apply(state, %{"type" => "auto_retry_start"}), do: %{state | status: :retrying}
@@ -151,6 +164,7 @@ defmodule WebApp.AgentState do
     %{state | status: status, error: error}
   end
 
+  defp now, do: System.monotonic_time(:millisecond)
   defp empty_partial, do: %{blocks: %{}}
 
   defp update_partial(state, index, %{"type" => type} = event) do
