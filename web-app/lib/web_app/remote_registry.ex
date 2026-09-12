@@ -8,6 +8,7 @@ defmodule WebApp.RemoteRegistry do
 
   def start_link(_options), do: GenServer.start_link(__MODULE__, :ok, name: __MODULE__)
   def list, do: RemoteSessions.list()
+  def subscribe, do: Phoenix.PubSub.subscribe(WebApp.PubSub, "remote_sessions")
 
   def create(relative) do
     case GenServer.call(__MODULE__, {:create, relative}) do
@@ -26,6 +27,10 @@ defmodule WebApp.RemoteRegistry do
 
   def stop(id), do: GenServer.call(__MODULE__, {:stop, id}, 20_000)
   def delete(id), do: GenServer.call(__MODULE__, {:delete, id}, 20_000)
+  def register_automation(name), do: GenServer.call(__MODULE__, {:register_automation, name})
+
+  def complete_automation(id, status),
+    do: GenServer.cast(__MODULE__, {:complete_automation, id, status})
 
   @impl true
   def init(:ok) do
@@ -42,6 +47,27 @@ defmodule WebApp.RemoteRegistry do
     if length(recent) >= @creation_limit,
       do: {:reply, {:error, "Session creation rate limit exceeded"}, state},
       else: create_session(relative, state)
+  end
+
+  def handle_call({:register_automation, name}, _from, state) do
+    id = Base.url_encode64(:crypto.strong_rand_bytes(9), padding: false)
+    project = Workspace.root()
+
+    case RemoteSessions.create(%{
+           id: id,
+           name: name,
+           project_path: project,
+           relative_project: ".",
+           status: "working",
+           source: "automation"
+         }) do
+      {:ok, _session} ->
+        notify_sessions_changed()
+        {:reply, {:ok, id}, state}
+
+      {:error, reason} ->
+        {:reply, {:error, format_error(reason)}, state}
+    end
   end
 
   def handle_call({:open, id}, _from, state) do
@@ -79,6 +105,7 @@ defmodule WebApp.RemoteRegistry do
          {:ok, _session_file} <- RemoteSessions.validate_session_file(metadata["session_file"]),
          :ok <- RemoteSessions.delete(id) do
       if AgentSession.whereis(id), do: AgentSession.stop(id)
+      notify_sessions_changed()
       {:reply, :ok, state}
     else
       nil -> {:reply, {:error, "Session not found"}, state}
@@ -90,9 +117,15 @@ defmodule WebApp.RemoteRegistry do
   end
 
   @impl true
+  def handle_cast({:complete_automation, id, status}, state) do
+    put_status(id, status)
+    {:noreply, state}
+  end
+
   def handle_cast({:discard_failed, id}, state) when is_binary(id) do
     if AgentSession.whereis(id), do: AgentSession.stop(id)
     RemoteSessions.delete(id)
+    notify_sessions_changed()
     {:noreply, state}
   end
 
@@ -134,6 +167,7 @@ defmodule WebApp.RemoteRegistry do
                source: "web"
              }) do
           {:ok, _session} ->
+            notify_sessions_changed()
             {:reply, {:ok, id}, state}
 
           {:error, reason} ->
@@ -202,7 +236,14 @@ defmodule WebApp.RemoteRegistry do
     end
   end
 
-  defp put_status(id, status), do: RemoteSessions.update(id, %{status: to_string(status)})
+  defp put_status(id, status) do
+    RemoteSessions.update(id, %{status: to_string(status)})
+    notify_sessions_changed()
+  end
+
+  defp notify_sessions_changed,
+    do: Phoenix.PubSub.broadcast(WebApp.PubSub, "remote_sessions", :changed)
+
   defp notify(event), do: GenServer.cast(__MODULE__, event)
   defp format_error(reason) when is_binary(reason), do: reason
   defp format_error(reason), do: inspect(reason)

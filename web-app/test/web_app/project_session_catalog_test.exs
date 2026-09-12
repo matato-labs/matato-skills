@@ -55,6 +55,18 @@ defmodule WebApp.ProjectSessionCatalogTest do
     assert group.key == project
   end
 
+  test "separates workspace sessions from active automation work", context do
+    sessions = [
+      session("workspace", Path.join(context.workspace, "alpha"), "2026-01-01T00:00:00Z"),
+      session("running", context.workspace, "2026-01-02T00:00:00Z", "automation")
+      |> Map.put("status", "working"),
+      session("finished", context.workspace, "2026-01-03T00:00:00Z", "automation")
+    ]
+
+    assert [%{sessions: [%{id: "workspace"}]}] = ProjectSessionCatalog.workspace_groups(sessions)
+    assert [%{sessions: [%{id: "running"}]}] = ProjectSessionCatalog.automation_groups(sessions)
+  end
+
   defp session(id, project, created_at, source \\ "web") do
     %{
       "id" => id,

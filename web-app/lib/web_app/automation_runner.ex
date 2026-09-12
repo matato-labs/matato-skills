@@ -24,15 +24,43 @@ defmodule WebApp.AutomationRunner do
   end
 
   defp run_automation(automation, skill_path, output) do
+    monitor_id = register_automation(automation)
     Logger.info("Automation agent started: #{automation.job_name}")
 
-    with :ok <- run_pi(automation, skill_path, output),
-         {:ok, _output} <- post_script(automation, skill_path) do
-      Logger.info("Automation completed: #{automation.job_name}")
-    else
+    result =
+      with :ok <- run_pi(automation, skill_path, output),
+           {:ok, _output} <- post_script(automation, skill_path) do
+        :ok
+      end
+
+    finish_automation_monitor(monitor_id, result)
+
+    case result do
+      :ok -> Logger.info("Automation completed: #{automation.job_name}")
       {:error, reason} -> log_failure(automation, reason)
     end
   end
+
+  defp register_automation(%{monitor: false}), do: nil
+
+  defp register_automation(automation) do
+    case WebApp.RemoteRegistry.register_automation(automation.job_name) do
+      {:ok, id} ->
+        id
+
+      {:error, reason} ->
+        Logger.warning("Could not monitor #{automation.job_name}: #{reason}")
+        nil
+    end
+  end
+
+  defp finish_automation_monitor(nil, _result), do: :ok
+
+  defp finish_automation_monitor(id, :ok),
+    do: WebApp.RemoteRegistry.complete_automation(id, :settled)
+
+  defp finish_automation_monitor(id, {:error, _reason}),
+    do: WebApp.RemoteRegistry.complete_automation(id, :failed)
 
   defp post_script(%{use_skill: false}, _skill_path), do: {:ok, nil}
   defp post_script(_automation, skill_path), do: script(skill_path, "postScript.ts")

@@ -18,13 +18,18 @@ defmodule WebAppWeb.AutomationControllerTest do
       "model" => "model",
       "thinking_level" => "low",
       "can_launch_sub_agents" => false,
+      "monitor" => true,
       "use_skill" => true
     }
 
     conn = post(conn, "/api/automations", attributes)
 
-    assert %{"id" => id, "job_name" => "daily-review", "can_overlap" => true} =
-             json_response(conn, 201)["automation"]
+    assert %{
+             "id" => id,
+             "job_name" => "daily-review",
+             "can_overlap" => true,
+             "monitor" => true
+           } = json_response(conn, 201)["automation"]
 
     conn = get(build_conn(), "/api/automations")
     assert [%{"id" => ^id}] = json_response(conn, 200)["automations"]

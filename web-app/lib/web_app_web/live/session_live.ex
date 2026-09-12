@@ -6,11 +6,15 @@ defmodule WebAppWeb.SessionLive do
 
   @impl true
   def mount(_params, _session, socket) do
+    if connected?(socket), do: RemoteRegistry.subscribe()
+    sessions = RemoteRegistry.list()
+
     {:ok,
      assign(socket,
        page_title: "New Matato session",
        projects: Workspace.directories(),
-       groups: ProjectSessionCatalog.groups(RemoteRegistry.list()),
+       workspace_groups: ProjectSessionCatalog.workspace_groups(sessions),
+       automation_groups: ProjectSessionCatalog.automation_groups(sessions),
        session_id: nil,
        delete_session_id: nil,
        mobile_sidebar_open: false,
@@ -36,7 +40,8 @@ defmodule WebAppWeb.SessionLive do
 
         {:noreply,
          assign(socket,
-           groups: ProjectSessionCatalog.groups(sessions),
+           workspace_groups: ProjectSessionCatalog.workspace_groups(sessions),
+           automation_groups: ProjectSessionCatalog.automation_groups(sessions),
            delete_session_id: nil,
            error: nil
          )}
@@ -59,5 +64,16 @@ defmodule WebAppWeb.SessionLive do
           {:error, error} -> {:noreply, assign(socket, error: error)}
         end
     end
+  end
+
+  @impl true
+  def handle_info(:changed, socket) do
+    sessions = RemoteRegistry.list()
+
+    {:noreply,
+     assign(socket,
+       workspace_groups: ProjectSessionCatalog.workspace_groups(sessions),
+       automation_groups: ProjectSessionCatalog.automation_groups(sessions)
+     )}
   end
 end

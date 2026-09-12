@@ -12,6 +12,7 @@ export type Automation = {
   model: string;
   thinkingLevel: ThinkingLevel;
   canLaunchSubAgents: boolean;
+  monitor?: boolean;
   useSkill: boolean;
 };
 export type AutomationConfig = { automations: Automation[] };

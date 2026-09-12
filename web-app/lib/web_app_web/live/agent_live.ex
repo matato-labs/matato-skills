@@ -15,11 +15,15 @@ defmodule WebAppWeb.AgentLive do
 
   @impl true
   def mount(_params, _session, socket) do
+    if connected?(socket), do: RemoteRegistry.subscribe()
+    sessions = RemoteRegistry.list()
+
     socket =
       assign(socket,
         page_title: "Matato Agent",
-        sessions: RemoteRegistry.list(),
-        groups: ProjectSessionCatalog.groups(RemoteRegistry.list()),
+        sessions: sessions,
+        workspace_groups: ProjectSessionCatalog.workspace_groups(sessions),
+        automation_groups: ProjectSessionCatalog.automation_groups(sessions),
         session_id: nil,
         delete_session_id: nil,
         mobile_sidebar_open: false,
@@ -169,6 +173,8 @@ defmodule WebAppWeb.AgentLive do
   end
 
   @impl true
+  def handle_info(:changed, socket), do: {:noreply, assign_sessions(socket)}
+
   def handle_info({:agent_snapshot, snapshot}, socket) do
     dialog_form =
       to_form(%{"value" => get_in(snapshot, [:dialog, "prefill"]) || ""}, as: :dialog)
@@ -420,7 +426,12 @@ defmodule WebAppWeb.AgentLive do
 
   defp assign_sessions(socket) do
     sessions = RemoteRegistry.list()
-    assign(socket, sessions: sessions, groups: ProjectSessionCatalog.groups(sessions))
+
+    assign(socket,
+      sessions: sessions,
+      workspace_groups: ProjectSessionCatalog.workspace_groups(sessions),
+      automation_groups: ProjectSessionCatalog.automation_groups(sessions)
+    )
   end
 
   defp sync_session(socket, snapshot) do

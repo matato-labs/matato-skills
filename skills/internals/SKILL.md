@@ -12,7 +12,21 @@ This is all information you need to know to work with matato-pi.
 
 ## Automations
 
-Manage automations through the local web API. Set `api=http://localhost:4000/api/automations` unless `MATATO_PI_WEB_URL` points to another server.
+Manage automations through the local web API. Set `api=http://localhost:4000/api/automations` unless `MATATO_PI_WEB_URL` points to another server. Every create and update sends all fields below.
+
+| Field | Required | Default | Purpose |
+| --- | --- | --- | --- |
+| `job_name` | Yes | None | Unique automation name. Also names the Pi agent and optional skill. |
+| `enabled` | Yes | `true` | Schedules the job when true. |
+| `schedule` | Yes | None | Five- or six-field cron expression. |
+| `user_prompt` | Yes | None | Prompt sent to Pi. |
+| `daily_session` | Yes | `false` | Reuses one Pi session per day for this job. |
+| `can_overlap` | Yes | `false` | Allows a new run while the previous run is still active. |
+| `model` | Yes | None | Pi model identifier. |
+| `thinking_level` | Yes | None | Pi reasoning level. |
+| `can_launch_sub_agents` | Yes | `false` | Allows Pi sub-agents. |
+| `monitor` | Yes | `false` | Registers each launched agent remotely. Active runs appear under Automations in the web UI, without a transcript. |
+| `use_skill` | Yes | `false` | Loads the skill named by `job_name` and runs its optional scripts. |
 
 Read all:
 
@@ -35,9 +49,11 @@ curl -sS -X POST "$api" -H 'content-type: application/json' -d '{
   "schedule": "0 9 * * *",
   "user_prompt": "Review open work.",
   "daily_session": false,
+  "can_overlap": false,
   "model": "your-model",
   "thinking_level": "low",
   "can_launch_sub_agents": false,
+  "monitor": false,
   "use_skill": false
 }'
 ```
@@ -51,9 +67,11 @@ curl -sS -X PUT "$api/42" -H 'content-type: application/json' -d '{
   "schedule": "0 10 * * *",
   "user_prompt": "Review open work.",
   "daily_session": false,
+  "can_overlap": false,
   "model": "your-model",
   "thinking_level": "low",
   "can_launch_sub_agents": false,
+  "monitor": false,
   "use_skill": false
 }'
 ```

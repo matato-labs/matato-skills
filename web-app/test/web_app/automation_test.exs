@@ -7,6 +7,8 @@ defmodule WebApp.AutomationTest do
 
   setup do
     :ok = Automation.replace([])
+    _ = :sys.get_state(WebApp.AutomationSubscription)
+    :ok
   end
 
   test "stores replacement automations for the shared database" do

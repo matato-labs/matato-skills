@@ -61,7 +61,7 @@ Researches are under `/researches` and they are stored in `~/.config/matato-pi/r
 
 
 ### Scheduled jobs
-Scheduled jobs are stored in `$MATATO_PI_CONFIG/matato-pi.sqlite3` (default root: `~/.config/matato-pi`). `canOverlap` defaults to `false`; set it to `true` to allow a new run before the previous one finishes. Set `useSkill` to use a skill matching `jobName`; it can run `scripts/preScript.ts` beforehand and includes non-empty output as automation context. Without it, Pi receives only `userPrompt`.
+Scheduled jobs are stored in `$MATATO_PI_CONFIG/matato-pi.sqlite3` (default root: `~/.config/matato-pi`). `canOverlap` defaults to `false`; set it to `true` to allow a new run before the previous one finishes. Set `useSkill` to use a skill matching `jobName`; it can run `scripts/preScript.ts` beforehand and includes non-empty output as automation context. Without it, Pi receives only `userPrompt`. Set `monitor` to register launched jobs in the remote registry and show active work in the web UI.
 
 Use `/automations` to inspect cron jobs. Ask the agent to create, update, or delete them through the local automation API.
 ### Telegram
@@ -78,6 +78,7 @@ Add this automation through `/automations`:
   "model": "your-model",
   "thinkingLevel": "low",
   "canLaunchSubAgents": false,
+  "monitor": false,
   "useSkill": true
 }
 ```
