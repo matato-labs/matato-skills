@@ -61,7 +61,8 @@ defmodule WebAppWeb.AutomationController do
       :daily_session,
       :model,
       :thinking_level,
-      :can_launch_sub_agents
+      :can_launch_sub_agents,
+      :use_skill
     ])
   end
 

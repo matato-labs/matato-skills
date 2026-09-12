@@ -11,7 +11,8 @@ defmodule WebApp.Automation do
     :user_prompt,
     :daily_session,
     :model,
-    :thinking_level
+    :thinking_level,
+    :use_skill
   ]
   defstruct [
     :id,
@@ -22,7 +23,8 @@ defmodule WebApp.Automation do
     :daily_session,
     :model,
     :thinking_level,
-    can_launch_sub_agents: false
+    can_launch_sub_agents: false,
+    use_skill: false
   ]
 
   def list,

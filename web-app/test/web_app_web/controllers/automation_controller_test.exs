@@ -16,7 +16,8 @@ defmodule WebAppWeb.AutomationControllerTest do
       "daily_session" => false,
       "model" => "model",
       "thinking_level" => "low",
-      "can_launch_sub_agents" => false
+      "can_launch_sub_agents" => false,
+      "use_skill" => true
     }
 
     conn = post(conn, "/api/automations", attributes)

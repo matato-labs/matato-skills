@@ -27,6 +27,35 @@ defmodule WebApp.AutomationTest do
              ])
   end
 
+  test "runs a prompt-only automation without a skill" do
+    job_name = "automation-#{System.unique_integer([:positive])}"
+    pi_dir = Path.join(System.tmp_dir!(), "pi-#{System.unique_integer([:positive])}")
+    pi_path = Path.join(pi_dir, "pi")
+    prompt_path = temp_path()
+    File.mkdir_p!(pi_dir)
+
+    File.write!(
+      pi_path,
+      "#!/bin/sh\nIFS= read -r line\nprintf '%s' \"$line\" > #{prompt_path}\nprintf '{\"type\":\"agent_settled\"}\\n'\n"
+    )
+
+    File.chmod!(pi_path, 0o755)
+    original_path = System.get_env("PATH")
+    System.put_env("PATH", "#{pi_dir}:#{original_path}")
+
+    on_exit(fn ->
+      System.put_env("PATH", original_path)
+      File.rm(prompt_path)
+      File.rm_rf!(pi_dir)
+    end)
+
+    AutomationRunner.run(%{automation(job_name, "* * * * *") | use_skill: false})
+
+    prompt = File.read!(prompt_path)
+    assert prompt =~ "Run it"
+    refute prompt =~ "/skill:"
+  end
+
   test "logs the failed automation and reason" do
     job_name = "missing-#{System.unique_integer([:positive])}"
 
@@ -140,7 +169,8 @@ defmodule WebApp.AutomationTest do
       user_prompt: "Run it",
       daily_session: false,
       model: "model",
-      thinking_level: "off"
+      thinking_level: "off",
+      use_skill: true
     }
   end
 

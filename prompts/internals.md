@@ -37,7 +37,8 @@ curl -sS -X POST "$api" -H 'content-type: application/json' -d '{
   "daily_session": false,
   "model": "your-model",
   "thinking_level": "low",
-  "can_launch_sub_agents": false
+  "can_launch_sub_agents": false,
+  "use_skill": false
 }'
 ```
 
@@ -52,7 +53,8 @@ curl -sS -X PUT "$api/42" -H 'content-type: application/json' -d '{
   "daily_session": false,
   "model": "your-model",
   "thinking_level": "low",
-  "can_launch_sub_agents": false
+  "can_launch_sub_agents": false,
+  "use_skill": false
 }'
 ```
 

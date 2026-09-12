@@ -11,6 +11,7 @@ defmodule WebApp.Automations.AutomationRecord do
     field(:model, :string)
     field(:thinking_level, :string)
     field(:can_launch_sub_agents, :boolean, default: false)
+    field(:use_skill, :boolean, default: false)
     timestamps(type: :utc_datetime)
   end
 
@@ -24,7 +25,8 @@ defmodule WebApp.Automations.AutomationRecord do
       :daily_session,
       :model,
       :thinking_level,
-      :can_launch_sub_agents
+      :can_launch_sub_agents,
+      :use_skill
     ])
     |> validate_required([
       :job_name,
@@ -34,7 +36,8 @@ defmodule WebApp.Automations.AutomationRecord do
       :daily_session,
       :model,
       :thinking_level,
-      :can_launch_sub_agents
+      :can_launch_sub_agents,
+      :use_skill
     ])
     |> validate_schedule()
     |> unique_constraint(:job_name)

@@ -28,6 +28,7 @@ type AutomationRecord = {
   model: string;
   thinking_level: Automation["thinkingLevel"];
   can_launch_sub_agents: boolean;
+  use_skill: boolean;
 };
 
 const automationApiUrl = `${process.env.MATATO_PI_WEB_URL ?? "http://localhost:4000"}/api/automations`;
@@ -42,6 +43,7 @@ function fromRecord(record: AutomationRecord): Automation {
     model: record.model,
     thinkingLevel: record.thinking_level,
     canLaunchSubAgents: record.can_launch_sub_agents,
+    useSkill: record.use_skill,
   };
 }
 
@@ -200,6 +202,7 @@ class AutomationBrowser {
       `Reasoning: ${automation.thinkingLevel}`,
       `Sub-agents: ${automation.canLaunchSubAgents ? "allowed" : "not allowed"}`,
       `Daily session: ${automation.dailySession ? "enabled" : "disabled"}`,
+      `Skill: ${automation.useSkill ? automation.jobName : "none"}`,
       "",
       this.theme.fg("muted", "Prompt"),
       ...automation.userPrompt.split("\n"),

@@ -61,7 +61,7 @@ Researches are under `/researches` and they are stored in `~/.config/matato-pi/r
 
 
 ### Scheduled jobs
-Scheduled jobs are stored in `$MATATO_PI_CONFIG/matato-pi.sqlite3` (default root: `~/.config/matato-pi`). An automation can run `{skillName}/scripts/preScript.ts` beforehand; non-empty output is included as automation context.
+Scheduled jobs are stored in `$MATATO_PI_CONFIG/matato-pi.sqlite3` (default root: `~/.config/matato-pi`). Set `useSkill` to use a skill matching `jobName`; it can run `scripts/preScript.ts` beforehand and includes non-empty output as automation context. Without it, Pi receives only `userPrompt`.
 
 Use `/automations` to inspect cron jobs. Ask the agent to create, update, or delete them through the local automation API.
 ### Telegram
@@ -76,7 +76,8 @@ Add this automation through `/automations`:
   "dailySession": true,
   "model": "your-model",
   "thinkingLevel": "low",
-  "canLaunchSubAgents": false
+  "canLaunchSubAgents": false,
+  "useSkill": true
 }
 ```
 
