@@ -37,8 +37,6 @@ pi_session_dir = expand_path.(pi_session_dir)
 config :web_app,
   workspace: workspace || System.tmp_dir!(),
   session_dir: pi_session_dir,
-  legacy_sessions_file: Path.join(matato_pi_config, "sessions/sessions.json"),
-  legacy_automations_file: Path.join(matato_pi_config, "automations/config.json"),
   automation_storage_path: matato_pi_config,
   database_path: database_path,
   pi_package_root: System.get_env("MATATO_PI_PACKAGE_ROOT") || Path.expand("../..", __DIR__)

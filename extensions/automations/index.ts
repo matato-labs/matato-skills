@@ -1,11 +1,4 @@
-import { Database } from "bun:sqlite";
-import { mkdirSync } from "node:fs";
-import { dirname } from "node:path";
-import {
-  type Automation,
-  type AutomationConfig,
-} from "../../src/automation.ts";
-import { databasePath } from "../../src/storagePath.ts";
+import type { Automation } from "../../src/automation.ts";
 import type {
   ExtensionAPI,
   ExtensionCommandContext,
@@ -19,88 +12,45 @@ import {
   type TUI,
 } from "@earendil-works/pi-tui";
 
-type BrowserResult = {
-  action: "add" | "edit" | "delete" | "close" | "refresh";
-  index: number;
+type BrowserResult = { action: "close" | "refresh" };
+
+type AutomationResponse = {
+  automations: Array<AutomationRecord>;
 };
 
-const configDatabasePath = databasePath();
-
-mkdirSync(dirname(configDatabasePath), { recursive: true, mode: 0o700 });
-
-const database = new Database(configDatabasePath, { strict: true });
-
-database.run("PRAGMA busy_timeout = 5000");
-
-type AutomationRow = {
+type AutomationRecord = {
+  id: number;
   job_name: string;
-  enabled: number;
+  enabled: boolean;
   schedule: string;
   user_prompt: string;
-  daily_session: number;
+  daily_session: boolean;
   model: string;
   thinking_level: Automation["thinkingLevel"];
-  can_launch_sub_agents: number;
+  can_launch_sub_agents: boolean;
 };
 
-function parseAutomation(text: string): Automation {
-  return JSON.parse(text) as Automation;
-}
+const automationApiUrl = `${process.env.MATATO_PI_WEB_URL ?? "http://localhost:4000"}/api/automations`;
 
-function fromRow(row: AutomationRow): Automation {
+function fromRecord(record: AutomationRecord): Automation {
   return {
-    jobName: row.job_name,
-    enabled: Boolean(row.enabled),
-    schedule: row.schedule,
-    userPrompt: row.user_prompt,
-    dailySession: Boolean(row.daily_session),
-    model: row.model,
-    thinkingLevel: row.thinking_level,
-    canLaunchSubAgents: Boolean(row.can_launch_sub_agents),
+    jobName: record.job_name,
+    enabled: record.enabled,
+    schedule: record.schedule,
+    userPrompt: record.user_prompt,
+    dailySession: record.daily_session,
+    model: record.model,
+    thinkingLevel: record.thinking_level,
+    canLaunchSubAgents: record.can_launch_sub_agents,
   };
 }
 
-async function loadConfig(): Promise<AutomationConfig> {
-  const rows = database
-    .query<AutomationRow, []>(
-      "SELECT job_name, enabled, schedule, user_prompt, daily_session, model, thinking_level, can_launch_sub_agents FROM automations ORDER BY id",
-    )
-    .all();
-  return { automations: rows.map(fromRow) };
-}
-
-async function saveConfig(config: AutomationConfig): Promise<void> {
-  const replace = database.transaction((automations: Array<Automation>) => {
-    database.run("DELETE FROM automations");
-    const statement = database.prepare(
-      "INSERT INTO automations (job_name, enabled, schedule, user_prompt, daily_session, model, thinking_level, can_launch_sub_agents, inserted_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))",
-    );
-    for (const automation of automations)
-      statement.run(
-        automation.jobName,
-        automation.enabled,
-        automation.schedule,
-        automation.userPrompt,
-        automation.dailySession ?? false,
-        automation.model,
-        automation.thinkingLevel,
-        automation.canLaunchSubAgents ?? false,
-      );
-  });
-  replace(config.automations);
-}
-
-function defaultAutomation(ctx: ExtensionCommandContext): Automation {
-  return {
-    jobName: "new-automation",
-    enabled: true,
-    schedule: "0 9 * * *",
-    userPrompt: "Describe the automation work here.",
-    dailySession: false,
-    model: ctx.model?.id ?? "model-id",
-    thinkingLevel: "low",
-    canLaunchSubAgents: false,
-  };
+async function loadAutomations(): Promise<Array<Automation>> {
+  const response = await fetch(automationApiUrl);
+  if (!response.ok)
+    throw new Error(`Automation API returned ${response.status}.`);
+  const body = (await response.json()) as AutomationResponse;
+  return body.automations.map(fromRecord);
 }
 
 class AutomationBrowser {
@@ -119,16 +69,7 @@ class AutomationBrowser {
         matchesKey(data, Key.escape) || matchesKey(data, Key.ctrl("c")),
         () => this.finish("close"),
       ],
-      [data === "a", () => this.finish("add")],
-      [
-        data === "d" && Boolean(this.automations.length),
-        () => this.finish("delete"),
-      ],
       [data === "r", () => this.finish("refresh")],
-      [
-        matchesKey(data, Key.enter) && Boolean(this.automations.length),
-        () => this.finish("edit"),
-      ],
       [matchesKey(data, Key.up), () => this.moveSelection(-1)],
       [matchesKey(data, Key.down), () => this.moveSelection(1)],
       [matchesKey(data, Key.home), () => this.jumpSelection(0)],
@@ -206,7 +147,7 @@ class AutomationBrowser {
       this.pad(
         this.theme.fg(
           "dim",
-          " ↑↓ select · Enter edit JSON · a add · d delete · r reload · Esc close",
+          " ↑↓ select · r reload · Esc close · Ask the agent to change automations",
         ),
         width,
       ),
@@ -229,7 +170,7 @@ class AutomationBrowser {
   }
 
   private finish(action: BrowserResult["action"]): void {
-    this.done({ action, index: this.selected });
+    this.done({ action });
   }
 
   private previewHeader(): string {
@@ -246,7 +187,7 @@ class AutomationBrowser {
       return [
         this.theme.fg("muted", " No automations yet."),
         "",
-        this.theme.fg("dim", " Press a to add one."),
+        this.theme.fg("dim", " Ask the agent to create one."),
       ];
     const enabled = automation.enabled
       ? this.theme.fg("success", "Enabled")
@@ -280,88 +221,22 @@ class AutomationBrowser {
   }
 }
 
-async function openEditor(
-  ctx: ExtensionCommandContext,
-  title: string,
-  automation: Automation,
-): Promise<Automation | undefined> {
-  const text = await ctx.ui.editor(title, JSON.stringify(automation, null, 2));
-  return text === undefined ? undefined : parseAutomation(text);
-}
-
-const assertUniqueJobName = (
-  automations: Automation[],
-  automation: Automation,
-  current?: Automation,
-): void => {
-  if (
-    automations.some(
-      (entry) => entry.jobName === automation.jobName && entry !== current,
-    )
-  )
-    throw new Error(
-      `An automation named ${automation.jobName} already exists.`,
-    );
-};
-
-async function handleAction(
-  result: BrowserResult,
-  config: AutomationConfig,
-  ctx: ExtensionCommandContext,
-): Promise<void> {
-  const current = config.automations[result.index];
-  if (result.action === "delete" && current) {
-    if (
-      await ctx.ui.confirm(
-        "Remove automation?",
-        `${current.jobName} will be removed from config.json.`,
-      )
-    ) {
-      config.automations.splice(result.index, 1);
-      await saveConfig(config);
-      ctx.ui.notify(`Removed ${current.jobName}.`, "info");
-    }
-    return;
-  }
-  if (result.action === "add") {
-    const automation = await openEditor(
-      ctx,
-      "Add automation JSON",
-      defaultAutomation(ctx),
-    );
-    if (!automation) return;
-    assertUniqueJobName(config.automations, automation);
-    config.automations.push(automation);
-    await saveConfig(config);
-    ctx.ui.notify(`Added ${automation.jobName}.`, "info");
-    return;
-  }
-  if (result.action === "edit" && current) {
-    const automation = await openEditor(ctx, "Edit automation JSON", current);
-    if (!automation) return;
-    assertUniqueJobName(config.automations, automation, current);
-    config.automations[result.index] = automation;
-    await saveConfig(config);
-    ctx.ui.notify(`Updated ${automation.jobName}.`, "info");
-  }
-}
-
 export default function (pi: ExtensionAPI): void {
   pi.registerCommand("automations", {
-    description: "Add, edit, remove, and inspect scheduled Matato automations",
-    handler: async (_args, ctx) => {
+    description: "Inspect scheduled Matato automations",
+    handler: async (_args, ctx: ExtensionCommandContext) => {
       if (ctx.mode !== "tui") {
         ctx.ui.notify("/automations requires interactive TUI mode.", "error");
         return;
       }
-      let config: AutomationConfig;
+      let automations: Array<Automation>;
       try {
-        config = await loadConfig();
+        automations = await loadAutomations();
       } catch (error) {
         ctx.ui.notify(
           error instanceof Error
             ? error.message
-            : "Could not read automation config.",
+            : "Could not read automations.",
           "error",
         );
         return;
@@ -369,20 +244,16 @@ export default function (pi: ExtensionAPI): void {
       while (true) {
         const result = await ctx.ui.custom<BrowserResult>(
           (tui, theme, _keybindings, done) =>
-            new AutomationBrowser(config.automations, tui, theme, done),
+            new AutomationBrowser(automations, tui, theme, done),
         );
         if (!result || result.action === "close") return;
-        if (result.action === "refresh") {
-          config = await loadConfig();
-          continue;
-        }
         try {
-          await handleAction(result, config, ctx);
+          automations = await loadAutomations();
         } catch (error) {
           ctx.ui.notify(
             error instanceof Error
               ? error.message
-              : "Could not save automation.",
+              : "Could not read automations.",
             "error",
           );
         }

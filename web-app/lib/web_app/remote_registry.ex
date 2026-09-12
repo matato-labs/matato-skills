@@ -29,7 +29,6 @@ defmodule WebApp.RemoteRegistry do
 
   @impl true
   def init(:ok) do
-    WebApp.LegacyImporter.import()
     RemoteSessions.mark_interrupted()
     {:ok, %{creation_times: []}}
   end

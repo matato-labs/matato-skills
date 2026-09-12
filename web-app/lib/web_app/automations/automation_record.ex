@@ -36,6 +36,16 @@ defmodule WebApp.Automations.AutomationRecord do
       :thinking_level,
       :can_launch_sub_agents
     ])
+    |> validate_schedule()
     |> unique_constraint(:job_name)
+  end
+
+  defp validate_schedule(changeset) do
+    validate_change(changeset, :schedule, fn :schedule, schedule ->
+      case Crontab.CronExpression.Parser.parse(schedule, String.split(schedule) |> length() == 6) do
+        {:ok, _schedule} -> []
+        {:error, _reason} -> [schedule: "is invalid"]
+      end
+    end)
   end
 end

@@ -8,8 +8,6 @@ File.mkdir_p!(test_storage)
 
 config :web_app,
   database_path: database_path,
-  legacy_sessions_file: Path.join(test_storage, "sessions/sessions.json"),
-  legacy_automations_file: Path.join(test_storage, "automations/config.json"),
   automation_storage_path: test_storage
 
 config :web_app, WebApp.Repo,

@@ -9,21 +9,6 @@ defmodule WebApp.AutomationTest do
     :ok = Automation.replace([])
   end
 
-  test "loads automations and preserves daily sessions" do
-    path = temp_path()
-
-    File.write!(path, """
-    {"automations":[
-      {"jobName":"enabled","enabled":true,"schedule":"*/5 * * * * *","userPrompt":"Run it","dailySession":true,"model":"model","thinkingLevel":"low"},
-      {"jobName":"disabled","enabled":false,"schedule":"* * * * *","userPrompt":"Ignore it","model":"model","thinkingLevel":"off"}
-    ]}
-    """)
-
-    assert {:ok, [automation, disabled]} = Automation.load(path)
-    assert automation.job_name == "enabled"
-    assert automation.daily_session
-    refute disabled.enabled
-  end
 
   test "stores replacement automations for the shared database" do
     automation = %{automation("stored", "* * * * *") | can_launch_sub_agents: true}
@@ -43,22 +28,6 @@ defmodule WebApp.AutomationTest do
              ])
   end
 
-  test "imports legacy automations once and backs up the JSON file" do
-    path = temp_path()
-
-    File.write!(
-      path,
-      ~s({"automations":[{"jobName":"imported","enabled":true,"schedule":"* * * * *","userPrompt":"Run it","model":"model","thinkingLevel":"off"}]})
-    )
-
-    assert :ok = Automation.import(path)
-    assert [%Automation{job_name: "imported"}] = Automation.list()
-    refute File.exists?(path)
-    assert [_backup] = Path.wildcard("#{path}.imported-*.json")
-
-    assert :ok = Automation.import(path)
-    assert [%Automation{job_name: "imported"}] = Automation.list()
-  end
 
   test "logs the failed automation and reason" do
     job_name = "missing-#{System.unique_integer([:positive])}"
@@ -165,11 +134,6 @@ defmodule WebApp.AutomationTest do
     assert File.exists?(pi_marker)
   end
 
-  test "rejects malformed automations" do
-    path = temp_path()
-    File.write!(path, ~s({"automations":[{"jobName":"missing fields"}]}))
-    assert {:error, "Invalid automations configuration"} = Automation.load(path)
-  end
 
   defp automation(job_name, schedule) do
     %Automation{

@@ -25,7 +25,7 @@ Production binds to loopback by default. Put an authenticated TLS ingress or pri
 
 ## Database operations
 
-Run `mix ecto.create` and `mix ecto.migrate` before the first production start. Back up and restore `matato-pi.sqlite3` as one SQLite database (including its WAL sidecars while the app is running). On startup, an empty database imports legacy `sessions/sessions.json` and `automations/config.json`, validates entries, and renames successfully imported files to timestamped backups. Pi JSONL and other package files are never imported.
+Run `mix ecto.create` and `mix ecto.migrate` before the first production start. Back up and restore `matato-pi.sqlite3` as one SQLite database (including its WAL sidecars while the app is running). Pi JSONL and remote-session metadata are never imported.
 
 ## Production
 
