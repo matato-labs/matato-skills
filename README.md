@@ -61,7 +61,7 @@ Researches are under `/researches` and they are stored in `~/.config/matato-pi/r
 
 
 ### Scheduled jobs
-Scheduled jobs are configured via `$MATATO_PI_CONFIG/automations/config.json` (default: `~/.config/matato-pi/automations/config.json`). The web app loads and schedules them. An automation can run `{skillName}/scripts/preScript.ts` beforehand; non-empty output is included as automation context.
+Scheduled jobs are configured via `$MATATO_PI_CONFIG/automations/config.json` (default: `~/.config/matato-pi/automations/config.json`). The web app loads and schedules them. `canOverlap` defaults to `false`; set it to `true` to allow a new run of the same automation before its previous run finishes. An automation can run `{skillName}/scripts/preScript.ts` beforehand; non-empty output is included as automation context.
 
 To create/read/update/delete cron jobs, use `/automations`.
 ### Telegram
@@ -74,6 +74,7 @@ Add this automation through `/automations`:
   "schedule": "*/3 * * * * *",
   "userPrompt": "Process the new Telegram messages.",
   "dailySession": true,
+  "canOverlap": false,
   "model": "your-model",
   "thinkingLevel": "low",
   "canLaunchSubAgents": false

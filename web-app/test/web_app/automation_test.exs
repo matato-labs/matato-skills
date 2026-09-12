@@ -12,12 +12,12 @@ defmodule WebApp.AutomationTest do
     :ok
   end
 
-  test "loads automations and preserves daily sessions" do
+  test "loads daily sessions and overlap settings" do
     path = temp_path()
 
     File.write!(path, """
     {"automations":[
-      {"jobName":"enabled","enabled":true,"schedule":"*/5 * * * * *","userPrompt":"Run it","dailySession":true,"model":"model","thinkingLevel":"low"},
+      {"jobName":"enabled","enabled":true,"schedule":"*/5 * * * * *","userPrompt":"Run it","dailySession":true,"canOverlap":true,"model":"model","thinkingLevel":"low"},
       {"jobName":"disabled","enabled":false,"schedule":"* * * * *","userPrompt":"Ignore it","model":"model","thinkingLevel":"off"}
     ]}
     """)
@@ -25,7 +25,9 @@ defmodule WebApp.AutomationTest do
     assert {:ok, [automation, disabled]} = Automation.load(path)
     assert automation.job_name == "enabled"
     assert automation.daily_session
+    assert automation.can_overlap
     refute disabled.enabled
+    refute disabled.can_overlap
   end
 
   test "logs the failed automation and reason" do
@@ -59,11 +61,13 @@ defmodule WebApp.AutomationTest do
              AutomationScheduler.jobs()
   end
 
-  test "uses the seconds parser for six-field schedules" do
-    assert :ok = AutomationScheduler.replace([automation("seconds", "*/5 * * * * *")])
+  test "uses the seconds parser and overlap setting" do
+    automation = %{automation("seconds", "*/5 * * * * *") | can_overlap: true}
+    assert :ok = AutomationScheduler.replace([automation])
 
     assert [{_, job}] = AutomationScheduler.jobs()
     assert inspect(job.schedule) == "~e[*/5 * * * * * *]e"
+    assert job.overlap
   end
 
   test "watcher boot-loads, handles atomic replacement, skips unchanged content, retains invalid config, and clears missing config" do
@@ -214,6 +218,7 @@ defmodule WebApp.AutomationTest do
       schedule: schedule,
       user_prompt: "Run it",
       daily_session: false,
+      can_overlap: false,
       model: "model",
       thinking_level: "off"
     }

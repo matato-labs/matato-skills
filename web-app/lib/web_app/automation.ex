@@ -5,6 +5,7 @@ defmodule WebApp.Automation do
     :schedule,
     :user_prompt,
     :daily_session,
+    :can_overlap,
     :model,
     :thinking_level
   ]
@@ -14,6 +15,7 @@ defmodule WebApp.Automation do
     :schedule,
     :user_prompt,
     :daily_session,
+    :can_overlap,
     :model,
     :thinking_level
   ]
@@ -55,6 +57,15 @@ defmodule WebApp.Automation do
 
   defp parse_automation(%{"dailySession" => _daily_session}), do: :error
 
+  defp parse_automation(%{"canOverlap" => can_overlap} = automation)
+       when is_boolean(can_overlap) do
+    with {:ok, parsed} <- parse_automation(Map.delete(automation, "canOverlap")) do
+      {:ok, %{parsed | can_overlap: can_overlap}}
+    end
+  end
+
+  defp parse_automation(%{"canOverlap" => _can_overlap}), do: :error
+
   defp parse_automation(%{
          "jobName" => job_name,
          "enabled" => enabled,
@@ -72,6 +83,7 @@ defmodule WebApp.Automation do
        schedule: schedule,
        user_prompt: user_prompt,
        daily_session: false,
+       can_overlap: false,
        model: model,
        thinking_level: thinking_level
      }}
