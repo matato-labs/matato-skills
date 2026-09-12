@@ -21,10 +21,12 @@ defmodule WebAppWeb.Router do
     live "/sessions/:id", AgentLive, :show
   end
 
-  # Other scopes may use custom stacks.
-  # scope "/api", WebAppWeb do
-  #   pipe_through :api
-  # end
+  scope "/api", WebAppWeb do
+    pipe_through :api
+
+    resources "/automations", AutomationController,
+      only: [:index, :show, :create, :update, :delete]
+  end
 
   # Enable LiveDashboard and Swoosh mailbox preview in development
   if Application.compile_env(:web_app, :dev_routes) do

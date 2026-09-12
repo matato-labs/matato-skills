@@ -3,6 +3,11 @@ defmodule WebApp.AutomationRunner do
 
   alias WebApp.Automation
 
+  def run(%Automation{use_skill: false} = automation) do
+    Logger.debug("Automation started: #{automation.job_name}")
+    run_automation(automation, nil, nil)
+  end
+
   def run(%Automation{} = automation) do
     Logger.debug("Automation started: #{automation.job_name}")
 
@@ -10,12 +15,11 @@ defmodule WebApp.AutomationRunner do
          {:ok, output} <- script(skill_path, "preScript.ts") do
       run_automation(automation, skill_path, output)
     else
-      {:error, reason} ->
-        Logger.error("Automation failed: #{automation.job_name}. Reason: #{reason}")
+      {:error, reason} -> log_failure(automation, reason)
     end
   end
 
-  defp run_automation(automation, _skill_path, "") do
+  defp run_automation(%{use_skill: true} = automation, _skill_path, "") do
     Logger.debug("Automation skipped: #{automation.job_name} (pre-script returned no work)")
   end
 
@@ -23,13 +27,18 @@ defmodule WebApp.AutomationRunner do
     Logger.info("Automation agent started: #{automation.job_name}")
 
     with :ok <- run_pi(automation, skill_path, output),
-         {:ok, _output} <- script(skill_path, "postScript.ts") do
+         {:ok, _output} <- post_script(automation, skill_path) do
       Logger.info("Automation completed: #{automation.job_name}")
     else
-      {:error, reason} ->
-        Logger.error("Automation failed: #{automation.job_name}. Reason: #{reason}")
+      {:error, reason} -> log_failure(automation, reason)
     end
   end
+
+  defp post_script(%{use_skill: false}, _skill_path), do: {:ok, nil}
+  defp post_script(_automation, skill_path), do: script(skill_path, "postScript.ts")
+
+  defp log_failure(automation, reason),
+    do: Logger.error("Automation failed: #{automation.job_name}. Reason: #{reason}")
 
   defp skill_path(job_name) do
     paths = [default_skills_path() | package_paths()] |> Enum.map(&Path.join(&1, job_name))
@@ -105,11 +114,12 @@ defmodule WebApp.AutomationRunner do
       "--model",
       automation.model,
       "--thinking",
-      automation.thinking_level,
-      "--skill",
-      skill_path
-    ] ++ daily_session_args(automation)
+      automation.thinking_level
+    ] ++ skill_args(skill_path) ++ daily_session_args(automation)
   end
+
+  defp skill_args(nil), do: []
+  defp skill_args(skill_path), do: ["--skill", skill_path]
 
   defp daily_session_args(%{daily_session: false}), do: []
 
@@ -135,7 +145,7 @@ defmodule WebApp.AutomationRunner do
   defp storage_path, do: Application.fetch_env!(:web_app, :automation_storage_path)
 
   defp send_prompt(port, automation, output) do
-    prompt = ["/skill:#{automation.job_name}", "", automation.user_prompt]
+    prompt = skill_prompt(automation) ++ [automation.user_prompt]
     prompt = if is_nil(output), do: prompt, else: prompt ++ ["", "Automation context:", output]
     message = %{id: automation.job_name, type: "prompt", message: Enum.join(prompt, "\n")}
 
@@ -143,6 +153,9 @@ defmodule WebApp.AutomationRunner do
       do: :ok,
       else: {:error, "Could not send Pi prompt"}
   end
+
+  defp skill_prompt(%{use_skill: false}), do: []
+  defp skill_prompt(automation), do: ["/skill:#{automation.job_name}", ""]
 
   defp await_settled(port, buffer, automation) do
     receive do

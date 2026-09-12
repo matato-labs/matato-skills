@@ -71,8 +71,9 @@ defmodule WebApp.MixProject do
       {:mdex, "~> 0.13.5"},
       {:dns_cluster, "~> 0.3.0"},
       {:bandit, "~> 1.5"},
-      {:file_system, "~> 1.1"},
-      {:quantum, "~> 3.5"}
+      {:quantum, "~> 3.5"},
+      {:ecto_sql, "~> 3.12"},
+      {:ecto_sqlite3, "~> 0.17"}
     ]
   end
 
@@ -92,7 +93,8 @@ defmodule WebApp.MixProject do
         "esbuild web_app --minify",
         "phx.digest"
       ],
-      precommit: ["compile --warnings-as-errors", "deps.unlock --unused", "format", "test"]
+      precommit: ["compile --warnings-as-errors", "deps.unlock --unused", "format", "test"],
+      test: ["ecto.create --quiet", "ecto.migrate --quiet", "test"]
     ]
   end
 end

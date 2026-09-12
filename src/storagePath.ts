@@ -9,5 +9,5 @@ export const storagePath = (): string => {
   return configPath;
 };
 
-export const automationConfigPath = (): string =>
-  join(storagePath(), "automations", "config.json");
+export const databasePath = (): string =>
+  join(storagePath(), "matato-pi.sqlite3");

@@ -3,13 +3,19 @@ defmodule WebApp.AutomationScheduler do
 
   alias Crontab.CronExpression.Parser
   alias Quantum.Job
-  alias WebApp.Automation
 
   def replace(automations) when is_list(automations) do
     with {:ok, jobs} <- build_jobs(automations) do
       delete_all_jobs()
       Enum.each(jobs, &add_job/1)
       :ok
+    end
+  end
+
+  def validate(automations) when is_list(automations) do
+    case build_jobs(automations) do
+      {:ok, _jobs} -> :ok
+      {:error, reason} -> {:error, reason}
     end
   end
 
@@ -28,7 +34,7 @@ defmodule WebApp.AutomationScheduler do
     end)
   end
 
-  defp build_job(%Automation{} = automation) do
+  defp build_job(automation) do
     case Parser.parse(automation.schedule, extended?(automation.schedule)) do
       {:ok, schedule} ->
         {:ok,

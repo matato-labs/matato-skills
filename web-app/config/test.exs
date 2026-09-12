@@ -1,5 +1,20 @@
 import Config
 
+test_storage =
+  Path.join(System.tmp_dir!(), "matato-pi-test-#{System.system_time(:microsecond)}")
+
+database_path = Path.join(test_storage, "matato-pi.sqlite3")
+File.mkdir_p!(test_storage)
+
+config :web_app,
+  database_path: database_path,
+  automation_storage_path: test_storage
+
+config :web_app, WebApp.Repo,
+  database: database_path,
+  pool_size: 1,
+  busy_timeout: 5_000
+
 # We don't run a server during test. If one is required,
 # you can enable the server option below.
 config :web_app, WebAppWeb.Endpoint,
