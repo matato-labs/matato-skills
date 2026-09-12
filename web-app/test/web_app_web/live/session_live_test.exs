@@ -1,0 +1,27 @@
+defmodule WebAppWeb.SessionLiveTest do
+  use WebAppWeb.ConnCase, async: true
+
+  import Phoenix.LiveViewTest
+
+  test "opens and closes the mobile session drawer", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    assert has_element?(
+             view,
+             "#mobile-menu-button[aria-expanded='false'][aria-label='Open menu']"
+           )
+
+    view |> element("#mobile-menu-button") |> render_click()
+
+    assert has_element?(
+             view,
+             "#mobile-menu-button[aria-expanded='true'][aria-label='Close menu']"
+           )
+
+    assert has_element?(view, "#mobile-sidebar-backdrop")
+
+    view |> element("#mobile-sidebar-backdrop") |> render_click()
+
+    refute has_element?(view, "#mobile-sidebar-backdrop")
+  end
+end
