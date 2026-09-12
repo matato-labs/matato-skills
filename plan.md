@@ -1,6 +1,5 @@
-- agents section
-- workspace section
-- display traces as single box only showing the last trace but allowing the user to see the history, when the final message arrives it stays closed.
-- make skill optional and add prompt optional in automations to allow agents to create automations with custom prompts.
+- bots section, free style bots (how to define them in storage), workspace section, automations section (automations that are enable)
+
 - Integration with notion
+
 - Register agent launches from automatons into the remote registry, for this, we would need to have an automatons sections in the UI where we can see all the runs there, kind of the owner for the UI.
