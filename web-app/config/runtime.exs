@@ -22,6 +22,7 @@ matato_pi_config =
 matato_pi_config = expand_path.(matato_pi_config)
 File.mkdir_p!(matato_pi_config)
 File.chmod!(matato_pi_config, 0o700)
+
 database_path =
   Path.join(
     matato_pi_config,

@@ -9,7 +9,6 @@ defmodule WebApp.AutomationTest do
     :ok = Automation.replace([])
   end
 
-
   test "stores replacement automations for the shared database" do
     automation = %{automation("stored", "* * * * *") | can_launch_sub_agents: true}
 
@@ -27,7 +26,6 @@ defmodule WebApp.AutomationTest do
                automation("duplicate", "*/5 * * * *")
              ])
   end
-
 
   test "logs the failed automation and reason" do
     job_name = "missing-#{System.unique_integer([:positive])}"
@@ -133,7 +131,6 @@ defmodule WebApp.AutomationTest do
     AutomationRunner.run(automation(job_name, "* * * * *"))
     assert File.exists?(pi_marker)
   end
-
 
   defp automation(job_name, schedule) do
     %Automation{
