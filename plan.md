@@ -2,4 +2,4 @@
 - workspace section
 - display traces as single box only showing the last trace but allowing the user to see the history, when the final message arrives it stays closed.
 - make skill optional and add prompt optional in automations to allow agents to create automations with custom prompts.
-- 
+- Integration with notion
