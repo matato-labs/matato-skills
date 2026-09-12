@@ -17,7 +17,7 @@ pi install /absolute/path/to/matato-pi
 
 ## Remote Agent Web App
 
-A database-free Phoenix LiveView client for `pi --mode rpc` lives in [`web-app/`](web-app/README.md).
+A Phoenix LiveView client for `pi --mode rpc` lives in [`web-app/`](web-app/README.md). It stores remote-session metadata and automations in `$MATATO_PI_CONFIG/matato-pi.sqlite3`; Pi JSONL remains the conversation source of truth.
 
 ## Features
 * Subagents, including bounded parallel batches
@@ -61,9 +61,9 @@ Researches are under `/researches` and they are stored in `~/.config/matato-pi/r
 
 
 ### Scheduled jobs
-Scheduled jobs are configured via `$MATATO_PI_CONFIG/automations/config.json` (default: `~/.config/matato-pi/automations/config.json`). The web app loads and schedules them. `canOverlap` defaults to `false`; set it to `true` to allow a new run of the same automation before its previous run finishes. An automation can run `{skillName}/scripts/preScript.ts` beforehand; non-empty output is included as automation context.
+Scheduled jobs are stored in `$MATATO_PI_CONFIG/matato-pi.sqlite3` (default root: `~/.config/matato-pi`). `canOverlap` defaults to `false`; set it to `true` to allow a new run before the previous one finishes. Set `useSkill` to use a skill matching `jobName`; it can run `scripts/preScript.ts` beforehand and includes non-empty output as automation context. Without it, Pi receives only `userPrompt`.
 
-To create/read/update/delete cron jobs, use `/automations`.
+Use `/automations` to inspect cron jobs. Ask the agent to create, update, or delete them through the local automation API.
 ### Telegram
 Add this automation through `/automations`:
 
@@ -77,7 +77,8 @@ Add this automation through `/automations`:
   "canOverlap": false,
   "model": "your-model",
   "thinkingLevel": "low",
-  "canLaunchSubAgents": false
+  "canLaunchSubAgents": false,
+  "useSkill": true
 }
 ```
 

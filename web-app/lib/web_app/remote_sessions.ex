@@ -1,0 +1,129 @@
+defmodule WebApp.RemoteSessions do
+  import Ecto.Query
+
+  alias WebApp.{Repo, Workspace}
+  alias WebApp.RemoteSessions.RemoteSession
+
+  def list,
+    do:
+      Repo.all(from(session in RemoteSession, order_by: [desc: session.updated_at]))
+      |> Enum.map(&to_metadata/1)
+
+  def get(id), do: Repo.get(RemoteSession, id) |> to_metadata()
+  def exists?, do: Repo.exists?(RemoteSession)
+
+  def validate_metadata(metadata) do
+    with true <- valid_id?(metadata["id"]),
+         relative when is_binary(relative) <- metadata["relative_project"],
+         project <- Workspace.resolve(relative),
+         {:ok, session_file} <- validate_session_file(metadata["session_file"]) do
+      {:ok,
+       metadata
+       |> Map.put("name", Path.basename(project))
+       |> Map.put("project", project)
+       |> Map.put("session_file", session_file)}
+    else
+      _ -> {:error, "Invalid session metadata"}
+    end
+  rescue
+    error in [ArgumentError, File.Error] -> {:error, Exception.message(error)}
+  end
+
+  def create(attributes) do
+    %RemoteSession{}
+    |> RemoteSession.changeset(attributes)
+    |> Repo.insert()
+    |> result()
+  end
+
+  def update(id, attributes) do
+    with %RemoteSession{} = session <- Repo.get(RemoteSession, id),
+         {:ok, session} <- session |> RemoteSession.changeset(attributes) |> Repo.update() do
+      {:ok, to_metadata(session)}
+    else
+      nil -> {:error, :not_found}
+      {:error, changeset} -> {:error, changeset}
+    end
+  end
+
+  def delete(id) do
+    case Repo.get(RemoteSession, id) do
+      nil ->
+        {:error, :not_found}
+
+      session ->
+        Repo.delete(session)
+        |> case do
+          {:ok, _session} -> :ok
+          {:error, changeset} -> {:error, changeset}
+        end
+    end
+  end
+
+  def mark_interrupted do
+    from(session in RemoteSession,
+      where:
+        session.status in ["starting", "working", "waiting_for_input", "retrying", "compacting"]
+    )
+    |> Repo.update_all(set: [status: "interrupted", updated_at: DateTime.utc_now()])
+  end
+
+  def validate_session_file(nil), do: {:ok, nil}
+
+  def validate_session_file(path) when is_binary(path) do
+    root = Application.fetch_env!(:web_app, :session_dir) |> Path.expand()
+
+    cond do
+      !session_path_allowed?(path, root) -> {:error, "Invalid session path"}
+      File.exists?(path) and !File.regular?(path) -> {:error, "Invalid session path"}
+      File.exists?(path) -> {:ok, path}
+      true -> {:ok, nil}
+    end
+  end
+
+  def validate_session_file(_path), do: {:error, "Invalid session path"}
+  defp valid_id?(id), do: is_binary(id) and Regex.match?(~r/\A[A-Za-z0-9_-]{12}\z/, id)
+
+  defp session_path_allowed?(path, root),
+    do:
+      with(
+        {:ok, canonical_root} <- canonical(root),
+        {:ok, canonical_path} <- canonical(path),
+        do: String.starts_with?(canonical_path, canonical_root <> "/"),
+        else: (_ -> false)
+      )
+
+  defp canonical(path) do
+    target = if File.exists?(path), do: path, else: Path.dirname(path)
+
+    case System.cmd("readlink", ["-f", "--", target], stderr_to_stdout: true) do
+      {canonical, 0} ->
+        canonical = String.trim(canonical)
+
+        {:ok,
+         if(File.exists?(path), do: canonical, else: Path.join(canonical, Path.basename(path)))}
+
+      {_error, _status} ->
+        :error
+    end
+  end
+
+  defp result({:ok, session}), do: {:ok, to_metadata(session)}
+  defp result({:error, changeset}), do: {:error, changeset}
+  defp to_metadata(nil), do: nil
+
+  defp to_metadata(session) do
+    %{
+      "id" => session.id,
+      "name" => session.name,
+      "project" => session.project_path,
+      "relative_project" => session.relative_project,
+      "session_file" => session.session_file,
+      "pi_session_id" => session.pi_session_id,
+      "source" => session.source,
+      "status" => session.status,
+      "created_at" => DateTime.to_iso8601(session.inserted_at),
+      "updated_at" => DateTime.to_iso8601(session.updated_at)
+    }
+  end
+end

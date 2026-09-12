@@ -41,7 +41,7 @@ defmodule WebApp.AgentSession do
     executable =
       System.find_executable(options[:executable] || "pi") || raise "Pi executable not found"
 
-    stderr_dir = Application.fetch_env!(:web_app, :metadata_file) |> Path.dirname()
+    stderr_dir = Application.fetch_env!(:web_app, :database_path) |> Path.dirname()
     File.mkdir_p!(stderr_dir)
     File.chmod!(stderr_dir, 0o700)
 

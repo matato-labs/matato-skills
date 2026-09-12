@@ -1,6 +1,6 @@
 # Matato Agent Web
 
-Private Phoenix LiveView interface for `pi --mode rpc`. It has no database. Pi JSONL sessions are authoritative; the app stores only remote-session mappings in an atomic JSON file.
+Private Phoenix LiveView interface for `pi --mode rpc`. SQLite stores remote-session metadata and automations at `$MATATO_PI_CONFIG/matato-pi.sqlite3`; Pi JSONL sessions remain authoritative for conversation history.
 
 ## Run
 
@@ -10,20 +10,22 @@ WORKSPACE=/absolute/path/to/projects mix setup
 WORKSPACE=/absolute/path/to/projects mix phx.server
 ```
 
-On Linux, install `inotify-tools` first; it provides the automation configuration watcher.
-
 Open `http://localhost:4000`. The picker lists direct child directories beneath `WORKSPACE` and rejects traversal and symlink escapes.
 
 Optional configuration:
 
 | Variable | Purpose |
 | --- | --- |
-| `MATATO_PI_CONFIG` | Matato data root. Stores automation configuration and the web session catalog at `sessions/sessions.json`. Defaults to `~/.config/matato-pi`. |
+| `MATATO_PI_CONFIG` | Matato data root. Stores `matato-pi.sqlite3`; defaults to `~/.config/matato-pi`. |
 | `PI_CODING_AGENT_SESSION_DIR` | Optional Pi session directory. Defaults to `~/.pi/agent/sessions`. |
 | `PORT` | HTTP port, default `4000`. |
 | `OTEL_ENDPOINT` | Production-only OTLP/HTTP collector base URL. Defaults to `http://localhost:4318`; set it blank to disable trace and log export. |
 
 Production binds to loopback by default. Put an authenticated TLS ingress or private tunnel in front. Pi is not sandboxed and runs with the web server user's host permissions.
+
+## Database operations
+
+Run `mix ecto.create` and `mix ecto.migrate` before the first production start. Back up and restore `matato-pi.sqlite3` as one SQLite database (including its WAL sidecars while the app is running). Pi JSONL and remote-session metadata are never imported.
 
 ## Production
 

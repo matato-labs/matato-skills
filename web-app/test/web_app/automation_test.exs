@@ -6,28 +6,62 @@ defmodule WebApp.AutomationTest do
   alias WebApp.{Automation, AutomationRunner, AutomationScheduler}
 
   setup do
-    stop_watcher()
-    AutomationScheduler.replace([])
-    on_exit(&start_watcher/0)
-    :ok
+    :ok = Automation.replace([])
   end
 
-  test "loads daily sessions and overlap settings" do
-    path = temp_path()
+  test "stores replacement automations for the shared database" do
+    automation = %{
+      automation("stored", "* * * * *")
+      | can_launch_sub_agents: true,
+        can_overlap: true
+    }
 
-    File.write!(path, """
-    {"automations":[
-      {"jobName":"enabled","enabled":true,"schedule":"*/5 * * * * *","userPrompt":"Run it","dailySession":true,"canOverlap":true,"model":"model","thinkingLevel":"low"},
-      {"jobName":"disabled","enabled":false,"schedule":"* * * * *","userPrompt":"Ignore it","model":"model","thinkingLevel":"off"}
-    ]}
-    """)
+    assert :ok = Automation.replace([automation])
 
-    assert {:ok, [automation, disabled]} = Automation.load(path)
-    assert automation.job_name == "enabled"
-    assert automation.daily_session
-    assert automation.can_overlap
-    refute disabled.enabled
-    refute disabled.can_overlap
+    assert [
+             %Automation{
+               job_name: "stored",
+               can_launch_sub_agents: true,
+               can_overlap: true
+             }
+           ] = Automation.list()
+  end
+
+  test "rejects replacement automations with duplicate job names" do
+    assert {:error, "Automation job names must be unique"} =
+             Automation.replace([
+               automation("duplicate", "* * * * *"),
+               automation("duplicate", "*/5 * * * *")
+             ])
+  end
+
+  test "runs a prompt-only automation without a skill" do
+    job_name = "automation-#{System.unique_integer([:positive])}"
+    pi_dir = Path.join(System.tmp_dir!(), "pi-#{System.unique_integer([:positive])}")
+    pi_path = Path.join(pi_dir, "pi")
+    prompt_path = temp_path()
+    File.mkdir_p!(pi_dir)
+
+    File.write!(
+      pi_path,
+      "#!/bin/sh\nIFS= read -r line\nprintf '%s' \"$line\" > #{prompt_path}\nprintf '{\"type\":\"agent_settled\"}\\n'\n"
+    )
+
+    File.chmod!(pi_path, 0o755)
+    original_path = System.get_env("PATH")
+    System.put_env("PATH", "#{pi_dir}:#{original_path}")
+
+    on_exit(fn ->
+      System.put_env("PATH", original_path)
+      File.rm(prompt_path)
+      File.rm_rf!(pi_dir)
+    end)
+
+    AutomationRunner.run(%{automation(job_name, "* * * * *") | use_skill: false})
+
+    prompt = File.read!(prompt_path)
+    assert prompt =~ "Run it"
+    refute prompt =~ "/skill:"
   end
 
   test "logs the failed automation and reason" do
@@ -39,11 +73,11 @@ defmodule WebApp.AutomationTest do
   end
 
   test "validates every schedule before atomically replacing enabled jobs" do
-    refute Process.whereis(WebApp.AutomationWatcher)
     previous = automation("previous", "*/5 * * * * *")
     invalid_disabled = %{automation("disabled", "not a cron expression") | enabled: false}
 
-    assert :ok = AutomationScheduler.replace([previous])
+    assert :ok = Automation.replace([previous])
+    sync_subscription()
 
     assert {:error, "Invalid schedule for disabled: " <> _reason} =
              AutomationScheduler.replace([automation("next", "* * * * * *"), invalid_disabled])
@@ -68,39 +102,6 @@ defmodule WebApp.AutomationTest do
     assert [{_, job}] = AutomationScheduler.jobs()
     assert inspect(job.schedule) == "~e[*/5 * * * * * *]e"
     assert job.overlap
-  end
-
-  test "watcher boot-loads, handles atomic replacement, skips unchanged content, retains invalid config, and clears missing config" do
-    path = temp_path()
-    File.mkdir_p!(Path.dirname(path))
-    File.write!(path, config("boot"))
-    original_path = restart_watcher(path)
-    on_exit(fn -> restart_watcher(original_path) end)
-
-    _ = :sys.get_state(WebApp.AutomationWatcher)
-    assert scheduled?("boot")
-
-    replacement = path <> ".new"
-    File.write!(replacement, config("replacement"))
-    File.rename!(replacement, path)
-    reload_watcher(path)
-    assert scheduled?("replacement")
-
-    jobs = AutomationScheduler.jobs()
-    File.write!(path, config("replacement"))
-    reload_watcher(path)
-    assert AutomationScheduler.jobs() == jobs
-
-    File.write!(path, config("invalid", "not a cron expression"))
-    reload_watcher(path)
-    assert AutomationScheduler.jobs() == jobs
-
-    File.rm!(path)
-    reload_watcher(path)
-    assert AutomationScheduler.jobs() == []
-
-    restart_watcher(original_path)
-    assert :sys.get_state(WebApp.AutomationWatcher).path == Path.expand(original_path)
   end
 
   test "empty pre-script output skips Pi and post-script" do
@@ -171,44 +172,13 @@ defmodule WebApp.AutomationTest do
     assert File.exists?(pi_marker)
   end
 
-  test "rejects malformed automations" do
-    path = temp_path()
-    File.write!(path, ~s({"automations":[{"jobName":"missing fields"}]}))
-    assert {:error, "Invalid automations configuration"} = Automation.load(path)
-  end
+  defp sync_subscription do
+    {WebApp.AutomationSubscription, pid, _, _} =
+      Enum.find(Supervisor.which_children(WebApp.Supervisor), fn {id, _, _, _} ->
+        id == WebApp.AutomationSubscription
+      end)
 
-  defp restart_watcher(path) do
-    original_path = Application.fetch_env!(:web_app, :automations_config_path)
-    Application.put_env(:web_app, :automations_config_path, path)
-    stop_watcher()
-    start_watcher()
-    original_path
-  end
-
-  defp stop_watcher,
-    do: :ok = Supervisor.terminate_child(WebApp.Supervisor, WebApp.AutomationWatcher)
-
-  defp start_watcher do
-    case Supervisor.restart_child(WebApp.Supervisor, WebApp.AutomationWatcher) do
-      {:ok, _pid} -> :ok
-      {:error, :running} -> :ok
-      {:error, {:already_started, _pid}} -> :ok
-    end
-  end
-
-  defp scheduled?(job_name) do
-    Enum.any?(AutomationScheduler.jobs(), fn {_, job} ->
-      match?({AutomationRunner, :run, [%{job_name: ^job_name}]}, job.task)
-    end)
-  end
-
-  defp reload_watcher(path) do
-    watcher = :sys.get_state(WebApp.AutomationWatcher).watcher
-    send(WebApp.AutomationWatcher, {:file_event, watcher, {path, [:modified]}})
-    %{reload_ref: reload_ref, timer: timer} = :sys.get_state(WebApp.AutomationWatcher)
-    Process.cancel_timer(timer)
-    send(WebApp.AutomationWatcher, {:reload, reload_ref})
-    _ = :sys.get_state(WebApp.AutomationWatcher)
+    _ = :sys.get_state(pid)
   end
 
   defp automation(job_name, schedule) do
@@ -220,12 +190,9 @@ defmodule WebApp.AutomationTest do
       daily_session: false,
       can_overlap: false,
       model: "model",
-      thinking_level: "off"
+      thinking_level: "off",
+      use_skill: true
     }
-  end
-
-  defp config(job_name, schedule \\ "* * * * * *") do
-    ~s({"automations":[{"jobName":"#{job_name}","enabled":true,"schedule":"#{schedule}","userPrompt":"Run it","model":"model","thinkingLevel":"off"}]})
   end
 
   defp temp_path do

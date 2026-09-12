@@ -8,10 +8,11 @@ export type Automation = {
   schedule: string;
   userPrompt: string;
   dailySession?: boolean;
-  canOverlap?: boolean;
+  canOverlap: boolean;
   model: string;
   thinkingLevel: ThinkingLevel;
   canLaunchSubAgents: boolean;
+  useSkill: boolean;
 };
 export type AutomationConfig = { automations: Automation[] };
 
