@@ -6,7 +6,7 @@ disable-model-invocation: true
 
 # AGENT PR Comment Resolver
 
-Use the supplied pull-request and repository data. Work only on the supplied PR in its repository under `$WORKSPACE`. If the repository is unavailable, stop and report it. Create your own worktree under `/tmp` to isolate yourself from other agents running.
+Use the supplied pull-request and repository data. Work only on the supplied PR in its repository under `$WORKSPACE`. If the repository is unavailable, stop and report it. You MUST create your own worktree under `/tmp` to isolate yourself from other agents running and work in that worktree.
 
 ## Workflow
 

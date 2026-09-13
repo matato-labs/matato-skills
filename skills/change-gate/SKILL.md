@@ -10,7 +10,7 @@ When invoked, use the supplied pull-request and repository data. The user will e
 
 If you were given a PR, add the label `in-review`, if the label do not exist create it and add it to the PR. Remove the label `ai-review`, YOU MUST DELETE THE `ai-review` LABEL.
 
-Create a worktree under `/tmp` to isolate your self from other agents running. Run the following specialists in order, launching each as a fresh-context subagent. Give each subagent only the stable inputs and its own task, never prior subagent conversations or conclusions. Each subagent will have its own skill with instructions on what to do; each subagent must fix all the findings. They must return a concise evidence, changes and a summary.
+You MUST create a worktree under `/tmp` to isolate your self from other agents running and work in that worktree. Run the following specialists in order, launching each as a fresh-context subagent. Give each subagent only the stable inputs and its own task, never prior subagent conversations or conclusions. Each subagent will have its own skill with instructions on what to do; each subagent must fix all the findings. They must return a concise evidence, changes and a summary.
 
 1. Invoke `$acceptance-criteria-review` for the supplied acceptance criteria.
 2. Invoke `$general-change-review` for an independent review of the change.
@@ -18,7 +18,5 @@ Create a worktree under `/tmp` to isolate your self from other agents running. R
 4. Invoke `$quality-checks-review` for project quality checks.
 
 After all four subagents return, produce one gate report that preserves each specialist's verdict and evidence. The gate controller must not modify the repository, but specialists may make the controlled temporary mutations or test improvements required by their own skill.
-
-## Last Step
 
 If you were given a PR, commit and push with `gh`, add the label `human-review`, if the label do not exist, create it and then add it to the PR, then delete the label `in-review`. When no pull request exists, just answer back with a quick summary.
