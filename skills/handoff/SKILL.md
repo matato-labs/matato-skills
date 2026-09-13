@@ -85,3 +85,5 @@ Use this structure unless the user asks for a different one:
 If the user asks for a file, or if a persistent handoff note would clearly help, write the handoff to a markdown file in the workspace. If no path is specified, propose a concise path such as `handoff.md` or a project-specific note name.
 
 If the user only asks for the handoff content, return it in the chat without forcing a file.
+
+If pbcopy or wl-copy or any other similar tool available in the system copy the hand off to the clipboard.

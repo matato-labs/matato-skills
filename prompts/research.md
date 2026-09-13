@@ -5,7 +5,7 @@ argument-hint: "<topic>"
 
 Research: $@
 
-Use evidence-backed sources. Return concise findings, uncertainty, and recommended next action.
+Find the web everything you can find for the given topics, try to get a good diversity of sources, and don't limit to only a handful of sources, instead try to cover all possible points and views.
 
-Save the plan inside $MATATO_PI_CONFIG/researches/{name}.md
+Save the research in notion, in the `Research` database under the workspace `Personal Work`.
 
