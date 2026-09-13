@@ -19,4 +19,4 @@ You MUST create a worktree under `/tmp` to isolate your self from other agents r
 
 After all four subagents return, produce one gate report that preserves each specialist's verdict and evidence. The gate controller must not modify the repository, but specialists may make the controlled temporary mutations or test improvements required by their own skill.
 
-If you were given a PR, commit and push with `gh`, add the label `human-validation`, if the label do not exist, create it and then add it to the PR, then delete the label `in-validation`. When no pull request exists, just answer back with a quick summary.
+If you were given a PR, commit and push with `gh`, add the label `human-review`, if the label do not exist, create it and then add it to the PR, then delete the label `in-validation`. When no pull request exists, just answer back with a quick summary.
