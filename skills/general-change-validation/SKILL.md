@@ -1,16 +1,16 @@
 ---
-name: general-change-review
-description: Perform an independent change review as an explicit specialist used by $change-gate.
+name: general-change-validation
+description: Perform an independent change validation as an explicit specialist used by $change-validation.
 disable-model-invocation: true
 ---
 
-# General Change Review
+# General Change Validation
 
-Review the code for the following categories. You MUST change the code for any of them that doesn't pass the check. It means fix tests, fix linting errors, refactor, add missing tests, add logging, etc. Do not stop until all categories are in a good state.
+Validate the code for the following categories. You MUST change the code for any of them that doesn't pass the check. It means fix tests, fix linting errors, refactor, add missing tests, add logging, etc. Do not stop until all categories are in a good state.
 
 ## Strong types
 
-Review for the usage of strong types, try to avoid weak types like `unknown`, `any` or such kind of types in the programming language the code is in. Type checks should be done via the programming language strong typing systems instead of checks such as `if(value === string)`.
+Validate the usage of strong types, try to avoid weak types like `unknown`, `any` or such kind of types in the programming language the code is in. Type checks should be done via the programming language strong typing systems instead of checks such as `if(value === string)`.
 
 ## Safe guards
 

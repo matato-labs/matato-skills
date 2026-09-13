@@ -1,12 +1,12 @@
 ---
-name: quality-checks-review
-description: Run quality checks as an explicit specialist used by $change-gate.
+name: quality-checks-validation
+description: Run quality checks as an explicit specialist used by $change-validation.
 disable-model-invocation: true
 ---
 
-# Quality Checks Review
+# Quality Checks Validation
 
-Review the code for the following quality categories and fix all findings, do not stop until all categories are in a good state.
+Validate the code for the following quality categories and fix all findings, do not stop until all categories are in a good state.
 
 ## File size
 
