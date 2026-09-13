@@ -12,42 +12,35 @@ expand_path = fn
   path -> Path.expand(path)
 end
 
-matato_pi_config =
-  System.get_env("MATATO_PI_CONFIG") ||
-    if(config_env() == :test,
-      do: Path.join(System.tmp_dir!(), "matato-pi-test"),
-      else: Path.join(System.user_home!(), ".config/matato-pi")
-    )
-
-matato_pi_config = expand_path.(matato_pi_config)
-File.mkdir_p!(matato_pi_config)
-File.chmod!(matato_pi_config, 0o700)
-
-database_path =
-  Path.join(
-    matato_pi_config,
-    if(config_env() == :test, do: "matato-pi-test.sqlite3", else: "matato-pi.sqlite3")
-  )
-
 pi_session_dir =
   System.get_env("PI_CODING_AGENT_SESSION_DIR") ||
     Path.join([System.user_home!(), ".pi", "agent", "sessions"])
 
-pi_session_dir = expand_path.(pi_session_dir)
-
 config :web_app,
   workspace: workspace || System.tmp_dir!(),
-  session_dir: pi_session_dir,
-  automation_storage_path: matato_pi_config,
-  database_path: database_path,
+  session_dir: expand_path.(pi_session_dir),
   pi_package_root: System.get_env("MATATO_PI_PACKAGE_ROOT") || Path.expand("../..", __DIR__)
 
-config :web_app, WebApp.Repo,
-  database: database_path,
-  pool_size: 5,
-  busy_timeout: 5_000,
-  journal_mode: :wal,
-  foreign_keys: :on
+if config_env() != :test do
+  matato_pi_config =
+    System.get_env("MATATO_PI_CONFIG") || Path.join(System.user_home!(), ".config/matato-pi")
+
+  matato_pi_config = expand_path.(matato_pi_config)
+  File.mkdir_p!(matato_pi_config)
+  File.chmod!(matato_pi_config, 0o700)
+  database_path = Path.join(matato_pi_config, "matato-pi.sqlite3")
+
+  config :web_app,
+    automation_storage_path: matato_pi_config,
+    database_path: database_path
+
+  config :web_app, WebApp.Repo,
+    database: database_path,
+    pool_size: 5,
+    busy_timeout: 5_000,
+    journal_mode: :wal,
+    foreign_keys: :on
+end
 
 config :opentelemetry, :resource, service: [name: "matato-pi-web"]
 
