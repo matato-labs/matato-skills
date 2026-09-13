@@ -20,13 +20,7 @@ command -v ntn && ntn --help
 
 If it is unavailable, explain that the user must install the official CLI from https://ntn.dev and stop. Do not install it, start OAuth, or otherwise change authentication on the user's behalf.
 
-Prefer an existing `NOTION_API_TOKEN` for unattended work. Check whether it is set without printing its value:
-
-```bash
-test -n "${NOTION_API_TOKEN:-}" && printf 'NOTION_API_TOKEN is configured\n' || printf 'NOTION_API_TOKEN is not configured\n'
-```
-
-If no token is configured, tell the user to run `ntn login` themselves and complete the browser flow. Never print, log, commit, or persist tokens, authorization headers, or CLI credential files.
+`ntn api` uses `NOTION_API_TOKEN` when it is set; otherwise it uses the user's CLI login session. Do not print the token to determine which is in use. If an authenticated command fails because authentication is absent or expired, tell the user to run `ntn login` themselves and complete the browser flow. Never print, log, commit, or persist tokens, authorization headers, or CLI credential files.
 
 ## Discover before calling
 
@@ -44,25 +38,17 @@ Use `ntn api ls` to find the current endpoint for pages, blocks, search, data so
 
 ## Reading and search
 
-Use read-only commands without confirmation. For page Markdown, use:
+Use read-only commands without confirmation. For a page rendered as Markdown, use the documented API endpoint:
 
 ```bash
-ntn pages get <page-id>
+ntn api v1/pages/<page-id>/markdown
 ```
 
-For page metadata, blocks, search, or data-source queries, discover the corresponding API endpoint and schema first, then issue the documented read request. Keep results scoped with documented filters, pagination, and page sizes rather than retrieving an entire workspace unnecessarily.
+For page metadata, blocks, search, or data-source queries, discover the corresponding API endpoint and schema first, then issue the documented read request. `ntn datasources query <data-source-id> --limit <n>` is available for a scoped data-source query; inspect its help before using filters or other options. Keep results scoped with documented filters, pagination, and page sizes rather than retrieving an entire workspace unnecessarily.
 
 ## Content and data sources
 
-Prefer the page convenience commands for Markdown content after checking their current help:
-
-```bash
-ntn pages --help
-ntn pages create --help
-ntn pages update --help
-```
-
-Use `ntn pages create` or `ntn pages update` for Markdown page bodies. Use `ntn api` for blocks, properties, comments, data-source queries, and data-source schema or entry management only after inspecting that endpoint's `--docs` or `--spec`. Prefer the documented `markdown` field for page or comment text; use `rich_text` only when Markdown cannot represent the required Notion feature.
+Use `ntn api` for pages, blocks, properties, comments, data-source queries, and data-source schema or entry management only after inspecting that endpoint's `--docs` or `--spec`. Use the exact body fields and method from the selected endpoint documentation; do not assume a Markdown field or substitute `rich_text` without verifying the schema.
 
 Before any write, show the target workspace object, intended change, and exact command or request body, then obtain explicit user confirmation. Treat creating pages, blocks, comments, data-source entries, or data-source schema changes as writes. Do not proceed from an earlier or ambiguous confirmation.
 
@@ -75,7 +61,7 @@ ntn files --help
 ntn workers --help
 ```
 
-The file commands include `ntn files create`, `ntn files list`, and `ntn files get`; use their documented options for local or external files. Confirm the source, destination, and visibility before uploading a file.
+Use the documented file command and options for local or external files. Confirm the source, destination, and intended access before uploading a file.
 
 Workers can scaffold, list, execute, or deploy. Confirm before deployment and before executing a Worker capability that can change external state. Never deploy merely to test a command.
 
