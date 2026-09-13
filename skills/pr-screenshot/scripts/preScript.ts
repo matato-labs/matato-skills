@@ -4,7 +4,7 @@ import { listWorkspaceRepos, run } from "../../../src/workspaceRepos.ts";
 type PullRequest = {
   number: number;
   title: string;
-  body?: string;
+  body: string | null;
   url: string;
   headRefName: string;
   baseRefName: string;
