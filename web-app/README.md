@@ -50,5 +50,5 @@ Start and resume durable sessions, stream assistant text and tool state, send no
 ## Checks
 
 ```bash
-mix precommit
+MIX_ENV=test mix precommit
 ```
