@@ -1,10 +1,10 @@
 ---
-name: mutation-testing-review
-description: Perform manual mutation testing as an explicit specialist used by $change-gate.
+name: mutation-testing-validation
+description: Perform manual mutation testing as an explicit specialist used by $change-validation.
 disable-model-invocation: true
 ---
 
-# Mutation Testing Review
+# Mutation Testing Validation
 
 > This is a MANUAL TEST; There is no mutation testing frame work, you need to do the changes your self and run the test, once case at a time.
 
