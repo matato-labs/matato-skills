@@ -24,8 +24,14 @@ defmodule WebAppWeb.BotController do
 
   def delete(conn, %{"id" => id}) do
     case Bots.delete(id) do
-      :ok -> send_resp(conn, :no_content, "")
-      {:error, :not_found} -> not_found(conn)
+      :ok ->
+        send_resp(conn, :no_content, "")
+
+      {:error, :not_found} ->
+        not_found(conn)
+
+      {:error, reason} ->
+        conn |> put_status(:unprocessable_entity) |> json(%{error: format_error(reason)})
     end
   end
 
@@ -39,6 +45,9 @@ defmodule WebAppWeb.BotController do
         :chat_remote_session_id,
         :background_remote_session_id
       ])
+
+  defp format_error(%Ecto.Changeset{} = changeset),
+    do: Ecto.Changeset.traverse_errors(changeset, fn {message, _options} -> message end)
 
   defp format_error(reason) when is_binary(reason), do: reason
   defp format_error(reason), do: inspect(reason)

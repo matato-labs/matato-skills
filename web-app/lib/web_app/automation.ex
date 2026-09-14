@@ -1,8 +1,8 @@
 defmodule WebApp.Automation do
   import Ecto.Query
 
+  alias WebApp.{Bots, Repo}
   alias WebApp.Automations.AutomationRecord
-  alias WebApp.Repo
 
   @enforce_keys [
     :job_name,
@@ -72,18 +72,32 @@ defmodule WebApp.Automation do
   defp insert(automation) do
     changeset = AutomationRecord.changeset(%AutomationRecord{}, Map.from_struct(automation))
 
-    case Repo.insert(changeset) do
-      {:ok, _record} -> :ok
+    with :ok <- validate_bot(changeset),
+         {:ok, _record} <- Repo.insert(changeset) do
+      :ok
+    else
       {:error, reason} -> Repo.rollback(reason)
     end
   end
 
   defp persist(record, attributes, operation) do
-    record
-    |> AutomationRecord.changeset(attributes)
-    |> operation.()
-    |> result()
-    |> notify_result()
+    changeset = AutomationRecord.changeset(record, attributes)
+
+    with :ok <- validate_bot(changeset) do
+      changeset |> operation.() |> result() |> notify_result()
+    end
+  end
+
+  defp validate_bot(changeset) do
+    case Ecto.Changeset.get_field(changeset, :bot_id) do
+      nil ->
+        :ok
+
+      bot_id ->
+        if Bots.get(bot_id),
+          do: :ok,
+          else: {:error, Ecto.Changeset.add_error(changeset, :bot_id, "does not exist")}
+    end
   end
 
   defp result({:ok, record}), do: {:ok, to_domain(record)}

@@ -33,6 +33,13 @@ defmodule WebAppWeb.BotControllerTest do
              json_response(conn, 200)["bot"]
   end
 
+  test "returns profile validation errors without creating a bot", %{conn: conn} do
+    conn = post(conn, "/api/bots", %{"name" => "Research"})
+
+    assert %{"error" => %{"description" => ["can't be blank"], "role" => ["can't be blank"]}} =
+             json_response(conn, 422)
+  end
+
   test "returns not found for an absent bot", %{conn: conn} do
     assert %{"error" => "Bot not found"} = json_response(get(conn, "/api/bots/missing"), 404)
   end

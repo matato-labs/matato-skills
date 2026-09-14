@@ -39,6 +39,18 @@ defmodule WebApp.MessagesTest do
     assert Enum.sort([first, second]) == Enum.map(Messages.list_for_bot(bot.id), & &1.id)
   end
 
+  test "rejects a message for a bot that does not exist" do
+    assert {:error, changeset} =
+             Messages.create(%{
+               receiver_bot_id: Ecto.UUID.generate(),
+               sender_type: "automation",
+               kind: "result",
+               content: "Missing recipient"
+             })
+
+    assert {:receiver_bot_id, {"does not exist", []}} in changeset.errors
+  end
+
   test "claims a pending message only once", %{bot: bot} do
     message = create_message(bot, DateTime.utc_now(), "claim me")
 

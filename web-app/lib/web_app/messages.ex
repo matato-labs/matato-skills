@@ -1,16 +1,16 @@
 defmodule WebApp.Messages do
   import Ecto.Query
 
-  alias WebApp.{Repo}
+  alias WebApp.{Bots, Repo}
   alias WebApp.Messages.Message
 
   def create(attributes) do
     attributes = Map.put_new(attributes, :timestamp, DateTime.utc_now())
+    changeset = Message.changeset(%Message{}, attributes)
 
-    %Message{}
-    |> Message.changeset(attributes)
-    |> Repo.insert()
-    |> notify_result()
+    with :ok <- validate_receiver(changeset) do
+      changeset |> Repo.insert() |> notify_result()
+    end
   end
 
   def create_automation_result(nil, _content), do: :ok
@@ -90,6 +90,12 @@ defmodule WebApp.Messages do
 
   def subscribe(bot_id), do: Phoenix.PubSub.subscribe(WebApp.PubSub, topic(bot_id))
   def subscribe_all, do: Phoenix.PubSub.subscribe(WebApp.PubSub, "messages")
+
+  defp validate_receiver(changeset) do
+    if Bots.get(Ecto.Changeset.get_field(changeset, :receiver_bot_id)),
+      do: :ok,
+      else: {:error, Ecto.Changeset.add_error(changeset, :receiver_bot_id, "does not exist")}
+  end
 
   defp notify_result({:ok, message}) do
     notify(message.receiver_bot_id)

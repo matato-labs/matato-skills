@@ -60,6 +60,25 @@ defmodule WebAppWeb.AutomationControllerTest do
     assert %{"bot_id" => nil} = json_response(conn, 200)["automation"]
   end
 
+  test "rejects a bot id that does not identify a durable bot", %{conn: conn} do
+    conn =
+      post(conn, "/api/automations", %{
+        "job_name" => "missing-bot",
+        "bot_id" => Ecto.UUID.generate(),
+        "enabled" => true,
+        "schedule" => "0 9 * * *",
+        "user_prompt" => "Run it",
+        "daily_session" => false,
+        "can_overlap" => false,
+        "model" => "model",
+        "thinking_level" => "low",
+        "can_launch_sub_agents" => false,
+        "use_skill" => false
+      })
+
+    assert %{"errors" => %{"bot_id" => ["does not exist"]}} = json_response(conn, 422)
+  end
+
   test "creates, reads, updates, and deletes automations", %{conn: conn} do
     attributes = %{
       "job_name" => "daily-review",

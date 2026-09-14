@@ -75,6 +75,7 @@ defmodule WebAppWeb.AgentLive do
          socket
          |> assign(
            session_id: id,
+           bot: nil,
            interaction_owner: owner,
            mobile_sidebar_open: false,
            error: nil
@@ -83,7 +84,13 @@ defmodule WebAppWeb.AgentLive do
 
       {:error, error} ->
         {:noreply,
-         assign(socket, session_id: id, session: nil, mobile_sidebar_open: false, error: error)}
+         assign(socket,
+           session_id: id,
+           bot: nil,
+           session: nil,
+           mobile_sidebar_open: false,
+           error: error
+         )}
     end
   end
 
@@ -121,6 +128,9 @@ defmodule WebAppWeb.AgentLive do
 
       {:error, :not_found} ->
         {:noreply, assign(socket, error: "Bot not found", delete_bot_id: nil)}
+
+      {:error, reason} ->
+        {:noreply, assign(socket, error: format_error(reason), delete_bot_id: nil)}
     end
   end
 
@@ -531,7 +541,7 @@ defmodule WebAppWeb.AgentLive do
     id = bot.chat_remote_session_id
     if connected?(socket), do: AgentFanout.subscribe(id)
 
-    case RemoteRegistry.open(id) do
+    case RemoteRegistry.open(id, Bots.identity_for(bot)) do
       :ok ->
         owner = if connected?(socket), do: AgentSession.claim(id, self()) == :owner, else: false
 
@@ -578,6 +588,14 @@ defmodule WebAppWeb.AgentLive do
     do: {0, DateTime.to_unix(timestamp, :millisecond)}
 
   defp timeline_sort_key(%{timestamp: timestamp}) when is_integer(timestamp), do: {0, timestamp}
+
+  defp timeline_sort_key(%{timestamp: timestamp}) when is_binary(timestamp) do
+    case DateTime.from_iso8601(timestamp) do
+      {:ok, datetime, _offset} -> {0, DateTime.to_unix(datetime, :millisecond)}
+      _ -> {1, 0}
+    end
+  end
+
   defp timeline_sort_key(_item), do: {1, 0}
 
   defp transcript_items(session) do

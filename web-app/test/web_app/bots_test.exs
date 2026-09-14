@@ -10,25 +10,33 @@ defmodule WebApp.BotsTest do
     Repo.delete_all(Bot)
     pi_dir = Path.join(System.tmp_dir!(), "bot-pi-#{System.unique_integer([:positive])}")
     pi_path = Path.join(pi_dir, "pi")
+    pi_marker = Path.join(pi_dir, "started")
     File.mkdir_p!(pi_dir)
 
     File.write!(
       pi_path,
-      "#!/usr/bin/env python3\nimport json, sys\nfor line in sys.stdin:\n command = json.loads(line)\n response = {\"id\": command[\"id\"], \"type\": \"response\", \"command\": command[\"type\"], \"success\": True}\n if command[\"type\"] == \"get_state\": response[\"data\"] = {\"model\": None, \"isStreaming\": False, \"isCompacting\": False, \"sessionFile\": None, \"sessionId\": \"bot\"}\n elif command[\"type\"] == \"get_messages\": response[\"data\"] = {\"messages\": []}\n elif command[\"type\"] == \"get_commands\": response[\"data\"] = {\"commands\": []}\n print(json.dumps(response), flush=True)\n"
+      "#!/usr/bin/env python3\nimport json, sys, os\nfor line in sys.stdin:\n open(os.environ[\"BOT_PI_MARKER\"], \"a\").write(\"started\\n\")\n command = json.loads(line)\n response = {\"id\": command[\"id\"], \"type\": \"response\", \"command\": command[\"type\"], \"success\": True}\n if command[\"type\"] == \"get_state\": response[\"data\"] = {\"model\": None, \"isStreaming\": False, \"isCompacting\": False, \"sessionFile\": None, \"sessionId\": \"bot\"}\n elif command[\"type\"] == \"get_messages\": response[\"data\"] = {\"messages\": []}\n elif command[\"type\"] == \"get_commands\": response[\"data\"] = {\"commands\": []}\n print(json.dumps(response), flush=True)\n"
     )
 
     File.chmod!(pi_path, 0o700)
     original_path = System.get_env("PATH")
     System.put_env("PATH", "#{pi_dir}:#{original_path}")
+    original_marker = System.get_env("BOT_PI_MARKER")
+    System.put_env("BOT_PI_MARKER", pi_marker)
 
     on_exit(fn ->
       System.put_env("PATH", original_path)
+
+      if original_marker,
+        do: System.put_env("BOT_PI_MARKER", original_marker),
+        else: System.delete_env("BOT_PI_MARKER")
+
       Repo.delete_all(Message)
       Repo.delete_all(Bot)
       File.rm_rf!(pi_dir)
     end)
 
-    :ok
+    %{pi_marker: pi_marker}
   end
 
   test "builds a bot identity from its durable profile" do
@@ -51,6 +59,17 @@ defmodule WebApp.BotsTest do
 
     assert Bots.identity("missing") == nil
     assert Bots.identity_for_session("missing") == nil
+  end
+
+  test "rejects an incomplete profile before creating remote sessions", %{pi_marker: pi_marker} do
+    session_count = length(RemoteSessions.list())
+
+    assert {:error, changeset} = Bots.create(%{"name" => "Research"})
+
+    assert [role: {"can't be blank", _}, description: {"can't be blank", _}] = changeset.errors
+
+    assert session_count == length(RemoteSessions.list())
+    refute File.exists?(pi_marker)
   end
 
   test "creates permanent chat and private background remote sessions" do

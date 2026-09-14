@@ -12,21 +12,16 @@ defmodule WebApp.Bots.Bot do
     timestamps(type: :utc_datetime)
   end
 
+  def profile_changeset(bot, attributes) do
+    bot
+    |> cast(attributes, [:name, :role, :description])
+    |> validate_required([:name, :role, :description])
+  end
+
   def changeset(bot, attributes) do
     bot
-    |> cast(attributes, [
-      :name,
-      :role,
-      :description,
-      :chat_remote_session_id,
-      :background_remote_session_id
-    ])
-    |> validate_required([
-      :name,
-      :role,
-      :description,
-      :chat_remote_session_id,
-      :background_remote_session_id
-    ])
+    |> profile_changeset(attributes)
+    |> cast(attributes, [:chat_remote_session_id, :background_remote_session_id])
+    |> validate_required([:chat_remote_session_id, :background_remote_session_id])
   end
 end

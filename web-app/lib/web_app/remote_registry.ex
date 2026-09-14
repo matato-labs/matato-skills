@@ -1,7 +1,7 @@
 defmodule WebApp.RemoteRegistry do
   use GenServer
 
-  alias WebApp.{AgentSession, Bots, RemoteSessions, Workspace}
+  alias WebApp.{AgentSession, RemoteSessions, Workspace}
 
   @creation_limit 10
   @creation_window_ms 60_000
@@ -17,10 +17,10 @@ defmodule WebApp.RemoteRegistry do
     end
   end
 
-  def open(id),
+  def open(id, identity \\ nil),
     do:
       with(
-        :ok <- GenServer.call(__MODULE__, {:open, id}),
+        :ok <- GenServer.call(__MODULE__, {:open, id, identity}),
         :ok <- AgentSession.await_ready(id),
         do: :ok
       )
@@ -70,11 +70,11 @@ defmodule WebApp.RemoteRegistry do
     end
   end
 
-  def handle_call({:open, id}, _from, state) do
+  def handle_call({:open, id, identity}, _from, state) do
     with metadata when not is_nil(metadata) <- RemoteSessions.get(id),
          {:ok, metadata} <- RemoteSessions.validate_metadata(metadata),
          :ok <- ensure_unique_writer(metadata),
-         :ok <- start_or_reuse(metadata) do
+         :ok <- start_or_reuse(metadata, identity) do
       {:reply, :ok, state}
     else
       nil -> {:reply, {:error, "Session not found"}, state}
@@ -183,7 +183,7 @@ defmodule WebApp.RemoteRegistry do
     error in [ArgumentError, File.Error] -> {:reply, {:error, Exception.message(error)}, state}
   end
 
-  defp start(metadata),
+  defp start(metadata, identity \\ nil),
     do:
       DynamicSupervisor.start_child(
         WebApp.AgentSupervisor,
@@ -193,7 +193,7 @@ defmodule WebApp.RemoteRegistry do
            name: metadata["name"],
            project: metadata["project"],
            session_file: metadata["session_file"],
-           identity: metadata["identity"] || Bots.identity_for_session(metadata["id"]),
+           identity: identity || metadata["identity"],
            notifier: &notify/1,
            interrupted:
              metadata["status"] in [
@@ -206,8 +206,8 @@ defmodule WebApp.RemoteRegistry do
          ]}
       )
 
-  defp start_or_reuse(metadata) do
-    case start(metadata) do
+  defp start_or_reuse(metadata, identity) do
+    case start(metadata, identity) do
       {:ok, _pid} -> :ok
       {:error, {:already_started, _pid}} -> :ok
       {:error, reason} -> {:error, reason}

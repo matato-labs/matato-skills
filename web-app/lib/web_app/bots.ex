@@ -13,6 +13,8 @@ defmodule WebApp.Bots do
     with %Bot{} = bot <- get(id), do: identity_for(bot)
   end
 
+  def identity_for(%Bot{} = bot), do: "You are #{bot.name}, #{bot.role}. #{bot.description}"
+
   def identity_for_session(session_id) do
     with %Bot{} = bot <-
            Repo.one(
@@ -27,20 +29,10 @@ defmodule WebApp.Bots do
   end
 
   def create(attributes) do
-    relative = "."
-    name = Map.get(attributes, "name") || Map.get(attributes, :name)
-
-    identity = identity_for(attributes)
-
-    with {:ok, chat_id} <-
-           RemoteRegistry.create(relative, %{name: name, source: "bot_chat", identity: identity}),
-         {:ok, background_id} <-
-           RemoteRegistry.create(relative, %{
-             name: "#{name} background",
-             source: "bot_background",
-             identity: identity
-           }),
-         {:ok, bot} <- insert(attributes, chat_id, background_id) do
+    with {:ok, profile} <- validate_profile(attributes),
+         {:ok, chat_id} <- create_chat(profile),
+         {:ok, background_id} <- create_background(profile, chat_id),
+         {:ok, bot} <- insert(profile, chat_id, background_id) do
       notify()
       {:ok, bot}
     else
@@ -50,39 +42,83 @@ defmodule WebApp.Bots do
 
   def delete(id) do
     case get(id) do
-      nil ->
-        {:error, :not_found}
-
-      bot ->
-        :ok = RemoteRegistry.delete(bot.chat_remote_session_id)
-        :ok = RemoteRegistry.delete(bot.background_remote_session_id)
-        Repo.delete(bot)
-        notify()
-        :ok
+      nil -> {:error, :not_found}
+      bot -> delete_bot_sessions(bot)
     end
   end
 
   def subscribe, do: Phoenix.PubSub.subscribe(WebApp.PubSub, "bots")
 
-  defp identity_for(%Bot{} = bot), do: "You are #{bot.name}, #{bot.role}. #{bot.description}"
-
-  defp identity_for(attributes) do
-    name = Map.get(attributes, "name") || Map.get(attributes, :name)
-    role = Map.get(attributes, "role") || Map.get(attributes, :role)
-    description = Map.get(attributes, "description") || Map.get(attributes, :description)
-    "You are #{name}, #{role}. #{description}"
+  defp validate_profile(attributes) do
+    case Bot.profile_changeset(%Bot{}, attributes) |> Ecto.Changeset.apply_action(:insert) do
+      {:ok, profile} -> {:ok, profile}
+      {:error, changeset} -> {:error, changeset}
+    end
   end
 
-  defp insert(attributes, chat_id, background_id) do
-    %Bot{}
-    |> Bot.changeset(%{
-      name: Map.get(attributes, "name") || Map.get(attributes, :name),
-      role: Map.get(attributes, "role") || Map.get(attributes, :role),
-      description: Map.get(attributes, "description") || Map.get(attributes, :description),
-      chat_remote_session_id: chat_id,
-      background_remote_session_id: background_id
+  defp create_chat(profile) do
+    RemoteRegistry.create(".", %{
+      name: profile.name,
+      source: "bot_chat",
+      identity: identity_for(profile)
     })
-    |> Repo.insert()
+  end
+
+  defp create_background(profile, chat_id) do
+    case RemoteRegistry.create(".", %{
+           name: "#{profile.name} background",
+           source: "bot_background",
+           identity: identity_for(profile)
+         }) do
+      {:ok, background_id} ->
+        {:ok, background_id}
+
+      {:error, reason} ->
+        delete_remote_session(chat_id)
+        {:error, reason}
+    end
+  end
+
+  defp insert(profile, chat_id, background_id) do
+    case Bot.changeset(profile, %{
+           chat_remote_session_id: chat_id,
+           background_remote_session_id: background_id
+         })
+         |> Repo.insert() do
+      {:ok, bot} ->
+        {:ok, bot}
+
+      {:error, reason} ->
+        delete_remote_session(chat_id)
+        delete_remote_session(background_id)
+        {:error, reason}
+    end
+  end
+
+  defp delete_bot_sessions(bot) do
+    with :ok <- delete_existing_remote_session(bot.chat_remote_session_id),
+         :ok <- delete_existing_remote_session(bot.background_remote_session_id),
+         {:ok, _bot} <- Repo.delete(bot) do
+      notify()
+      :ok
+    else
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp delete_existing_remote_session(id) do
+    case RemoteRegistry.delete(id) do
+      :ok -> :ok
+      {:error, "Session not found"} -> :ok
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp delete_remote_session(id) do
+    case RemoteRegistry.delete(id) do
+      :ok -> :ok
+      {:error, _reason} -> :ok
+    end
   end
 
   defp notify, do: Phoenix.PubSub.broadcast(WebApp.PubSub, "bots", :changed)

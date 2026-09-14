@@ -43,8 +43,6 @@ defmodule WebAppWeb do
       use Gettext, backend: WebAppWeb.Gettext
 
       import Plug.Conn
-
-      unquote(verified_routes())
     end
   end
 

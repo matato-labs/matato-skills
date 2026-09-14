@@ -37,7 +37,7 @@ defmodule WebApp.MessageWorker do
 
   defp delivery_status(message) do
     with bot when not is_nil(bot) <- Bots.get(message.receiver_bot_id),
-         :ok <- RemoteRegistry.open(bot.background_remote_session_id) do
+         :ok <- RemoteRegistry.open(bot.background_remote_session_id, Bots.identity_for(bot)) do
       deliver_to_bot(bot, message)
     else
       _ -> :failed
@@ -57,9 +57,13 @@ defmodule WebApp.MessageWorker do
         :pending
 
       true ->
-        result = AgentSession.owner_command(session_id, self(), command(bot, message))
-        AgentSession.release(session_id, self())
-        if result == :ok, do: :sent, else: :failed
+        try do
+          if AgentSession.owner_command(session_id, self(), command(bot, message)) == :ok,
+            do: :sent,
+            else: :failed
+        after
+          AgentSession.release(session_id, self())
+        end
     end
   catch
     :exit, _reason -> :failed

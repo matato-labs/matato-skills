@@ -93,6 +93,30 @@ defmodule WebApp.MessageWorkerTest do
     assert message_id == message.id
   end
 
+  test "marks a message failed when its background session is unavailable" do
+    bot =
+      Repo.insert!(%Bot{
+        name: "Unavailable",
+        role: "operator",
+        description: "Cannot receive work",
+        chat_remote_session_id: "chat-unavailable",
+        background_remote_session_id: "background-unavailable"
+      })
+
+    {:ok, message} =
+      Messages.create(%{
+        receiver_bot_id: bot.id,
+        sender_type: "automation",
+        kind: "result",
+        content: "Delivery fails"
+      })
+
+    :ok = MessageWorker.deliver_pending()
+
+    assert [%Message{id: message_id, sent_status: "failed"}] = Messages.list_for_bot(bot.id)
+    assert message_id == message.id
+  end
+
   test "defers a message when the background bot is busy", %{bot: bot} do
     :owner = AgentSession.claim(bot.background_remote_session_id, self())
 

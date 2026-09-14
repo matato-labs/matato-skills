@@ -49,6 +49,7 @@ defmodule WebApp.Automations.AutomationRecord do
     ])
     |> validate_schedule()
     |> unique_constraint(:job_name)
+    |> foreign_key_constraint(:bot_id)
   end
 
   defp validate_schedule(changeset) do

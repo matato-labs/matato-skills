@@ -35,5 +35,6 @@ defmodule WebApp.Messages.Message do
     ])
     |> validate_inclusion(:sender_type, ["bot", "automation"])
     |> validate_inclusion(:sent_status, ["pending", "processing", "sent", "failed"])
+    |> foreign_key_constraint(:receiver_bot_id, name: nil)
   end
 end
