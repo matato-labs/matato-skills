@@ -6,6 +6,7 @@ defmodule WebAppWeb.SessionComponents do
   attr :workspace_groups, :list, required: true
   attr :automation_groups, :list, required: true
   attr :bots, :list, default: []
+  attr :sessions, :list, default: []
   attr :session_id, :string, default: nil
   attr :bot_id, :string, default: nil
   attr :delete_session_id, :string, default: nil
@@ -57,6 +58,7 @@ defmodule WebAppWeb.SessionComponents do
           <.bot_row
             :for={bot <- @bots}
             bot={bot}
+            status={bot_status(bot, @sessions)}
             selected={bot.id == @bot_id}
             delete_bot_id={@delete_bot_id}
           />
@@ -123,6 +125,12 @@ defmodule WebAppWeb.SessionComponents do
 
   defp visible_groups(groups), do: Enum.reject(groups, &(&1.key == :others))
 
+  defp bot_status(bot, sessions) do
+    Enum.find_value(sessions, "stopped", fn session ->
+      if session["id"] == bot.chat_remote_session_id, do: session["status"]
+    end)
+  end
+
   attr :group, :map, required: true
   attr :prefix, :string, required: true
   attr :session_id, :string, default: nil
@@ -151,6 +159,7 @@ defmodule WebAppWeb.SessionComponents do
   end
 
   attr :bot, :map, required: true
+  attr :status, :string, required: true
   attr :selected, :boolean, required: true
   attr :delete_bot_id, :string, default: nil
 
@@ -162,10 +171,9 @@ defmodule WebAppWeb.SessionComponents do
         navigate={"/bots/#{@bot.id}"}
         class="flex min-w-0 flex-1 items-center gap-2"
       >
-        <span class="grid size-5 shrink-0 place-items-center rounded-md bg-primary/10 text-primary">
-          <.icon name="hero-cpu-chip" class="size-3" />
-        </span>
+        <span class={["size-1.5 shrink-0 rounded-full", status_color(@status)]}></span>
         <span class="min-w-0 flex-1 truncate">{@bot.name}</span>
+        <span class="sr-only">{status_label(@status)}</span>
       </.link>
       <.inline_delete_button
         id={@bot.id}

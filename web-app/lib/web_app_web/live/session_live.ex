@@ -17,6 +17,7 @@ defmodule WebAppWeb.SessionLive do
      assign(socket,
        page_title: "New Matato session",
        projects: Workspace.directories(),
+       sessions: sessions,
        workspace_groups: ProjectSessionCatalog.workspace_groups(sessions),
        automation_groups: ProjectSessionCatalog.automation_groups(sessions),
        bots: Bots.list(),
@@ -75,6 +76,7 @@ defmodule WebAppWeb.SessionLive do
 
         {:noreply,
          assign(socket,
+           sessions: sessions,
            workspace_groups: ProjectSessionCatalog.workspace_groups(sessions),
            automation_groups: ProjectSessionCatalog.automation_groups(sessions),
            bots: Bots.list(),
@@ -108,6 +110,7 @@ defmodule WebAppWeb.SessionLive do
 
     {:noreply,
      assign(socket,
+       sessions: sessions,
        workspace_groups: ProjectSessionCatalog.workspace_groups(sessions),
        automation_groups: ProjectSessionCatalog.automation_groups(sessions),
        bots: Bots.list()
@@ -118,6 +121,7 @@ defmodule WebAppWeb.SessionLive do
     sessions = RemoteRegistry.list()
 
     assign(socket,
+      sessions: sessions,
       workspace_groups: ProjectSessionCatalog.workspace_groups(sessions),
       automation_groups: ProjectSessionCatalog.automation_groups(sessions),
       bots: Bots.list()

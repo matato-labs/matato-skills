@@ -49,7 +49,8 @@ defmodule WebAppWeb.AgentLive do
         interaction_owner: false,
         error: nil,
         composer_form: to_form(%{"message" => ""}, as: :composer),
-        dialog_form: to_form(%{"value" => ""}, as: :dialog)
+        dialog_form: to_form(%{"value" => ""}, as: :dialog),
+        expanded_work_ids: MapSet.new()
       )
 
     {:ok, stream(socket, :messages, [])}
@@ -84,6 +85,7 @@ defmodule WebAppWeb.AgentLive do
            chat_name: session_name(id),
            interaction_owner: owner,
            mobile_sidebar_open: false,
+           expanded_work_ids: MapSet.new(),
            error: nil
          )
          |> sync_session(snapshot)}
@@ -169,6 +171,12 @@ defmodule WebAppWeb.AgentLive do
         {:noreply, assign(socket, error: format_error(reason), delete_bot_id: nil)}
     end
   end
+
+  def handle_event("toggle_work", %{"id" => id, "open" => "true"}, socket),
+    do: {:noreply, update(socket, :expanded_work_ids, &MapSet.put(&1, id))}
+
+  def handle_event("toggle_work", %{"id" => id, "open" => "false"}, socket),
+    do: {:noreply, update(socket, :expanded_work_ids, &MapSet.delete(&1, id))}
 
   def handle_event("toggle_mobile_sidebar", _params, socket),
     do: {:noreply, update(socket, :mobile_sidebar_open, &(!&1))}
@@ -341,20 +349,27 @@ defmodule WebAppWeb.AgentLive do
     <details
       :if={@item.kind == :work_turn}
       id={@id}
+      data-work-id={String.replace_prefix(@id, "messages-", "")}
+      phx-hook="WorkDisclosure"
+      open={Map.get(@item, :expanded?, false)}
       class="group mt-8 w-full text-sm text-base-content/70"
     >
-      <summary class="flex cursor-pointer list-none items-center gap-2 border-b border-base-content/10 pb-2 text-xs font-medium text-base-content/55 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+      <summary class="flex cursor-pointer list-none items-center gap-2 text-xs font-medium text-base-content/55 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">
         <.icon name="hero-chevron-down" class="size-3 transition-transform group-open:rotate-180" />
         <span>{work_label(@item)}</span>
       </summary>
-      <div class="space-y-4 pt-4">
+      <div class="space-y-4 pt-3">
         <p :for={message <- @item.messages} class="whitespace-pre-wrap">{message.text}</p>
-        <details :if={@item.traces != []} class="group/activity text-xs text-base-content/60">
+        <details
+          :if={@item.traces != []}
+          id={"#{@id}-activity"}
+          class="group/activity text-xs text-base-content/60"
+        >
           <summary class="flex cursor-pointer list-none items-center gap-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">
             <.icon name="hero-wrench-screwdriver" class="size-3.5" />
             <span>Activity ({length(@item.traces)})</span>
           </summary>
-          <div class="mt-3 max-h-96 space-y-2 overflow-y-auto rounded-lg bg-base-content/5 p-3">
+          <div class="mt-3 max-h-96 space-y-2 overflow-y-auto px-1">
             <.transcript_item
               :for={trace <- @item.traces}
               id={trace.id}
@@ -586,7 +601,8 @@ defmodule WebAppWeb.AgentLive do
     |> assign(session: snapshot)
     |> stream(
       :messages,
-      timeline_items(transcript_items(snapshot), notification_items(internal_messages)),
+      timeline_items(transcript_items(snapshot), notification_items(internal_messages))
+      |> mark_expanded_work(socket.assigns.expanded_work_ids),
       reset: true
     )
   end
@@ -607,6 +623,7 @@ defmodule WebAppWeb.AgentLive do
            session_id: id,
            interaction_owner: owner,
            mobile_sidebar_open: false,
+           expanded_work_ids: MapSet.new(),
            error: nil
          )
          |> sync_session(AgentSession.snapshot(id))}
@@ -622,6 +639,14 @@ defmodule WebAppWeb.AgentLive do
            error: error
          )}
     end
+  end
+
+  defp mark_expanded_work(items, expanded_work_ids) do
+    Enum.map(items, fn item ->
+      if item.kind == :work_turn,
+        do: Map.put(item, :expanded?, MapSet.member?(expanded_work_ids, item.id)),
+        else: item
+    end)
   end
 
   defp notification_items(messages) do

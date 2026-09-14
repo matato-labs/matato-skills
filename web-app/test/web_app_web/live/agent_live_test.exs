@@ -186,6 +186,8 @@ defmodule WebAppWeb.AgentLiveTest do
 
     assert html =~ "Worked"
     assert html =~ "Activity (1)"
+    refute html =~ "border-b border-base-content/10"
+    refute html =~ "bg-base-content/5 p-3"
   end
 
   test "renders agent replies without a message bubble" do

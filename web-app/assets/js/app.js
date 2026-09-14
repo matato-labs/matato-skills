@@ -26,12 +26,49 @@ import {hooks as colocatedHooks} from "phoenix-colocated/web_app"
 import topbar from "../vendor/topbar.cjs"
 import {composer} from "./composer"
 
+const workDisclosure = {
+  mounted() {
+    this.el.addEventListener("toggle", () => {
+      this.pushEvent("toggle_work", {id: this.el.dataset.workId, open: String(this.el.open)})
+    })
+  },
+}
+
+const transcript = {
+  mounted() {
+    this.el.addEventListener("toggle", event => {
+      if (event.target instanceof HTMLDetailsElement) this.scrollToBottom()
+    }, true)
+    this.scrollToBottom()
+  },
+  beforeUpdate() {
+    this.openDetails = new Set(
+      [...this.el.querySelectorAll("details[open]")].map(detail => detail.id),
+    )
+  },
+  updated() {
+    this.openDetails.forEach(id => {
+      const detail = this.el.querySelector(`#${CSS.escape(id)}`)
+      if (detail instanceof HTMLDetailsElement) detail.open = true
+    })
+    this.scrollToBottom()
+  },
+  scrollToBottom() {
+    requestAnimationFrame(() => this.el.scrollTo({top: this.el.scrollHeight, behavior: "auto"}))
+  },
+}
+
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
 
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
   params: {_csrf_token: csrfToken},
-  hooks: {...colocatedHooks, Composer: composer},
+  hooks: {
+    ...colocatedHooks,
+    Composer: composer,
+    Transcript: transcript,
+    WorkDisclosure: workDisclosure,
+  },
 })
 
 // Show progress bar on live navigation and form submits
