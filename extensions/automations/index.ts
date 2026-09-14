@@ -20,6 +20,7 @@ type AutomationResponse = {
 
 type AutomationRecord = {
   id: number;
+  bot_id: string | null;
   job_name: string;
   enabled: boolean;
   schedule: string;
@@ -37,6 +38,7 @@ const automationApiUrl = `${process.env.MATATO_PI_WEB_URL ?? "http://localhost:4
 
 function fromRecord(record: AutomationRecord): Automation {
   return {
+    botId: record.bot_id ?? undefined,
     jobName: record.job_name,
     enabled: record.enabled,
     schedule: record.schedule,
@@ -209,6 +211,7 @@ class AutomationBrowser {
       `Daily session: ${automation.dailySession ? "enabled" : "disabled"}`,
       `Overlapping runs: ${automation.canOverlap ? "allowed" : "blocked"}`,
       `Skill: ${automation.useSkill ? automation.jobName : "none"}`,
+      `Bot: ${automation.botId ?? "none"}`,
       "",
       this.theme.fg("muted", "Prompt"),
       ...automation.userPrompt.split("\n"),

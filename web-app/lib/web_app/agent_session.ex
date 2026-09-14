@@ -244,6 +244,7 @@ defmodule WebApp.AgentSession do
     ]
     |> add_resource("--skill", project_skills)
     |> add_resource("--prompt-template", project_prompts)
+    |> add_identity(options[:identity])
     |> then(fn args ->
       if options[:session_file], do: args ++ ["--session", options[:session_file]], else: args
     end)
@@ -252,6 +253,9 @@ defmodule WebApp.AgentSession do
   defp add_resource(args, flag, path) do
     if File.dir?(path), do: args ++ [flag, path], else: args
   end
+
+  defp add_identity(args, nil), do: args
+  defp add_identity(args, identity), do: args ++ ["--append-system-prompt", identity]
 
   defp open_port(executable, args, project, stderr_path) do
     shell = System.find_executable("sh") || raise "sh executable not found"

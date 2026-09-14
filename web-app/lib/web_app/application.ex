@@ -26,6 +26,8 @@ defmodule WebApp.Application do
           {DynamicSupervisor, strategy: :one_for_one, name: WebApp.AgentSupervisor},
           WebApp.Repo,
           WebApp.RemoteRegistry,
+          WebApp.MessageWorker,
+          WebApp.MessageDeliveryScheduler,
           WebApp.AutomationScheduler,
           WebApp.AutomationSubscription,
           WebAppWeb.Endpoint

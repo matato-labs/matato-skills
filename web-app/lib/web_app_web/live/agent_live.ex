@@ -5,6 +5,8 @@ defmodule WebAppWeb.AgentLive do
     AgentFanout,
     AgentSession,
     AgentState,
+    Bots,
+    Messages,
     ProjectSessionCatalog,
     RemoteRegistry
   }
@@ -15,7 +17,11 @@ defmodule WebAppWeb.AgentLive do
 
   @impl true
   def mount(_params, _session, socket) do
-    if connected?(socket), do: RemoteRegistry.subscribe()
+    if connected?(socket) do
+      RemoteRegistry.subscribe()
+      Bots.subscribe()
+    end
+
     sessions = RemoteRegistry.list()
 
     socket =
@@ -24,8 +30,14 @@ defmodule WebAppWeb.AgentLive do
         sessions: sessions,
         workspace_groups: ProjectSessionCatalog.workspace_groups(sessions),
         automation_groups: ProjectSessionCatalog.automation_groups(sessions),
+        bots: Bots.list(),
         session_id: nil,
+        bot: nil,
+        show_bot_form: false,
+        bot_error: nil,
+        bot_form: bot_form(),
         delete_session_id: nil,
+        delete_bot_id: nil,
         mobile_sidebar_open: false,
         session: nil,
         draft: "",
@@ -39,6 +51,17 @@ defmodule WebAppWeb.AgentLive do
   end
 
   @impl true
+  def handle_params(%{"bot_id" => bot_id}, _uri, socket) do
+    case Bots.get(bot_id) do
+      nil ->
+        {:noreply, assign(socket, bot: nil, session: nil, error: "Bot not found")}
+
+      bot ->
+        if connected?(socket), do: Messages.subscribe(bot.id)
+        open_bot_chat(socket, bot)
+    end
+  end
+
   def handle_params(%{"id" => id}, _uri, socket) do
     if connected?(socket), do: AgentFanout.subscribe(id)
 
@@ -52,6 +75,7 @@ defmodule WebAppWeb.AgentLive do
          socket
          |> assign(
            session_id: id,
+           bot: nil,
            interaction_owner: owner,
            mobile_sidebar_open: false,
            error: nil
@@ -60,7 +84,13 @@ defmodule WebAppWeb.AgentLive do
 
       {:error, error} ->
         {:noreply,
-         assign(socket, session_id: id, session: nil, mobile_sidebar_open: false, error: error)}
+         assign(socket,
+           session_id: id,
+           bot: nil,
+           session: nil,
+           mobile_sidebar_open: false,
+           error: error
+         )}
     end
   end
 
@@ -72,8 +102,37 @@ defmodule WebAppWeb.AgentLive do
     {:noreply, assign(socket, error: "Take interaction control before changing this session")}
   end
 
+  def handle_event("show_bot_form", _params, socket),
+    do: {:noreply, assign(socket, show_bot_form: true, bot_error: nil, bot_form: bot_form())}
+
+  def handle_event("hide_bot_form", _params, socket),
+    do: {:noreply, assign(socket, show_bot_form: false, bot_error: nil)}
+
+  def handle_event("create_bot", %{"bot" => params}, socket) do
+    case Bots.create(params) do
+      {:ok, bot} -> {:noreply, push_navigate(socket, to: "/bots/#{bot.id}")}
+      {:error, reason} -> {:noreply, assign(socket, bot_error: format_error(reason))}
+    end
+  end
+
   def handle_event("confirm_delete_session", %{"id" => id}, socket),
     do: {:noreply, assign(socket, delete_session_id: id)}
+
+  def handle_event("confirm_delete_bot", %{"id" => id}, socket),
+    do: {:noreply, assign(socket, delete_bot_id: id)}
+
+  def handle_event("delete_bot", %{"id" => id}, socket) do
+    case Bots.delete(id) do
+      :ok ->
+        {:noreply, push_navigate(socket, to: "/")}
+
+      {:error, :not_found} ->
+        {:noreply, assign(socket, error: "Bot not found", delete_bot_id: nil)}
+
+      {:error, reason} ->
+        {:noreply, assign(socket, error: format_error(reason), delete_bot_id: nil)}
+    end
+  end
 
   def handle_event("toggle_mobile_sidebar", _params, socket),
     do: {:noreply, update(socket, :mobile_sidebar_open, &(!&1))}
@@ -175,6 +234,10 @@ defmodule WebAppWeb.AgentLive do
   @impl true
   def handle_info(:changed, socket), do: {:noreply, assign_sessions(socket)}
 
+  def handle_info({:message_changed, _bot_id}, %{assigns: %{session: session, bot: bot}} = socket)
+      when not is_nil(session) and not is_nil(bot),
+      do: {:noreply, sync_session(socket, session)}
+
   def handle_info({:agent_snapshot, snapshot}, socket) do
     dialog_form =
       to_form(%{"value" => get_in(snapshot, [:dialog, "prefill"]) || ""}, as: :dialog)
@@ -266,6 +329,27 @@ defmodule WebAppWeb.AgentLive do
         </details>
       </div>
     </details>
+
+    <article
+      :if={@item.kind == :notification}
+      id={@id}
+      class={[
+        "mt-4 rounded-lg border px-4 py-3 text-sm text-base-content/75",
+        @item.status == "sent" && "border-info/30 bg-info/10",
+        @item.status == "failed" && "border-error/30 bg-error/10",
+        @item.status not in ["sent", "failed"] && "border-primary/20 bg-primary/5"
+      ]}
+    >
+      <p class={[
+        "mb-1 text-xs font-semibold uppercase tracking-wide",
+        @item.status == "sent" && "text-info",
+        @item.status == "failed" && "text-error",
+        @item.status not in ["sent", "failed"] && "text-primary"
+      ]}>
+        Activity · {@item.status}
+      </p>
+      <div class="markdown">{markdown(@item.content)}</div>
+    </article>
 
     <details
       :if={@item.kind == :thinking}
@@ -430,19 +514,89 @@ defmodule WebAppWeb.AgentLive do
     assign(socket,
       sessions: sessions,
       workspace_groups: ProjectSessionCatalog.workspace_groups(sessions),
-      automation_groups: ProjectSessionCatalog.automation_groups(sessions)
+      automation_groups: ProjectSessionCatalog.automation_groups(sessions),
+      bots: Bots.list()
     )
   end
 
+  defp bot_form, do: to_form(%{"name" => "", "role" => "", "description" => ""}, as: :bot)
+
+  defp format_error(reason) when is_binary(reason), do: reason
+  defp format_error(reason), do: inspect(reason)
+
   defp sync_session(socket, snapshot) do
+    internal_messages =
+      if socket.assigns.bot, do: Messages.list_for_bot(socket.assigns.bot.id), else: []
+
     socket
     |> assign(session: snapshot)
     |> stream(
       :messages,
-      transcript_items(snapshot),
+      timeline_items(transcript_items(snapshot), notification_items(internal_messages)),
       reset: true
     )
   end
+
+  defp open_bot_chat(socket, bot) do
+    id = bot.chat_remote_session_id
+    if connected?(socket), do: AgentFanout.subscribe(id)
+
+    case RemoteRegistry.open(id, Bots.identity_for(bot)) do
+      :ok ->
+        owner = if connected?(socket), do: AgentSession.claim(id, self()) == :owner, else: false
+
+        {:noreply,
+         socket
+         |> assign(
+           bot: bot,
+           session_id: id,
+           interaction_owner: owner,
+           mobile_sidebar_open: false,
+           error: nil
+         )
+         |> sync_session(AgentSession.snapshot(id))}
+
+      {:error, error} ->
+        {:noreply,
+         assign(socket,
+           bot: bot,
+           session_id: id,
+           session: nil,
+           mobile_sidebar_open: false,
+           error: error
+         )}
+    end
+  end
+
+  defp notification_items(messages) do
+    Enum.map(messages, fn message ->
+      %{
+        id: "notification-#{message.id}",
+        kind: :notification,
+        content: message.content,
+        status: message.sent_status,
+        timestamp: message.timestamp
+      }
+    end)
+  end
+
+  defp timeline_items(transcript, notifications) do
+    Enum.sort_by(transcript ++ notifications, &timeline_sort_key/1)
+  end
+
+  defp timeline_sort_key(%{timestamp: %DateTime{} = timestamp}),
+    do: {0, DateTime.to_unix(timestamp, :millisecond)}
+
+  defp timeline_sort_key(%{timestamp: timestamp}) when is_integer(timestamp), do: {0, timestamp}
+
+  defp timeline_sort_key(%{timestamp: timestamp}) when is_binary(timestamp) do
+    case DateTime.from_iso8601(timestamp) do
+      {:ok, datetime, _offset} -> {0, DateTime.to_unix(datetime, :millisecond)}
+      _ -> {1, 0}
+    end
+  end
+
+  defp timeline_sort_key(_item), do: {1, 0}
 
   defp transcript_items(session) do
     session
@@ -527,6 +681,7 @@ defmodule WebAppWeb.AgentLive do
     %{
       id: "work-#{user.id}-#{if active?, do: "active", else: "settled"}",
       kind: :work_turn,
+      timestamp: Map.get(user, :timestamp),
       active?: active?,
       duration: nil,
       messages: messages,
@@ -539,7 +694,11 @@ defmodule WebAppWeb.AgentLive do
 
   defp agent_active?(status), do: status in [:working, :retrying, :compacting, :waiting_for_input]
 
-  defp message_items(%{"role" => "assistant", "content" => content}, message_index, session)
+  defp message_items(
+         %{"role" => "assistant", "content" => content} = message,
+         message_index,
+         session
+       )
        when is_list(content) do
     content
     |> Enum.with_index()
@@ -548,7 +707,7 @@ defmodule WebAppWeb.AgentLive do
 
       case block do
         %{"type" => "text", "text" => text} when text != "" ->
-          [%{id: id, kind: :message, role: :agent, text: text}]
+          [%{id: id, kind: :message, role: :agent, text: text, timestamp: message["timestamp"]}]
 
         %{"type" => "thinking", "thinking" => text} when text != "" ->
           [%{id: id, kind: :thinking, text: text}]
@@ -569,7 +728,15 @@ defmodule WebAppWeb.AgentLive do
 
     if text == "",
       do: [],
-      else: [%{id: "message-#{message_index}", kind: :message, role: role, text: text}]
+      else: [
+        %{
+          id: "message-#{message_index}",
+          kind: :message,
+          role: role,
+          text: text,
+          timestamp: message["timestamp"]
+        }
+      ]
   end
 
   defp message_items(_message, _message_index, _session), do: []

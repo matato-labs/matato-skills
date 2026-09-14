@@ -11,8 +11,8 @@ defmodule WebAppWeb.SessionComponentsTest do
         workspace_groups: [],
         automation_groups: [
           %{
-            key: :others,
-            label: "Others",
+            key: "/project",
+            label: "project",
             sessions: [
               %{id: "automation", source: "automation", status: "working", title: "Daily review"}
             ]

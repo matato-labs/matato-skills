@@ -5,8 +5,11 @@ defmodule WebAppWeb.SessionComponents do
 
   attr :workspace_groups, :list, required: true
   attr :automation_groups, :list, required: true
+  attr :bots, :list, default: []
   attr :session_id, :string, default: nil
+  attr :bot_id, :string, default: nil
   attr :delete_session_id, :string, default: nil
+  attr :delete_bot_id, :string, default: nil
   attr :mobile_sidebar_open, :boolean, required: true
 
   def sidebar(assigns) do
@@ -38,29 +41,60 @@ defmodule WebAppWeb.SessionComponents do
       <div class="border-t border-base-content/10 px-3 py-4">
         <div class="mb-2 flex items-center justify-between px-2">
           <h2 class="text-[0.68rem] font-semibold uppercase tracking-[0.16em] text-base-content/45">
-            Workspace
+            Bots
           </h2>
-          <.link
-            navigate="/"
+          <button
+            id="new-bot-button"
+            type="button"
+            phx-click="show_bot_form"
             class="rounded-md p-1 text-base-content/45 transition-colors hover:bg-base-content/5 hover:text-base-content focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-            aria-label="New session"
+            aria-label="Create bot"
           >
             <.icon name="hero-plus" class="size-4" />
-          </.link>
+          </button>
         </div>
-
-        <nav id="workspace-session-groups" class="space-y-1.5" aria-label="Workspace agent sessions">
-          <.session_group
-            :for={group <- @workspace_groups}
-            group={group}
-            prefix="workspace"
-            session_id={@session_id}
-            delete_session_id={@delete_session_id}
+        <nav id="bots" class="space-y-0.5" aria-label="Bots">
+          <.bot_row
+            :for={bot <- @bots}
+            bot={bot}
+            selected={bot.id == @bot_id}
+            delete_bot_id={@delete_bot_id}
           />
-          <p :if={@workspace_groups == []} class="px-2 py-3 text-xs leading-5 text-base-content/40">
-            No sessions yet.
+          <p :if={@bots == []} class="px-2 py-1 text-xs leading-5 text-base-content/40">
+            No bots yet.
           </p>
         </nav>
+
+        <div class="mt-5 border-t border-base-content/10 pt-4">
+          <div class="mb-2 flex items-center justify-between px-2">
+            <h2 class="text-[0.68rem] font-semibold uppercase tracking-[0.16em] text-base-content/45">
+              Workspace
+            </h2>
+            <.link
+              navigate="/"
+              class="rounded-md p-1 text-base-content/45 transition-colors hover:bg-base-content/5 hover:text-base-content focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+              aria-label="New session"
+            >
+              <.icon name="hero-plus" class="size-4" />
+            </.link>
+          </div>
+
+          <nav id="workspace-session-groups" class="space-y-1.5" aria-label="Workspace agent sessions">
+            <.session_group
+              :for={group <- visible_groups(@workspace_groups)}
+              group={group}
+              prefix="workspace"
+              session_id={@session_id}
+              delete_session_id={@delete_session_id}
+            />
+            <p
+              :if={visible_groups(@workspace_groups) == []}
+              class="px-2 py-3 text-xs leading-5 text-base-content/40"
+            >
+              No sessions yet.
+            </p>
+          </nav>
+        </div>
 
         <div class="mt-5 border-t border-base-content/10 pt-4">
           <h2 class="mb-2 px-2 text-[0.68rem] font-semibold uppercase tracking-[0.16em] text-base-content/45">
@@ -68,13 +102,16 @@ defmodule WebAppWeb.SessionComponents do
           </h2>
           <nav id="automation-session-groups" class="space-y-1.5" aria-label="Active automation work">
             <.session_group
-              :for={group <- @automation_groups}
+              :for={group <- visible_groups(@automation_groups)}
               group={group}
               prefix="automation"
               session_id={@session_id}
               delete_session_id={@delete_session_id}
             />
-            <p :if={@automation_groups == []} class="px-2 py-1 text-xs leading-5 text-base-content/40">
+            <p
+              :if={visible_groups(@automation_groups) == []}
+              class="px-2 py-1 text-xs leading-5 text-base-content/40"
+            >
               No active work.
             </p>
           </nav>
@@ -83,6 +120,8 @@ defmodule WebAppWeb.SessionComponents do
     </aside>
     """
   end
+
+  defp visible_groups(groups), do: Enum.reject(groups, &(&1.key == :others))
 
   attr :group, :map, required: true
   attr :prefix, :string, required: true
@@ -108,6 +147,85 @@ defmodule WebAppWeb.SessionComponents do
         />
       </div>
     </details>
+    """
+  end
+
+  attr :bot, :map, required: true
+  attr :selected, :boolean, required: true
+  attr :delete_bot_id, :string, default: nil
+
+  defp bot_row(assigns) do
+    ~H"""
+    <div class={session_row_class(@selected)}>
+      <.link
+        id={"bot-#{@bot.id}"}
+        navigate={"/bots/#{@bot.id}"}
+        class="flex min-w-0 flex-1 items-center gap-2"
+      >
+        <span class="grid size-5 shrink-0 place-items-center rounded-md bg-primary/10 text-primary">
+          <.icon name="hero-cpu-chip" class="size-3" />
+        </span>
+        <span class="min-w-0 flex-1 truncate">{@bot.name}</span>
+      </.link>
+      <.inline_delete_button
+        id={@bot.id}
+        label={@bot.name}
+        item_type="bot"
+        confirming?={@delete_bot_id == @bot.id}
+      />
+    </div>
+    """
+  end
+
+  attr :show_bot_form, :boolean, required: true
+  attr :bot_form, :map, required: true
+  attr :bot_error, :string, default: nil
+
+  def bot_dialog(assigns) do
+    ~H"""
+    <div
+      :if={@show_bot_form}
+      id="bot-dialog"
+      class="fixed inset-0 z-40 grid place-items-center bg-base-300/75 px-5"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="bot-dialog-title"
+    >
+      <section class="w-full max-w-md rounded-2xl border border-base-content/15 bg-base-200 p-6 shadow-2xl">
+        <div class="flex items-start justify-between gap-4">
+          <div>
+            <p class="text-xs font-semibold uppercase tracking-[0.16em] text-primary">New bot</p>
+            <h2 id="bot-dialog-title" class="mt-1 text-lg font-semibold tracking-tight">
+              Set its working identity
+            </h2>
+          </div>
+          <button
+            id="close-bot-dialog"
+            type="button"
+            phx-click="hide_bot_form"
+            class="btn btn-ghost btn-sm btn-square"
+            aria-label="Close"
+          >
+            <.icon name="hero-x-mark" class="size-4" />
+          </button>
+        </div>
+        <.form for={@bot_form} id="create-bot-form" phx-submit="create_bot" class="mt-6 space-y-4">
+          <.input field={@bot_form[:name]} label="Name" required autofocus />
+          <.input field={@bot_form[:role]} label="Role" required />
+          <.input field={@bot_form[:description]} type="textarea" label="Description" required />
+          <p :if={@bot_error} id="bot-error" class="text-sm text-error" role="alert">{@bot_error}</p>
+          <div class="flex justify-end gap-2 pt-2">
+            <button
+              id="cancel-bot-button"
+              type="button"
+              phx-click="hide_bot_form"
+              class="btn btn-ghost"
+            >Cancel</button>
+            <button id="create-bot-button" class="btn btn-primary">Create bot</button>
+          </div>
+        </.form>
+      </section>
+    </div>
     """
   end
 
@@ -147,29 +265,46 @@ defmodule WebAppWeb.SessionComponents do
         <.session_row_content session={@session} />
       </.link>
       <.session_row_content :if={@session.source != "web"} session={@session} />
-      <button
-        :if={@session.source == "web" && @delete_session_id != @session.id}
-        id={"delete-session-#{@session.id}"}
-        type="button"
-        phx-click="confirm_delete_session"
-        phx-value-id={@session.id}
-        class="grid size-7 shrink-0 place-items-center rounded-md text-base-content/35 transition-colors hover:bg-error/10 hover:text-error focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-        aria-label={"Delete #{@session.title}"}
-      >
-        <.icon name="hero-trash" class="size-3.5" />
-      </button>
-      <button
-        :if={@session.source == "web" && @delete_session_id == @session.id}
-        id={"confirm-delete-session-#{@session.id}"}
-        type="button"
-        phx-click="delete_session"
-        phx-value-id={@session.id}
-        class="grid size-7 shrink-0 place-items-center rounded-md bg-error/15 text-error transition-colors hover:bg-error/25 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-        aria-label={"Confirm deletion of #{@session.title}"}
-      >
-        <.icon name="hero-check" class="size-3.5" />
-      </button>
+      <.inline_delete_button
+        :if={@session.source == "web"}
+        id={@session.id}
+        label={@session.title}
+        item_type="session"
+        confirming?={@delete_session_id == @session.id}
+      />
     </div>
+    """
+  end
+
+  attr :id, :string, required: true
+  attr :label, :string, required: true
+  attr :item_type, :string, required: true
+  attr :confirming?, :boolean, required: true
+
+  defp inline_delete_button(assigns) do
+    ~H"""
+    <button
+      :if={!@confirming?}
+      id={"delete-#{@item_type}-#{@id}"}
+      type="button"
+      phx-click={"confirm_delete_#{@item_type}"}
+      phx-value-id={@id}
+      class="grid size-7 shrink-0 place-items-center rounded-md text-base-content/35 transition-colors hover:bg-error/10 hover:text-error focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+      aria-label={"Delete #{@label}"}
+    >
+      <.icon name="hero-trash" class="size-3.5" />
+    </button>
+    <button
+      :if={@confirming?}
+      id={"confirm-delete-#{@item_type}-#{@id}"}
+      type="button"
+      phx-click={"delete_#{@item_type}"}
+      phx-value-id={@id}
+      class="grid size-7 shrink-0 place-items-center rounded-md bg-error/15 text-error transition-colors hover:bg-error/25 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+      aria-label={"Confirm deletion of #{@label}"}
+    >
+      <.icon name="hero-check" class="size-3.5" />
+    </button>
     """
   end
 
