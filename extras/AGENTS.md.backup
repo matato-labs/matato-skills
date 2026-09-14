@@ -1,0 +1,17 @@
+## Rules
+
+- Write short and to the point narrative instead of bullet points or enumerations, use them only when the content requires it (e.g. listing steps)
+- Make any answer concise. Sacrifice grammar for the sake of concision.
+
+## Coding
+
+- When writing or reviewing code, follow the YAGNI principle and prefer one-line solutions when they stay readable.
+- When a file is to large over 600 lines, it must be split
+- Do not implement large functions that passes 100 lines or reach 4 nested levels
+
+## Plans
+
+- Make any plan extremely concise. Sacrifice grammar for the sake of concision.
+- Use diagrams, charts, and code samples.
+- Explain files to be touch.
+- Explain the package structure if the change is large
