@@ -72,7 +72,7 @@ describe("pull-request screenshot pre-script", () => {
       workspace,
       `#!/bin/sh
 if [ "$1" = pr ] && [ "$2" = list ]; then
-  [ "$3" = --search ] && [ "$4" = 'label:"AI review" state:open' ] && [ "$5" = --limit ] && [ "$6" = 1 ] && [ "$7" = --json ] && [ "$8" = number ] && [ "$9" = --jq ] && [ "\${10}" = '.[0].number // empty' ] || exit 1
+  [ "$3" = --search ] && [ "$4" = 'label:ui-change state:open' ] && [ "$5" = --limit ] && [ "$6" = 1 ] && [ "$7" = --json ] && [ "$8" = number ] && [ "$9" = --jq ] && [ "\${10}" = '.[0].number // empty' ] || exit 1
   if [ "$(basename "$PWD")" = first ]; then exit 0; fi
   printf '47'
   exit 0

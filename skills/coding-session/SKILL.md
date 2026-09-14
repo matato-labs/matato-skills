@@ -12,6 +12,4 @@ Understand the code involved in the user change. Decide the implementation appro
 
 The tests need to cover all cases and be based on the business impact following a BDD approach. Define a testing case and acceptance criteria to draft the test. There are times when the changes are purely technical, in such cases you don't need to follow up BDD.
 
-Before creating the PR, decide whether the completed change has a runnable, user-visible UI or browser flow worth reviewing. This includes rendered pages, LiveViews, forms, interactive browser behavior, and visual styling. Do not mark backend-only, documentation-only, infrastructure-only, or non-runnable changes.
-
-Create one PR with `gh` and add a label `ai-validation`, if the label does not exist, create it and then add it to the PR. For a change suitable for UI testing, create the `AI review` label if it does not exist and add it to the PR. Commit the changes and push to the PR.
+Create one PR with `gh` and add a label `ai-validation`, if the label does not exist, create it and then add it to the PR. For a change suitable for UI testing, create the `ui-change` label if it does not exist and add it to the PR. Commit the changes and push to the PR.
