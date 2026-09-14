@@ -98,6 +98,27 @@ defmodule WebAppWeb.AgentLiveTest do
     assert activity_index < reply_index
   end
 
+  test "shows the bot name and edits its identity from the chat header", %{conn: conn, bot: bot} do
+    {:ok, view, _html} = live(conn, "/bots/#{bot.id}")
+
+    assert has_element?(view, "#chat-header")
+    assert has_element?(view, "#edit-bot-button")
+
+    view |> element("#edit-bot-button") |> render_click()
+
+    assert has_element?(view, "#bot-editor")
+    assert has_element?(view, "#edit-bot-form")
+
+    view
+    |> form("#edit-bot-form",
+      bot: %{name: "Edited bot", role: "editor", description: "Edits work"}
+    )
+    |> render_submit()
+
+    refute has_element?(view, "#bot-editor")
+    assert has_element?(view, "#chat-header", "Edited bot")
+  end
+
   test "renders failed bot activity in red" do
     html =
       render_component(&WebAppWeb.AgentLive.transcript_item/1,

@@ -28,7 +28,7 @@ defmodule WebAppWeb.Router do
     resources "/automations", AutomationController,
       only: [:index, :show, :create, :update, :delete]
 
-    resources "/bots", BotController, only: [:index, :show, :create, :delete]
+    resources "/bots", BotController, only: [:index, :show, :create, :update, :delete]
   end
 
   # Enable LiveDashboard and Swoosh mailbox preview in development

@@ -22,6 +22,19 @@ defmodule WebAppWeb.BotController do
     end
   end
 
+  def update(conn, %{"id" => id} = params) do
+    case Bots.update(id, Map.delete(params, "id")) do
+      {:ok, bot} ->
+        json(conn, %{bot: data(bot)})
+
+      {:error, :not_found} ->
+        not_found(conn)
+
+      {:error, reason} ->
+        conn |> put_status(:unprocessable_entity) |> json(%{error: format_error(reason)})
+    end
+  end
+
   def delete(conn, %{"id" => id}) do
     case Bots.delete(id) do
       :ok ->

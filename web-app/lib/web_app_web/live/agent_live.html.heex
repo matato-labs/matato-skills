@@ -25,8 +25,17 @@
       >
       </div>
 
-      <main class="flex h-full min-h-0 flex-col overflow-hidden bg-base-300">
-        <SessionComponents.mobile_header mobile_sidebar_open={@mobile_sidebar_open} />
+      <main class="relative flex h-full min-h-0 flex-col overflow-hidden bg-base-300">
+        <SessionComponents.chat_header
+          chat_name={@chat_name}
+          bot={@bot}
+          mobile_sidebar_open={@mobile_sidebar_open}
+        />
+        <SessionComponents.bot_editor
+          show={@show_bot_editor}
+          bot_form={@bot_editor_form}
+          error={@bot_editor_error}
+        />
         <%= if @session do %>
           <section
             id="transcript"

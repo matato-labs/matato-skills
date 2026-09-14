@@ -229,6 +229,105 @@ defmodule WebAppWeb.SessionComponents do
     """
   end
 
+  attr :chat_name, :string, default: nil
+  attr :bot, :map, default: nil
+  attr :mobile_sidebar_open, :boolean, required: true
+
+  def chat_header(assigns) do
+    ~H"""
+    <header
+      id="chat-header"
+      class="flex min-h-16 shrink-0 items-center gap-3 border-b border-base-content/10 bg-base-300 px-5 lg:px-8"
+    >
+      <button
+        id="mobile-menu-button"
+        type="button"
+        phx-click="toggle_mobile_sidebar"
+        class="grid size-9 place-items-center rounded-md text-base-content/65 transition-colors hover:bg-base-content/8 hover:text-base-content focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary lg:hidden"
+        aria-controls="session-sidebar"
+        aria-expanded={to_string(@mobile_sidebar_open)}
+        aria-label={if @mobile_sidebar_open, do: "Close menu", else: "Open menu"}
+      >
+        <.icon name="hero-bars-3" class="size-5" />
+      </button>
+      <div class="flex min-w-0 items-center gap-2">
+        <h1 class="truncate text-sm font-semibold tracking-tight">{@chat_name || "Matato Agent"}</h1>
+        <button
+          :if={@bot}
+          id="edit-bot-button"
+          type="button"
+          phx-click="show_bot_editor"
+          class="grid size-7 shrink-0 place-items-center rounded-md text-base-content/45 transition-colors hover:bg-base-content/8 hover:text-base-content focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+          aria-label="Edit bot"
+        >
+          <.icon name="hero-pencil-square" class="size-4" />
+        </button>
+      </div>
+    </header>
+    """
+  end
+
+  attr :show, :boolean, required: true
+  attr :bot_form, :map, required: true
+  attr :error, :string, default: nil
+
+  def bot_editor(assigns) do
+    ~H"""
+    <div
+      :if={@show}
+      id="bot-editor-backdrop"
+      phx-click="hide_bot_editor"
+      class="fixed inset-0 z-30 bg-base-300/50"
+      aria-hidden="true"
+    >
+    </div>
+    <aside
+      :if={@show}
+      id="bot-editor"
+      class="fixed inset-y-0 right-0 z-40 flex w-full max-w-md flex-col border-l border-base-content/10 bg-base-200 shadow-2xl"
+      aria-label="Edit bot"
+    >
+      <div class="flex justify-end border-b border-base-content/10 px-6 py-4">
+        <button
+          id="close-bot-editor"
+          type="button"
+          phx-click="hide_bot_editor"
+          class="btn btn-ghost btn-sm btn-square"
+          aria-label="Close editor"
+        >
+          <.icon name="hero-x-mark" class="size-4" />
+        </button>
+      </div>
+      <.form
+        for={@bot_form}
+        id="edit-bot-form"
+        phx-submit="update_bot"
+        class="flex flex-1 flex-col gap-4 overflow-y-auto px-6 py-6"
+      >
+        <.input field={@bot_form[:name]} label="Name" required autofocus />
+        <.input field={@bot_form[:role]} label="Role" required />
+        <.input
+          field={@bot_form[:description]}
+          type="textarea"
+          label="Description"
+          required
+          class="textarea textarea-bordered min-h-36 w-full bg-base-300"
+        />
+        <p :if={@error} id="bot-editor-error" class="text-sm text-error" role="alert">{@error}</p>
+        <div class="mt-auto flex justify-end gap-2 border-t border-base-content/10 pt-5">
+          <button
+            id="cancel-bot-editor"
+            type="button"
+            phx-click="hide_bot_editor"
+            class="btn btn-ghost"
+          >Cancel</button>
+          <button id="save-bot-button" class="btn btn-primary">Save changes</button>
+        </div>
+      </.form>
+    </aside>
+    """
+  end
+
   attr :mobile_sidebar_open, :boolean, required: true
 
   def mobile_header(assigns) do

@@ -8,7 +8,8 @@ defmodule WebAppWeb.AgentLive do
     Bots,
     Messages,
     ProjectSessionCatalog,
-    RemoteRegistry
+    RemoteRegistry,
+    RemoteSessions
   }
 
   alias WebAppWeb.SessionComponents
@@ -33,9 +34,13 @@ defmodule WebAppWeb.AgentLive do
         bots: Bots.list(),
         session_id: nil,
         bot: nil,
+        chat_name: nil,
         show_bot_form: false,
         bot_error: nil,
         bot_form: bot_form(),
+        show_bot_editor: false,
+        bot_editor_error: nil,
+        bot_editor_form: bot_form(),
         delete_session_id: nil,
         delete_bot_id: nil,
         mobile_sidebar_open: false,
@@ -54,7 +59,7 @@ defmodule WebAppWeb.AgentLive do
   def handle_params(%{"bot_id" => bot_id}, _uri, socket) do
     case Bots.get(bot_id) do
       nil ->
-        {:noreply, assign(socket, bot: nil, session: nil, error: "Bot not found")}
+        {:noreply, assign(socket, bot: nil, chat_name: nil, session: nil, error: "Bot not found")}
 
       bot ->
         if connected?(socket), do: Messages.subscribe(bot.id)
@@ -76,6 +81,7 @@ defmodule WebAppWeb.AgentLive do
          |> assign(
            session_id: id,
            bot: nil,
+           chat_name: session_name(id),
            interaction_owner: owner,
            mobile_sidebar_open: false,
            error: nil
@@ -87,6 +93,7 @@ defmodule WebAppWeb.AgentLive do
          assign(socket,
            session_id: id,
            bot: nil,
+           chat_name: nil,
            session: nil,
            mobile_sidebar_open: false,
            error: error
@@ -112,6 +119,35 @@ defmodule WebAppWeb.AgentLive do
     case Bots.create(params) do
       {:ok, bot} -> {:noreply, push_navigate(socket, to: "/bots/#{bot.id}")}
       {:error, reason} -> {:noreply, assign(socket, bot_error: format_error(reason))}
+    end
+  end
+
+  def handle_event("show_bot_editor", _params, %{assigns: %{bot: nil}} = socket),
+    do: {:noreply, socket}
+
+  def handle_event("show_bot_editor", _params, socket) do
+    {:noreply,
+     assign(socket,
+       show_bot_editor: true,
+       bot_editor_error: nil,
+       bot_editor_form: bot_form(socket.assigns.bot)
+     )}
+  end
+
+  def handle_event("hide_bot_editor", _params, socket),
+    do: {:noreply, assign(socket, show_bot_editor: false, bot_editor_error: nil)}
+
+  def handle_event("update_bot", %{"bot" => params}, %{assigns: %{bot: bot}} = socket) do
+    case Bots.update(bot.id, params) do
+      {:ok, bot} ->
+        {:noreply,
+         socket
+         |> assign(bot: bot, chat_name: bot.name, show_bot_editor: false, bot_editor_error: nil)
+         |> assign_sessions()}
+
+      {:error, reason} ->
+        {:noreply,
+         assign(socket, bot_editor_error: format_error(reason), bot_editor_form: bot_form(params))}
     end
   end
 
@@ -519,7 +555,25 @@ defmodule WebAppWeb.AgentLive do
     )
   end
 
-  defp bot_form, do: to_form(%{"name" => "", "role" => "", "description" => ""}, as: :bot)
+  defp bot_form, do: bot_form(%{})
+
+  defp bot_form(bot) do
+    to_form(
+      %{
+        "name" => Map.get(bot, :name) || Map.get(bot, "name", ""),
+        "role" => Map.get(bot, :role) || Map.get(bot, "role", ""),
+        "description" => Map.get(bot, :description) || Map.get(bot, "description", "")
+      },
+      as: :bot
+    )
+  end
+
+  defp session_name(id) do
+    case RemoteSessions.get(id) do
+      %{"name" => name} -> name
+      nil -> nil
+    end
+  end
 
   defp format_error(reason) when is_binary(reason), do: reason
   defp format_error(reason), do: inspect(reason)
@@ -549,6 +603,7 @@ defmodule WebAppWeb.AgentLive do
          socket
          |> assign(
            bot: bot,
+           chat_name: bot.name,
            session_id: id,
            interaction_owner: owner,
            mobile_sidebar_open: false,
@@ -560,6 +615,7 @@ defmodule WebAppWeb.AgentLive do
         {:noreply,
          assign(socket,
            bot: bot,
+           chat_name: bot.name,
            session_id: id,
            session: nil,
            mobile_sidebar_open: false,

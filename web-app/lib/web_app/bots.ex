@@ -40,6 +40,17 @@ defmodule WebApp.Bots do
     end
   end
 
+  def update(id, attributes) do
+    with %Bot{} = bot <- get(id),
+         {:ok, bot} <- bot |> Bot.profile_changeset(attributes) |> Repo.update() do
+      notify()
+      {:ok, bot}
+    else
+      nil -> {:error, :not_found}
+      {:error, changeset} -> {:error, changeset}
+    end
+  end
+
   def delete(id) do
     case get(id) do
       nil -> {:error, :not_found}

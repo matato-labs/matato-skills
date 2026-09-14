@@ -10,6 +10,56 @@ This is all information you need to know to work with matato-pi.
 **WORKSPACE**: Folder where all projects/repositories are located
 **MATATO_PI_CONFIG**: Folder where to save configurations, plans, researches and more data related to matato-pi
 
+## Bots
+
+Manage bots through the local web API. Set `api=http://localhost:4000/api/bots` unless `MATATO_PI_WEB_URL` points to another server.
+
+| Field | Required | Purpose |
+| --- | --- | --- |
+| `name` | Yes | Display name and agent identity. |
+| `role` | Yes | The bot's working role. |
+| `description` | Yes | Instructions defining its work. |
+
+Create generates the bot's chat and background session IDs. Reads return them, but updates only accept the three profile fields above.
+
+Read all:
+
+```sh
+curl -sS "$api"
+```
+
+Read one:
+
+```sh
+curl -sS "$api/$botId"
+```
+
+Create:
+
+```sh
+curl -sS -X POST "$api" -H 'content-type: application/json' -d '{
+  "name": "Research",
+  "role": "researcher",
+  "description": "Find reliable answers and summarize them concisely."
+}'
+```
+
+Update:
+
+```sh
+curl -sS -X PUT "$api/$botId" -H 'content-type: application/json' -d '{
+  "name": "Research",
+  "role": "researcher",
+  "description": "Find reliable answers and cite the relevant sources."
+}'
+```
+
+Delete:
+
+```sh
+curl -sS -X DELETE "$api/$botId"
+```
+
 ## Automations
 
 Manage automations through the local web API. Set `api=http://localhost:4000/api/automations` unless `MATATO_PI_WEB_URL` points to another server. Every create and update sends all fields below.
