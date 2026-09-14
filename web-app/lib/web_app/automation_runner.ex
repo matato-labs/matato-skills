@@ -104,9 +104,9 @@ defmodule WebApp.AutomationRunner do
     path = Path.join([skill_path, "scripts", name])
 
     if File.regular?(path) do
-      case System.cmd("bun", [path],
+      case System.cmd("env", ["-u", "MIX_ENV", "bun", path],
              cd: skill_path,
-             env: [{"MATATO_PI_CONFIG", storage_path()}],
+             env: automation_env(),
              stderr_to_stdout: true
            ) do
         {output, 0} -> {:ok, String.trim(output)}
@@ -163,12 +163,20 @@ defmodule WebApp.AutomationRunner do
        :exit_status,
        :use_stdio,
        {:cd, String.to_charlist(working_directory)},
-       {:env, [{~c"MATATO_PI_CONFIG", String.to_charlist(storage_path())}]},
+       {:env,
+        [
+          {~c"MIX_ENV", false}
+          | Enum.map(automation_env(), fn {key, value} ->
+              {String.to_charlist(key), String.to_charlist(value)}
+            end)
+        ]},
        {:args, Enum.map(args, &String.to_charlist/1)}
      ])}
   rescue
     error -> {:error, Exception.message(error)}
   end
+
+  defp automation_env, do: [{"MATATO_PI_CONFIG", storage_path()}]
 
   defp storage_path, do: Application.fetch_env!(:web_app, :automation_storage_path)
 

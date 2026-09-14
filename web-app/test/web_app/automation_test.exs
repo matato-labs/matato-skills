@@ -49,26 +49,31 @@ defmodule WebApp.AutomationTest do
     pi_dir = Path.join(System.tmp_dir!(), "pi-#{System.unique_integer([:positive])}")
     pi_path = Path.join(pi_dir, "pi")
     prompt_path = temp_path()
+    mix_env_path = temp_path()
     File.mkdir_p!(pi_dir)
 
     File.write!(
       pi_path,
-      "#!/bin/sh\nIFS= read -r line\nprintf '%s' \"$line\" > #{prompt_path}\nprintf '{\"type\":\"agent_settled\"}\\n'\n"
+      "#!/bin/sh\nIFS= read -r line\nprintf '%s' \"$line\" > #{prompt_path}\nprintf '%s' \"${MIX_ENV-unset}\" > #{mix_env_path}\nprintf '{\"type\":\"agent_settled\"}\\n'\n"
     )
 
     File.chmod!(pi_path, 0o755)
     original_path = System.get_env("PATH")
-    System.put_env("PATH", "#{pi_dir}:#{original_path}")
+    original_mix_env = System.fetch_env("MIX_ENV")
+    System.put_env(%{"PATH" => "#{pi_dir}:#{original_path}", "MIX_ENV" => "prod"})
 
     on_exit(fn ->
       System.put_env("PATH", original_path)
+      restore_mix_env(original_mix_env)
       File.rm(prompt_path)
+      File.rm(mix_env_path)
       File.rm_rf!(pi_dir)
     end)
 
     AutomationRunner.run(%{automation(job_name, "* * * * *") | use_skill: false})
 
     prompt = File.read!(prompt_path)
+    assert File.read!(mix_env_path) == "unset"
     assert prompt =~ "Run it"
     refute prompt =~ "/skill:"
   end
@@ -232,6 +237,47 @@ defmodule WebApp.AutomationTest do
     refute File.exists?(post_marker)
   end
 
+  test "removes MIX_ENV from skill scripts" do
+    job_name = "automation-#{System.unique_integer([:positive])}"
+    skill_path = Path.join([System.user_home!(), ".pi", "agent", "skills", job_name])
+    pi_dir = Path.join(System.tmp_dir!(), "pi-#{System.unique_integer([:positive])}")
+    pi_path = Path.join(pi_dir, "pi")
+    pre_mix_env_path = temp_path()
+    post_mix_env_path = temp_path()
+    File.mkdir_p!(Path.join(skill_path, "scripts"))
+    File.mkdir_p!(pi_dir)
+
+    File.write!(
+      Path.join(skill_path, "scripts/preScript.ts"),
+      "await Bun.write(#{inspect(pre_mix_env_path)}, Bun.env.MIX_ENV ?? \"unset\")\nconsole.log(\"work\")"
+    )
+
+    File.write!(
+      Path.join(skill_path, "scripts/postScript.ts"),
+      "await Bun.write(#{inspect(post_mix_env_path)}, Bun.env.MIX_ENV ?? \"unset\")"
+    )
+
+    File.write!(pi_path, "#!/bin/sh\nprintf '{\"type\":\"agent_settled\"}\\n'\n")
+    File.chmod!(pi_path, 0o755)
+    original_path = System.get_env("PATH")
+    original_mix_env = System.fetch_env("MIX_ENV")
+    System.put_env(%{"PATH" => "#{pi_dir}:#{original_path}", "MIX_ENV" => "prod"})
+
+    on_exit(fn ->
+      System.put_env("PATH", original_path)
+      restore_mix_env(original_mix_env)
+      File.rm_rf!(skill_path)
+      File.rm(pre_mix_env_path)
+      File.rm(post_mix_env_path)
+      File.rm_rf!(pi_dir)
+    end)
+
+    AutomationRunner.run(automation(job_name, "* * * * *"))
+
+    assert File.read!(pre_mix_env_path) == "unset"
+    assert File.read!(post_mix_env_path) == "unset"
+  end
+
   test "runs an agent when the pre-script returns work" do
     job_name = "automation-#{System.unique_integer([:positive])}"
     skill_path = Path.join([System.user_home!(), ".pi", "agent", "skills", job_name])
@@ -284,6 +330,9 @@ defmodule WebApp.AutomationTest do
       use_skill: true
     }
   end
+
+  defp restore_mix_env({:ok, value}), do: System.put_env("MIX_ENV", value)
+  defp restore_mix_env(:error), do: System.delete_env("MIX_ENV")
 
   defp temp_path do
     suffix = Base.url_encode64(:crypto.strong_rand_bytes(9), padding: false)
