@@ -41,6 +41,8 @@ The script installs only production dependencies, compiles the application, and 
 MIX_ENV=prod mix phx.server
 ```
 
+Automations and their skill scripts remove `MIX_ENV` inherited from the server, so Mix defaults to its `dev` environment rather than accessing the production database.
+
 In production, when `OTEL_ENDPOINT` is configured, the web app exports Phoenix HTTP and LiveView traces to `/v1/traces` and application logs to `/v1/logs`, with the service name `matato-pi-web`. Telemetry export is disabled in development and tests. Pi extensions, skills, prompts, tool calls, and agent content are not instrumented.
 
 ## Supported flow
