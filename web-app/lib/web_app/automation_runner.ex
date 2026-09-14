@@ -1,7 +1,7 @@
 defmodule WebApp.AutomationRunner do
   require Logger
 
-  alias WebApp.Automation
+  alias WebApp.{Automation, Bots, Messages}
 
   def run(%Automation{use_skill: false} = automation) do
     Logger.debug("Automation started: #{automation.job_name}")
@@ -15,7 +15,9 @@ defmodule WebApp.AutomationRunner do
          {:ok, output} <- script(skill_path, "preScript.ts") do
       run_automation(automation, skill_path, output)
     else
-      {:error, reason} -> log_failure(automation, reason)
+      {:error, reason} ->
+        persist_result(automation, "Automation failed: #{reason}")
+        log_failure(automation, reason)
     end
   end
 
@@ -28,16 +30,21 @@ defmodule WebApp.AutomationRunner do
     Logger.info("Automation agent started: #{automation.job_name}")
 
     result =
-      with :ok <- run_pi(automation, skill_path, output),
+      with {:ok, response} <- run_pi(automation, skill_path, output),
            {:ok, _output} <- post_script(automation, skill_path) do
-        :ok
+        {:ok, response}
       end
 
     finish_automation_monitor(monitor_id, result)
 
     case result do
-      :ok -> Logger.info("Automation completed: #{automation.job_name}")
-      {:error, reason} -> log_failure(automation, reason)
+      {:ok, response} ->
+        persist_result(automation, response)
+        Logger.info("Automation completed: #{automation.job_name}")
+
+      {:error, reason} ->
+        persist_result(automation, "Automation failed: #{reason}")
+        log_failure(automation, reason)
     end
   end
 
@@ -56,7 +63,7 @@ defmodule WebApp.AutomationRunner do
 
   defp finish_automation_monitor(nil, _result), do: :ok
 
-  defp finish_automation_monitor(id, :ok),
+  defp finish_automation_monitor(id, {:ok, _response}),
     do: WebApp.RemoteRegistry.complete_automation(id, :settled)
 
   defp finish_automation_monitor(id, {:error, _reason}),
@@ -121,7 +128,7 @@ defmodule WebApp.AutomationRunner do
     with {:ok, executable} <- executable("pi"),
          {:ok, port} <- open_port(executable, pi_args(automation, skill_path), File.cwd!()),
          :ok <- send_prompt(port, automation, output) do
-      await_settled(port, "", automation)
+      await_settled(port, "", automation, "")
     end
   end
 
@@ -137,7 +144,7 @@ defmodule WebApp.AutomationRunner do
       "--mode",
       "rpc",
       "--name",
-      automation.job_name,
+      automation_name(automation),
       "--approve",
       "--model",
       automation.model,
@@ -173,7 +180,7 @@ defmodule WebApp.AutomationRunner do
   defp storage_path, do: Application.fetch_env!(:web_app, :automation_storage_path)
 
   defp send_prompt(port, automation, output) do
-    prompt = skill_prompt(automation) ++ [automation.user_prompt]
+    prompt = skill_prompt(automation) ++ bot_identity(automation) ++ [automation.user_prompt]
     prompt = if is_nil(output), do: prompt, else: prompt ++ ["", "Automation context:", output]
     message = %{id: automation.job_name, type: "prompt", message: Enum.join(prompt, "\n")}
 
@@ -185,34 +192,42 @@ defmodule WebApp.AutomationRunner do
   defp skill_prompt(%{use_skill: false}), do: []
   defp skill_prompt(automation), do: ["/skill:#{automation.job_name}", ""]
 
-  defp await_settled(port, buffer, automation) do
+  defp bot_identity(automation) do
+    case Bots.identity(automation.bot_id) do
+      nil -> []
+      identity -> [identity, ""]
+    end
+  end
+
+  defp await_settled(port, buffer, automation, response) do
     receive do
-      {^port, {:data, chunk}} -> process_output(port, buffer <> chunk, automation)
+      {^port, {:data, chunk}} -> process_output(port, buffer <> chunk, automation, response)
       {^port, {:exit_status, 0}} -> {:error, "Pi exited before settling"}
       {^port, {:exit_status, status}} -> {:error, "Pi exited with status #{status}"}
     end
   end
 
-  defp process_output(port, output, automation) do
+  defp process_output(port, output, automation, response) do
     case String.split(output, "\n") do
       [partial] ->
-        await_settled(port, partial, automation)
+        await_settled(port, partial, automation, response)
 
       lines ->
         {complete, [partial]} = Enum.split(lines, -1)
         Enum.each(complete, &log_progress(automation, &1))
+        response = Enum.reduce(complete, response, &append_response/2)
 
         case Enum.find_value(complete, &rpc_state/1) do
           :settled ->
             close_port(port)
-            :ok
+            {:ok, response}
 
           {:error, reason} ->
             close_port(port)
             {:error, reason}
 
           nil ->
-            await_settled(port, partial, automation)
+            await_settled(port, partial, automation, response)
         end
     end
   end
@@ -237,6 +252,30 @@ defmodule WebApp.AutomationRunner do
       _ ->
         :ok
     end
+  end
+
+  defp append_response(line, response) do
+    case Jason.decode(line) do
+      {:ok,
+       %{"type" => "message_end", "message" => %{"role" => "assistant", "content" => content}}}
+      when is_list(content) ->
+        text =
+          content |> Enum.filter(&(&1["type"] == "text")) |> Enum.map_join("\n", & &1["text"])
+
+        if text == "", do: response, else: text
+
+      _ ->
+        response
+    end
+  end
+
+  defp automation_name(%{bot_id: nil} = automation), do: automation.job_name
+
+  defp automation_name(automation), do: Bots.name(automation.bot_id) || automation.job_name
+
+  defp persist_result(automation, content) do
+    _ = Messages.create_automation_result(automation.bot_id, content)
+    :ok
   end
 
   defp rpc_state(line) do

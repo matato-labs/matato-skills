@@ -1,7 +1,7 @@
 defmodule WebApp.RemoteRegistry do
   use GenServer
 
-  alias WebApp.{AgentSession, RemoteSessions, Workspace}
+  alias WebApp.{AgentSession, Bots, RemoteSessions, Workspace}
 
   @creation_limit 10
   @creation_window_ms 60_000
@@ -10,8 +10,8 @@ defmodule WebApp.RemoteRegistry do
   def list, do: RemoteSessions.list()
   def subscribe, do: Phoenix.PubSub.subscribe(WebApp.PubSub, "remote_sessions")
 
-  def create(relative) do
-    case GenServer.call(__MODULE__, {:create, relative}) do
+  def create(relative, options \\ %{}) do
+    case GenServer.call(__MODULE__, {:create, relative, options}) do
       {:ok, id} -> await_created(id)
       {:error, reason} -> {:error, format_error(reason)}
     end
@@ -39,14 +39,14 @@ defmodule WebApp.RemoteRegistry do
   end
 
   @impl true
-  def handle_call({:create, relative}, _from, state) do
+  def handle_call({:create, relative, options}, _from, state) do
     now = System.monotonic_time(:millisecond)
     recent = Enum.filter(state.creation_times, &(now - &1 < @creation_window_ms))
     state = %{state | creation_times: [now | recent]}
 
     if length(recent) >= @creation_limit,
       do: {:reply, {:error, "Session creation rate limit exceeded"}, state},
-      else: create_session(relative, state)
+      else: create_session(relative, options, state)
   end
 
   def handle_call({:register_automation, name}, _from, state) do
@@ -141,18 +141,19 @@ defmodule WebApp.RemoteRegistry do
     {:noreply, state}
   end
 
-  defp create_session(relative, state) do
+  defp create_session(relative, options, state) do
     project = Workspace.resolve(relative)
     id = Base.url_encode64(:crypto.strong_rand_bytes(9), padding: false)
 
     metadata = %{
       "id" => id,
-      "name" => Path.basename(project),
+      "name" => Map.get(options, :name) || Path.basename(project),
       "project" => project,
       "relative_project" => Path.relative_to(project, Workspace.root()),
       "session_file" => nil,
       "pi_session_id" => nil,
-      "source" => "web",
+      "source" => Map.get(options, :source, "web"),
+      "identity" => Map.get(options, :identity),
       "status" => "starting"
     }
 
@@ -164,7 +165,7 @@ defmodule WebApp.RemoteRegistry do
                project_path: project,
                relative_project: metadata["relative_project"],
                status: "starting",
-               source: "web"
+               source: metadata["source"]
              }) do
           {:ok, _session} ->
             notify_sessions_changed()
@@ -192,6 +193,7 @@ defmodule WebApp.RemoteRegistry do
            name: metadata["name"],
            project: metadata["project"],
            session_file: metadata["session_file"],
+           identity: metadata["identity"] || Bots.identity_for_session(metadata["id"]),
            notifier: &notify/1,
            interrupted:
              metadata["status"] in [

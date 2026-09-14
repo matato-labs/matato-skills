@@ -41,7 +41,6 @@ description: Research the previous day's news, decide if the digest should be se
 
 - `sentItems` contains objects with `url` and `sentOn`.
 - Use the local time from the runtime context.
-- If local time is before `12:00`, stop.
 - If `lastSentDate` is already today, stop.
 - Research only the previous local day.
 - Use the `web-search` skill for the research.
@@ -57,15 +56,14 @@ description: Research the previous day's news, decide if the digest should be se
 
 1. Read `$STORAGE_PATH/agent/newsDigest.json`.
 2. Determine the current local date and time from the runtime context and the user timezone already provided in the system prompt.
-3. If local time is before `12:00`, stop quietly.
-4. If the digest was already sent today, stop quietly.
-5. Determine the previous local day.
-6. Search the three topics with focused queries for that previous day.
-7. Select the best distinct items across the topics.
-8. Keep at most 9 items total.
-9. Build a concise Telegram message with a short overall summary and then one short note plus the original source link per item.
-10. Send the message with the `telegram` skill.
-11. Write the updated state file back to `$STORAGE_PATH/agent/newsDigest.json`.
+3. If the digest was already sent today, stop quietly.
+4. Determine the previous local day.
+5. Search the three topics with focused queries for that previous day.
+6. Select the best distinct items across the topics.
+7. Keep at most 9 items total.
+8. Build a concise Telegram message with a short overall summary and then one short note plus the original source link per item.
+9. Send the message with the `telegram` skill.
+10. Write the updated state file back to `$STORAGE_PATH/agent/newsDigest.json`.
 
 ## State File Format
 
@@ -93,5 +91,5 @@ Use this JSON shape:
 
 ## If You Skip
 
-- If it is too early or already sent today, stop quietly.
+- If it was already sent today, stop quietly.
 - Do not send a Telegram message when skipping.

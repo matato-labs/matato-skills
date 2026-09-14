@@ -3,6 +3,7 @@ defmodule WebApp.Automations.AutomationRecord do
   import Ecto.Changeset
 
   schema "automations" do
+    belongs_to(:bot, WebApp.Bots.Bot, type: :binary_id)
     field(:job_name, :string)
     field(:enabled, :boolean, default: true)
     field(:schedule, :string)
@@ -20,6 +21,7 @@ defmodule WebApp.Automations.AutomationRecord do
   def changeset(record, attributes) do
     record
     |> cast(attributes, [
+      :bot_id,
       :job_name,
       :enabled,
       :schedule,

@@ -17,6 +17,7 @@ defmodule WebApp.Automation do
   ]
   defstruct [
     :id,
+    :bot_id,
     :job_name,
     :enabled,
     :schedule,
