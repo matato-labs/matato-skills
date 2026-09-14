@@ -58,8 +58,16 @@ jobs:
         with:
           elixir-version: "1.19.2"
           otp-version: "28.1.1"
+      - uses: actions/cache@v4
+        with:
+          path: web-app/deps
+          key: elixir-deps-${{ runner.os }}-${{ hashFiles('web-app/mix.lock') }}
+      - uses: actions/cache@v4
+        with:
+          path: web-app/_build
+          key: elixir-build-${{ runner.os }}-${{ hashFiles('web-app/mix.lock') }}
       - run: mix deps.get
-      - run: mix test
+      - run: MIX_ENV=test mix do compile --warnings-as-errors + test --warnings-as-errors
 
   elixir-format:
     name: Elixir Format
@@ -73,20 +81,9 @@ jobs:
         with:
           elixir-version: "1.19.2"
           otp-version: "28.1.1"
+      - uses: actions/cache@v4
+        with:
+          path: web-app/deps
+          key: elixir-deps-${{ runner.os }}-${{ hashFiles('web-app/mix.lock') }}
       - run: mix deps.get
       - run: mix format --check-formatted
-
-  elixir-lint:
-    name: Elixir Lint
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: web-app
-    steps:
-      - uses: actions/checkout@v4
-      - uses: erlef/setup-beam@v1
-        with:
-          elixir-version: "1.19.2"
-          otp-version: "28.1.1"
-      - run: mix deps.get
-      - run: mix compile --warnings-as-errors
