@@ -61,7 +61,7 @@ Create a bot from the web app or asking your agent to do it. A bot has a name, r
 For Telegram, configure `TELEGRAM_BOT_TOKEN` and `TELEGRAM_OWNER_ID`, then create a `telegram-inbox` automation with `use_skill` enabled. It polls Telegram, accepts messages only from the owner chat ID, and replies through the configured bot.
 
 ## Automations
-Create an automation from the web app or ask your agent to do it. It runs a prompt on a cron schedule with the selected model and thinking level. Set `bot_id` to run it using a bot's background session, or leave it empty for a standalone job. `use_skill` runs the skill whose name matches `job_name`; its optional `scripts/preScript.ts` output is added to the agent context. After Pi completes, optional `scripts/postScript.ts` runs for follow-up work; a failing script fails the automation. `daily_session` reuses one Pi session per day, `can_overlap` permits concurrent runs, and `monitor` shows the job in the web app. Use `/automations` in Pi to inspect scheduled jobs. 
+Create an automation from the web app or ask your agent to do it. It runs a prompt on a cron schedule with the selected model and thinking level. An automation without `bot_id` is a workspace automation; set `bot_id` to make it a bot automation that runs with the bot's identity. `use_skill` runs the skill whose name matches `job_name`; its optional `scripts/preScript.ts` output is added to the agent context. After Pi completes, optional `scripts/postScript.ts` runs for follow-up work; a failing script fails the automation. `daily_session` reuses one Pi session per day, `can_overlap` permits concurrent runs, and `monitor` shows the job in the web app. Use `/automations` in Pi to inspect scheduled jobs.
 
 ## Contribute
 
