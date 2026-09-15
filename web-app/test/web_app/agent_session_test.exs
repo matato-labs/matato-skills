@@ -89,7 +89,8 @@ defmodule WebApp.AgentSessionTest do
     refute "--session-dir" in arguments
   end
 
-  test "discovers in order, keeps rejection nonfatal, and enforces dialog ownership", context do
+  test "discovers in order, keeps rejection nonfatal, and allows browser dialog responses",
+       context do
     id = "test-#{System.unique_integer([:positive])}"
     AgentFanout.subscribe(id)
 
@@ -136,12 +137,22 @@ defmodule WebApp.AgentSessionTest do
                "confirmed" => true
              })
 
-    assert :ok =
-             AgentSession.respond(id, %{
-               "type" => "extension_ui_response",
-               "id" => dialog["id"],
-               "confirmed" => true
-             })
+    caller = self()
+    ref = make_ref()
+
+    spawn(fn ->
+      send(
+        caller,
+        {ref,
+         AgentSession.respond(id, %{
+           "type" => "extension_ui_response",
+           "id" => dialog["id"],
+           "confirmed" => true
+         })}
+      )
+    end)
+
+    assert_receive {^ref, :ok}
   end
 
   test "keeps a session usable when command discovery fails", context do
