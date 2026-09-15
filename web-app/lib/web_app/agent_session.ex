@@ -412,7 +412,6 @@ defmodule WebApp.AgentSession do
 
   defp set_owner(state, owner) do
     state = clear_owner(state)
-    AgentFanout.broadcast(state.id, {:agent_owner, owner})
     %{state | owner: owner, owner_monitor: Process.monitor(owner)}
   end
 
@@ -420,7 +419,6 @@ defmodule WebApp.AgentSession do
 
   defp clear_owner(state) do
     Process.demonitor(state.owner_monitor, [:flush])
-    AgentFanout.broadcast(state.id, {:agent_owner, nil})
     %{state | owner: nil, owner_monitor: nil}
   end
 
