@@ -277,6 +277,66 @@ defmodule WebAppWeb.AgentLiveTest do
     refute has_element?(view, "#queued-follow-up")
   end
 
+  test "applies the next delta and resynchronizes after a sequence gap", %{conn: conn, id: id} do
+    {:ok, view, _html} = live(conn, ~p"/sessions/#{id}")
+    %{sequence: sequence} = AgentSession.snapshot_with_sequence(id)
+
+    send(view.pid, {
+      :agent_update,
+      id,
+      sequence + 1,
+      {:event,
+       %{
+         "type" => "message_end",
+         "message" => %{
+           "role" => "assistant",
+           "content" => [%{"type" => "text", "text" => "incremental response"}]
+         }
+       }}
+    })
+
+    assert render(view) =~ "incremental response"
+
+    send(view.pid, {
+      :agent_update,
+      id,
+      sequence + 3,
+      {:event,
+       %{
+         "type" => "message_end",
+         "message" => %{
+           "role" => "assistant",
+           "content" => [%{"type" => "text", "text" => "out of sequence"}]
+         }
+       }}
+    })
+
+    refute render(view) =~ "out of sequence"
+  end
+
+  test "unsubscribes and clears the previous session after navigation", %{conn: conn, id: id} do
+    {:ok, view, _html} = live(conn, ~p"/sessions/#{id}")
+
+    render_patch(view, "/sessions/missing")
+
+    refute Enum.any?(Registry.lookup(WebApp.SubscriberRegistry, id), fn {pid, _value} ->
+             pid == view.pid
+           end)
+
+    send(view.pid, {
+      :agent_update,
+      id,
+      1,
+      {:event,
+       %{
+         "type" => "message_end",
+         "message" => %{"role" => "assistant", "content" => "stale response"}
+       }}
+    })
+
+    refute render(view) =~ "stale response"
+  end
+
   test "opens and closes the mobile session drawer", %{conn: conn, id: id} do
     {:ok, view, _html} = live(conn, ~p"/sessions/#{id}")
 

@@ -3,6 +3,16 @@ defmodule WebApp.AgentFanoutTest do
 
   alias WebApp.AgentFanout
 
+  test "does not deliver after a subscriber unsubscribes" do
+    session_id = "fanout-#{System.unique_integer([:positive])}"
+    assert :ok = AgentFanout.subscribe(session_id)
+    assert :ok = AgentFanout.unsubscribe(session_id)
+
+    AgentFanout.broadcast(session_id, {:agent_update, session_id, 1, {:hint, %{}}})
+
+    refute_receive {:agent_update, ^session_id, 1, _update}
+  end
+
   test "keeps a slow subscriber alive and requests a resynchronization" do
     session_id = "fanout-#{System.unique_integer([:positive])}"
     parent = self()
@@ -20,13 +30,14 @@ defmodule WebApp.AgentFanoutTest do
     assert_receive :subscribed
     monitor = Process.monitor(pid)
 
-    Enum.each(1..101, fn sequence ->
+    Enum.each(1..200, fn sequence ->
       AgentFanout.broadcast(session_id, {:agent_update, session_id, sequence, {:hint, %{}}})
     end)
 
     refute_receive {:DOWN, ^monitor, :process, ^pid, _reason}
     send(pid, :drain)
     assert_receive {:messages, {:messages, messages}}
-    assert Enum.any?(messages, &match?({:agent_resync, ^session_id, _sequence}, &1))
+
+    assert Enum.count(messages, &match?({:agent_resync, ^session_id, _sequence}, &1)) == 1
   end
 end

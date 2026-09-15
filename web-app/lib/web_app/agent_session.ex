@@ -390,18 +390,28 @@ defmodule WebApp.AgentSession do
     state
   end
 
-  defp publish_event(%{"type" => "extension_ui_request", "method" => method} = event, state)
-       when method in ["setTitle", "set_editor_text", "setStatus", "setWidget"] do
-    publish(state, {:hint, event})
+  defp publish_event(event, state) do
+    event = AgentState.cap_event(event)
+    publish_capped_event(event, state)
   end
 
-  defp publish_event(%{"type" => "extension_ui_request", "method" => method} = event, state)
+  defp publish_capped_event(
+         %{"type" => "extension_ui_request", "method" => method} = event,
+         state
+       )
+       when method in ["setTitle", "set_editor_text", "setStatus", "setWidget"],
+       do: publish(state, {:hint, event})
+
+  defp publish_capped_event(
+         %{"type" => "extension_ui_request", "method" => method} = event,
+         state
+       )
        when method in ["select", "confirm", "input", "editor"] do
     state = state |> cancel_dialog_timer() |> schedule_dialog_timer(event)
     publish(%{state | view: AgentState.apply(state.view, event)}, {:event, event})
   end
 
-  defp publish_event(event, state),
+  defp publish_capped_event(event, state),
     do: publish(%{state | view: AgentState.apply(state.view, event)}, {:event, event})
 
   defp publish(state, update) do

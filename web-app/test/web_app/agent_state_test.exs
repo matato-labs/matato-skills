@@ -159,6 +159,20 @@ defmodule WebApp.AgentStateTest do
     assert state.commands_error == nil
   end
 
+  test "bounds streamed delta and tool output events before fanout" do
+    payload = String.duplicate("😀", 30_000)
+
+    event =
+      AgentState.cap_event(%{
+        "type" => "tool_execution_update",
+        "partialResult" => %{"content" => [%{"type" => "text", "text" => payload}]},
+        "assistantMessageEvent" => %{"type" => "text_delta", "delta" => payload}
+      })
+
+    assert byte_size(get_in(event, ["partialResult", "content", Access.at(0), "text"])) == 24_000
+    assert byte_size(get_in(event, ["assistantMessageEvent", "delta"])) == 24_000
+  end
+
   test "keeps warm reconnect snapshots bounded" do
     long_text = String.duplicate("x", 30_000)
 

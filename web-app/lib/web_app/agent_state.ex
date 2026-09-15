@@ -31,6 +31,8 @@ defmodule WebApp.AgentState do
     }
   end
 
+  def cap_event(event), do: cap_event_value(event)
+
   def apply(state, {:event, event}), do: apply(state, event)
   def apply(state, :dialog_cleared), do: clear_dialog(state)
   def apply(state, {:commands_ready, commands}), do: commands_ready(state, commands)
@@ -302,6 +304,15 @@ defmodule WebApp.AgentState do
 
   defp hydrate_tool(_message, state), do: state
 
+  defp cap_event_value(value) when is_binary(value), do: cap_text(value)
+  defp cap_event_value(value) when is_list(value), do: Enum.map(value, &cap_event_value/1)
+
+  defp cap_event_value(value) when is_map(value) do
+    Map.new(value, fn {key, item} -> {key, cap_event_value(item)} end)
+  end
+
+  defp cap_event_value(value), do: value
+
   defp cap_message(%{"content" => content} = message) when is_binary(content),
     do: Map.put(message, "content", cap_text(content))
 
@@ -332,5 +343,5 @@ defmodule WebApp.AgentState do
   end
 
   defp cap_message(message), do: message
-  defp cap_text(text), do: String.slice(text, 0, @max_text_bytes)
+  defp cap_text(text), do: String.byte_slice(text, 0, @max_text_bytes)
 end

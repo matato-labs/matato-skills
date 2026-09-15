@@ -37,6 +37,9 @@ defmodule WebApp.AgentSessionTest do
       elif type == "dialog":
         print(json.dumps({"id": id, "type": "response", "command": type, "success": True}), flush=True)
         print(json.dumps({"type": "extension_ui_request", "id": "dialog-1", "method": "confirm", "title": "Continue?"}), flush=True)
+      elif type == "large_event":
+        print(json.dumps({"type": "message_update", "assistantMessageEvent": {"type": "text_delta", "contentIndex": 0, "delta": "x" * 30000}}), flush=True)
+        print(json.dumps({"id": id, "type": "response", "command": type, "success": True}), flush=True)
       elif type == "bad_record":
         print("[]", flush=True)
       elif type == "extension_ui_response":
@@ -163,6 +166,29 @@ defmodule WebApp.AgentSessionTest do
 
     assert AgentSession.snapshot(id).commands == []
     assert :ok = AgentSession.command(id, %{"type" => "prompt", "message" => "still works"})
+  end
+
+  test "caps event payloads before broadcasting", context do
+    id = "test-#{System.unique_integer([:positive])}"
+    AgentFanout.subscribe(id)
+
+    start_supervised!(
+      {AgentSession,
+       id: id,
+       name: "test",
+       project: context.root,
+       executable: context.executable,
+       interrupted: false}
+    )
+
+    assert :ok = AgentSession.await_ready(id)
+    assert :ok = AgentSession.command(id, %{"type" => "large_event"})
+
+    assert_receive {:agent_update, ^id, _sequence,
+                    {:event, %{"assistantMessageEvent" => %{"delta" => delta}}}},
+                   2_000
+
+    assert byte_size(delta) == 24_000
   end
 
   test "returns a canonical snapshot with its update sequence", context do
