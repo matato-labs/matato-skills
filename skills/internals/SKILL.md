@@ -62,10 +62,11 @@ curl -sS -X DELETE "$api/$botId"
 
 ## Automations
 
-Manage automations through the local web API. Set `api=http://localhost:4000/api/automations` unless `MATATO_PI_WEB_URL` points to another server. Every create and update sends all fields below.
+Manage automations through the local web API. Set `api=http://localhost:4000/api/automations` unless `MATATO_PI_WEB_URL` points to another server. Automations without `bot_id` are workspace automations. A bot automation must include that bot's `bot_id`; otherwise it will not run with the bot identity or appear as a bot automation. Every create and update sends all fields below.
 
 | Field | Required | Default | Purpose |
 | --- | --- | --- | --- |
+| `bot_id` | For bot automations | `null` | Existing bot ID. Omit it only for a workspace automation. |
 | `job_name` | Yes | None | Unique automation name. Also names the Pi agent and optional skill. |
 | `enabled` | Yes | `true` | Schedules the job when true. |
 | `schedule` | Yes | None | Five- or six-field cron expression. |
@@ -90,10 +91,11 @@ Read one:
 curl -sS "$api/42"
 ```
 
-Create:
+Create a bot automation:
 
 ```sh
 curl -sS -X POST "$api" -H 'content-type: application/json' -d '{
+  "bot_id": "bot-uuid-from-get-bots",
   "job_name": "daily-review",
   "enabled": true,
   "schedule": "0 9 * * *",
