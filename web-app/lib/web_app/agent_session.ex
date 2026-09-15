@@ -30,6 +30,7 @@ defmodule WebApp.AgentSession do
 
   def claim(id, owner, takeover \\ false), do: GenServer.call(via(id), {:claim, owner, takeover})
   def release(id, owner), do: GenServer.cast(via(id), {:release, owner})
+  def respond(id, response), do: GenServer.call(via(id), {:respond, response})
   def respond(id, owner, response), do: GenServer.call(via(id), {:respond, owner, response})
   def stop(id), do: GenServer.stop(via(id), :normal)
   def whereis(id), do: GenServer.whereis(via(id))
@@ -125,18 +126,21 @@ defmodule WebApp.AgentSession do
     end
   end
 
-  def handle_call({:respond, owner, response}, _from, state) do
-    cond do
-      state.owner != owner ->
-        {:reply, {:error, "Only the interaction owner can answer"}, state}
+  def handle_call({:respond, response}, _from, state), do: deliver_response(response, state)
 
-      is_nil(state.view.dialog) or state.view.dialog["id"] != response["id"] ->
-        {:reply, {:error, "This interaction is no longer pending"}, state}
+  def handle_call({:respond, owner, response}, _from, %{owner: owner} = state),
+    do: deliver_response(response, state)
 
-      true ->
-        true = Port.command(state.port, Jason.encode!(response) <> "\n")
-        state = cancel_dialog_timer(state)
-        {:reply, :ok, publish(%{state | view: AgentState.clear_dialog(state.view)})}
+  def handle_call({:respond, _owner, _response}, _from, state),
+    do: {:reply, {:error, "Only the interaction owner can answer"}, state}
+
+  defp deliver_response(response, state) do
+    if is_nil(state.view.dialog) or state.view.dialog["id"] != response["id"] do
+      {:reply, {:error, "This interaction is no longer pending"}, state}
+    else
+      true = Port.command(state.port, Jason.encode!(response) <> "\n")
+      state = cancel_dialog_timer(state)
+      {:reply, :ok, publish(%{state | view: AgentState.clear_dialog(state.view)})}
     end
   end
 

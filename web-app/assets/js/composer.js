@@ -119,10 +119,7 @@ export const composer = {
   submitComposer(event) {
     if (event.key !== "Enter" || event.shiftKey || event.isComposing) return
 
-    const sendButton = this.el.querySelector("button[name='behavior'][value='send']")
-    if (!sendButton || sendButton.disabled) return
-
     event.preventDefault()
-    this.el.requestSubmit(sendButton)
+    this.el.requestSubmit()
   },
 }

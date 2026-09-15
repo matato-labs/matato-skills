@@ -46,7 +46,6 @@ defmodule WebAppWeb.AgentLive do
         mobile_sidebar_open: false,
         session: nil,
         draft: "",
-        interaction_owner: false,
         error: nil,
         composer_form: to_form(%{"message" => ""}, as: :composer),
         dialog_form: to_form(%{"value" => ""}, as: :dialog),
@@ -73,8 +72,6 @@ defmodule WebAppWeb.AgentLive do
 
     case RemoteRegistry.open(id) do
       :ok ->
-        owner = if connected?(socket), do: AgentSession.claim(id, self()) == :owner, else: false
-
         snapshot = AgentSession.snapshot(id)
 
         {:noreply,
@@ -83,7 +80,6 @@ defmodule WebAppWeb.AgentLive do
            session_id: id,
            bot: nil,
            chat_name: session_name(id),
-           interaction_owner: owner,
            mobile_sidebar_open: false,
            expanded_work_ids: MapSet.new(),
            error: nil
@@ -106,11 +102,6 @@ defmodule WebAppWeb.AgentLive do
   def handle_params(_params, _uri, socket), do: {:noreply, socket}
 
   @impl true
-  def handle_event(event, _params, %{assigns: %{interaction_owner: false}} = socket)
-      when event in ["compose", "abort", "clear_queue", "stop", "dialog"] do
-    {:noreply, assign(socket, error: "Take interaction control before changing this session")}
-  end
-
   def handle_event("show_bot_form", _params, socket),
     do: {:noreply, assign(socket, show_bot_form: true, bot_error: nil, bot_form: bot_form())}
 
@@ -199,79 +190,47 @@ defmodule WebAppWeb.AgentLive do
 
   def handle_event(
         "compose",
-        %{"composer" => %{"message" => message}, "behavior" => behavior},
+        %{"composer" => %{"message" => message}, "behavior" => "steer"},
         socket
-      ) do
-    type = %{"send" => "prompt", "steer" => "steer", "later" => "follow_up"}[behavior] || "prompt"
-    send_command(socket, type, message)
-  end
+      ),
+      do: send_command(socket, "steer", message)
+
+  def handle_event("compose", %{"composer" => %{"message" => message}}, socket),
+    do:
+      send_command(
+        socket,
+        if(agent_active?(socket.assigns.session.status), do: "follow_up", else: "prompt"),
+        message
+      )
 
   def handle_event("draft", %{"composer" => %{"message" => message}}, socket),
     do: {:noreply, set_draft(socket, message)}
 
   def handle_event("abort", _params, socket), do: run_command(socket, %{"type" => "abort"})
 
-  def handle_event("clear_queue", _params, socket) do
-    case command(socket, %{"type" => "clear_queue"}) do
-      {:ok, data} ->
-        restored = (data["steering"] || []) ++ (data["followUp"] || [])
-        draft = Enum.join(restored, "\n\n")
-        {:noreply, socket |> set_draft(draft) |> assign(error: nil)}
-
-      {:error, error} ->
-        {:noreply, assign(socket, error: error)}
-    end
-  end
-
   def handle_event("stop", _params, socket) do
     :ok = RemoteRegistry.stop(socket.assigns.session_id)
 
-    {:noreply,
-     assign(socket,
-       session: %{socket.assigns.session | status: :stopped},
-       interaction_owner: false
-     )}
+    {:noreply, assign(socket, session: %{socket.assigns.session | status: :stopped})}
   end
 
   def handle_event("resume", _params, socket) do
     id = socket.assigns.session_id
 
-    with :ok <- RemoteRegistry.open(id),
-         :owner <- AgentSession.claim(id, self(), true) do
-      {:noreply,
-       socket
-       |> assign(interaction_owner: true, error: nil)
-       |> sync_session(AgentSession.snapshot(id))}
-    else
+    case RemoteRegistry.open(id) do
+      :ok -> {:noreply, socket |> assign(error: nil) |> sync_session(AgentSession.snapshot(id))}
       {:error, error} -> {:noreply, assign(socket, error: error)}
     end
   catch
     :exit, _reason -> {:noreply, assign(socket, error: "Agent process could not be resumed")}
   end
 
-  def handle_event("takeover", _params, socket) do
-    case AgentSession.claim(socket.assigns.session_id, self(), true) do
-      :owner -> {:noreply, assign(socket, interaction_owner: true, error: nil)}
-      :observer -> {:noreply, assign(socket, error: "Interaction control is unavailable")}
-    end
-  catch
-    :exit, _reason ->
-      {:noreply, assign(socket, error: "Resume the session before taking control")}
-  end
-
   def handle_event("dialog", params, socket) do
-    if socket.assigns.interaction_owner do
-      response = dialog_response(socket.assigns.session.dialog, params)
+    response = dialog_response(socket.assigns.session.dialog, params)
 
-      case AgentSession.respond(socket.assigns.session_id, self(), response) do
-        :ok ->
-          {:noreply, assign(socket, session: AgentState.clear_dialog(socket.assigns.session))}
-
-        {:error, error} ->
-          {:noreply, assign(socket, error: error)}
-      end
-    else
-      {:noreply, assign(socket, error: "Take interaction control before answering")}
+    case AgentSession.respond(socket.assigns.session_id, response) do
+      :ok -> {:noreply, assign(socket, session: AgentState.clear_dialog(socket.assigns.session))}
+      {:error, error} -> {:noreply, assign(socket, error: error)}
     end
   end
 
@@ -293,30 +252,15 @@ defmodule WebAppWeb.AgentLive do
      |> sync_session(snapshot)}
   end
 
-  def handle_info({:agent_owner, owner}, socket),
-    do: {:noreply, assign(socket, interaction_owner: owner == self())}
+  def handle_info({:agent_owner, _owner}, socket), do: {:noreply, socket}
 
-  def handle_info(
-        {:agent_hint, %{"method" => "set_editor_text", "text" => text}},
-        %{assigns: %{interaction_owner: true}} = socket
-      ),
-      do: {:noreply, set_draft(socket, text)}
-
-  def handle_info({:agent_hint, %{"method" => "set_editor_text"}}, socket),
-    do: {:noreply, socket}
+  def handle_info({:agent_hint, %{"method" => "set_editor_text", "text" => text}}, socket),
+    do: {:noreply, set_draft(socket, text)}
 
   def handle_info({:agent_hint, %{"method" => "setTitle", "title" => title}}, socket),
     do: {:noreply, assign(socket, page_title: title)}
 
   def handle_info({:agent_hint, _hint}, socket), do: {:noreply, socket}
-
-  @impl true
-  def terminate(_reason, %{assigns: %{session_id: id}}) when is_binary(id) do
-    if AgentSession.whereis(id), do: AgentSession.release(id, self())
-    :ok
-  end
-
-  def terminate(_reason, _socket), do: :ok
 
   attr :id, :string, required: true
   attr :item, :map, required: true
@@ -550,7 +494,7 @@ defmodule WebAppWeb.AgentLive do
   end
 
   defp command(socket, command) do
-    AgentSession.owner_command(socket.assigns.session_id, self(), command)
+    AgentSession.command(socket.assigns.session_id, command)
   catch
     :exit, _reason -> {:error, "Agent process is unavailable. Resume the session to reconnect."}
   end
@@ -613,15 +557,12 @@ defmodule WebAppWeb.AgentLive do
 
     case RemoteRegistry.open(id, Bots.identity_for(bot)) do
       :ok ->
-        owner = if connected?(socket), do: AgentSession.claim(id, self()) == :owner, else: false
-
         {:noreply,
          socket
          |> assign(
            bot: bot,
            chat_name: bot.name,
            session_id: id,
-           interaction_owner: owner,
            mobile_sidebar_open: false,
            expanded_work_ids: MapSet.new(),
            error: nil
