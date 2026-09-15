@@ -48,7 +48,7 @@ defmodule WebAppWeb.AgentLiveTest do
     )
 
     assert :ok = AgentSession.await_ready(id)
-    assert_receive {:agent_snapshot, %{commands: [_command]}}, 2_000
+    assert_receive {:agent_update, ^id, _sequence, {:commands_ready, [_command]}}, 2_000
 
     {:ok, _session} =
       RemoteSessions.create(%{
@@ -307,7 +307,7 @@ defmodule WebAppWeb.AgentLiveTest do
   end
 
   defp sync_snapshot(view, id) do
-    send(view.pid, {:agent_snapshot, AgentSession.snapshot(id)})
+    send(view.pid, {:agent_resync, id, 0})
     _ = :sys.get_state(view.pid)
   end
 

@@ -49,7 +49,9 @@ defmodule WebAppWeb.AgentLive do
         error: nil,
         composer_form: to_form(%{"message" => ""}, as: :composer),
         dialog_form: to_form(%{"value" => ""}, as: :dialog),
-        expanded_work_ids: MapSet.new()
+        expanded_work_ids: MapSet.new(),
+        last_sequence: 0,
+        timeline_items: []
       )
 
     {:ok, stream(socket, :messages, [])}
@@ -62,17 +64,19 @@ defmodule WebAppWeb.AgentLive do
         {:noreply, assign(socket, bot: nil, chat_name: nil, session: nil, error: "Bot not found")}
 
       bot ->
+        socket = unsubscribe_session(socket)
         if connected?(socket), do: Messages.subscribe(bot.id)
         open_bot_chat(socket, bot)
     end
   end
 
   def handle_params(%{"id" => id}, _uri, socket) do
+    socket = unsubscribe_session(socket)
     if connected?(socket), do: AgentFanout.subscribe(id)
 
     case RemoteRegistry.open(id) do
       :ok ->
-        snapshot = AgentSession.snapshot(id)
+        %{sequence: sequence, view: snapshot} = AgentSession.snapshot_with_sequence(id)
 
         {:noreply,
          socket
@@ -82,7 +86,8 @@ defmodule WebAppWeb.AgentLive do
            chat_name: session_name(id),
            mobile_sidebar_open: false,
            expanded_work_ids: MapSet.new(),
-           error: nil
+           error: nil,
+           last_sequence: sequence
          )
          |> sync_session(snapshot)}
 
@@ -99,7 +104,7 @@ defmodule WebAppWeb.AgentLive do
     end
   end
 
-  def handle_params(_params, _uri, socket), do: {:noreply, socket}
+  def handle_params(_params, _uri, socket), do: {:noreply, unsubscribe_session(socket)}
 
   @impl true
   def handle_event("show_bot_form", _params, socket),
@@ -218,7 +223,7 @@ defmodule WebAppWeb.AgentLive do
     id = socket.assigns.session_id
 
     case RemoteRegistry.open(id) do
-      :ok -> {:noreply, socket |> assign(error: nil) |> sync_session(AgentSession.snapshot(id))}
+      :ok -> {:noreply, resync_session(socket |> assign(error: nil), id)}
       {:error, error} -> {:noreply, assign(socket, error: error)}
     end
   catch
@@ -237,30 +242,45 @@ defmodule WebAppWeb.AgentLive do
   @impl true
   def handle_info(:changed, socket), do: {:noreply, assign_sessions(socket)}
 
-  def handle_info({:message_changed, _bot_id}, %{assigns: %{session: session, bot: bot}} = socket)
-      when not is_nil(session) and not is_nil(bot),
-      do: {:noreply, sync_session(socket, session)}
+  def handle_info(
+        {:message_changed, bot_id},
+        %{assigns: %{session: session, bot: %{id: bot_id}}} = socket
+      )
+      when not is_nil(session),
+      do: {:noreply, reconcile_timeline(socket)}
 
-  def handle_info({:agent_snapshot, snapshot}, socket) do
-    dialog_form =
-      to_form(%{"value" => get_in(snapshot, [:dialog, "prefill"]) || ""}, as: :dialog)
+  def handle_info({:message_changed, _bot_id}, socket), do: {:noreply, socket}
 
-    {:noreply,
-     socket
-     |> assign_sessions()
-     |> assign(dialog_form: dialog_form, error: nil)
-     |> sync_session(snapshot)}
+  def handle_info({:agent_resync, session_id, _sequence}, socket) do
+    if session_id == socket.assigns.session_id,
+      do: {:noreply, resync_session(socket, session_id)},
+      else: {:noreply, socket}
   end
 
-  def handle_info({:agent_owner, _owner}, socket), do: {:noreply, socket}
+  def handle_info({:agent_update, session_id, sequence, update}, socket) do
+    cond do
+      session_id != socket.assigns.session_id ->
+        {:noreply, socket}
 
-  def handle_info({:agent_hint, %{"method" => "set_editor_text", "text" => text}}, socket),
-    do: {:noreply, set_draft(socket, text)}
+      sequence <= socket.assigns.last_sequence ->
+        {:noreply, socket}
 
-  def handle_info({:agent_hint, %{"method" => "setTitle", "title" => title}}, socket),
-    do: {:noreply, assign(socket, page_title: title)}
+      sequence != socket.assigns.last_sequence + 1 ->
+        {:noreply, resync_session(socket, session_id)}
 
-  def handle_info({:agent_hint, _hint}, socket), do: {:noreply, socket}
+      true ->
+        socket =
+          socket
+          |> apply_hint(update)
+          |> apply_dialog_form(update)
+          |> assign(
+            session: AgentState.apply(socket.assigns.session, update),
+            last_sequence: sequence
+          )
+
+        {:noreply, socket |> assign_sessions() |> reconcile_timeline()}
+    end
+  end
 
   attr :id, :string, required: true
   attr :item, :map, required: true
@@ -538,17 +558,70 @@ defmodule WebAppWeb.AgentLive do
   defp format_error(reason), do: inspect(reason)
 
   defp sync_session(socket, snapshot) do
+    items = timeline_for(socket, snapshot)
+
+    socket
+    |> assign(session: snapshot, timeline_items: items)
+    |> stream(:messages, items, reset: true)
+  end
+
+  defp resync_session(socket, id) do
+    %{sequence: sequence, view: snapshot} = AgentSession.snapshot_with_sequence(id)
+
+    socket
+    |> assign(last_sequence: sequence, error: nil)
+    |> sync_session(snapshot)
+  end
+
+  defp reconcile_timeline(socket) do
+    items = timeline_for(socket, socket.assigns.session)
+    old_items = Map.new(socket.assigns.timeline_items, &{&1.id, &1})
+    new_items = Map.new(items, &{&1.id, &1})
+
+    socket =
+      Enum.reduce(old_items, socket, fn {id, _item}, socket ->
+        if Map.has_key?(new_items, id),
+          do: socket,
+          else: stream_delete(socket, :messages, %{id: id})
+      end)
+
+    socket =
+      Enum.reduce(Enum.with_index(items), socket, fn {item, index}, socket ->
+        if old_items[item.id] == item,
+          do: socket,
+          else: stream_insert(socket, :messages, item, at: index)
+      end)
+
+    assign(socket, timeline_items: items)
+  end
+
+  defp timeline_for(socket, session) do
     internal_messages =
       if socket.assigns.bot, do: Messages.list_for_bot(socket.assigns.bot.id), else: []
 
+    timeline_items(transcript_items(session), notification_items(internal_messages))
+    |> mark_expanded_work(socket.assigns.expanded_work_ids)
+  end
+
+  defp apply_hint(socket, {:hint, %{"method" => "set_editor_text", "text" => text}}),
+    do: set_draft(socket, text)
+
+  defp apply_hint(socket, {:hint, %{"method" => "setTitle", "title" => title}}),
+    do: assign(socket, page_title: title)
+
+  defp apply_hint(socket, _update), do: socket
+
+  defp apply_dialog_form(socket, {:event, %{"type" => "extension_ui_request"} = event}),
+    do: assign(socket, dialog_form: to_form(%{"value" => event["prefill"] || ""}, as: :dialog))
+
+  defp apply_dialog_form(socket, _update), do: socket
+
+  defp unsubscribe_session(socket) do
+    if connected?(socket) and socket.assigns.session_id,
+      do: AgentFanout.unsubscribe(socket.assigns.session_id)
+
+    if connected?(socket) and socket.assigns.bot, do: Messages.unsubscribe(socket.assigns.bot.id)
     socket
-    |> assign(session: snapshot)
-    |> stream(
-      :messages,
-      timeline_items(transcript_items(snapshot), notification_items(internal_messages))
-      |> mark_expanded_work(socket.assigns.expanded_work_ids),
-      reset: true
-    )
   end
 
   defp open_bot_chat(socket, bot) do
@@ -567,7 +640,7 @@ defmodule WebAppWeb.AgentLive do
            expanded_work_ids: MapSet.new(),
            error: nil
          )
-         |> sync_session(AgentSession.snapshot(id))}
+         |> resync_session(id)}
 
       {:error, error} ->
         {:noreply,

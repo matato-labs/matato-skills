@@ -1,6 +1,8 @@
 defmodule WebApp.AgentState do
   @moduledoc "Semantic browser snapshot assembled from Pi RPC events."
 
+  import Kernel, except: [apply: 2]
+
   @active_statuses [:working, :waiting_for_input, :retrying, :compacting]
   @max_messages 200
   @max_text_bytes 24_000
@@ -28,6 +30,15 @@ defmodule WebApp.AgentState do
       last_run_duration: nil
     }
   end
+
+  def apply(state, {:event, event}), do: apply(state, event)
+  def apply(state, :dialog_cleared), do: clear_dialog(state)
+  def apply(state, {:commands_ready, commands}), do: commands_ready(state, commands)
+  def apply(state, {:commands_failed, error}), do: commands_failed(state, error)
+  def apply(state, {:command_error, error}), do: command_error(state, error)
+  def apply(state, {:exit, error}), do: exit(state, error)
+  def apply(state, {:hint, _event}), do: state
+  def apply(state, {:owner, _owner}), do: state
 
   def apply(state, %{"type" => "agent_start"}),
     do: %{state | status: :working, interrupted?: false, run_started_at: now()}
