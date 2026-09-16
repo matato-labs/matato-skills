@@ -21,7 +21,13 @@ defmodule WebAppWeb.AgentLiveTest do
         file.write(json.dumps(command) + "\\n")
       response = {"id": command["id"], "type": "response", "command": command["type"], "success": True}
       if command["type"] == "get_state":
-        response["data"] = {"model": None, "isStreaming": False, "isCompacting": False, "sessionFile": None, "sessionId": "pi-1"}
+        response["data"] = {"model": {"provider": "anthropic", "id": "claude-sonnet", "name": "Claude Sonnet"}, "thinkingLevel": "medium", "isStreaming": False, "isCompacting": False, "sessionFile": None, "sessionId": "pi-1"}
+      elif command["type"] == "get_available_models":
+        response["data"] = {"models": [{"provider": "anthropic", "id": "claude-sonnet", "name": "Claude Sonnet"}, {"provider": "openai", "id": "gpt-5.6", "name": "GPT-5.6"}]}
+      elif command["type"] == "get_available_thinking_levels":
+        response["data"] = {"levels": ["off", "low", "medium", "high"]}
+      elif command["type"] == "set_model":
+        response["data"] = {"provider": command["provider"], "id": command["modelId"], "name": command["modelId"]}
       elif command["type"] == "get_messages":
         response["data"] = {"messages": [{"role": "user", "content": "First prompt", "timestamp": 1000}, {"role": "assistant", "content": [{"type": "text", "text": "First reply"}], "timestamp": 3000}]}
       elif command["type"] == "get_commands":
@@ -108,6 +114,14 @@ defmodule WebAppWeb.AgentLiveTest do
     assert {reply_index, _length} = :binary.match(html, "First reply")
     assert prompt_index < activity_index
     assert activity_index < reply_index
+  end
+
+  test "keeps the chat header fixed on mobile", %{conn: conn, bot: bot} do
+    {:ok, view, _html} = live(conn, "/bots/#{bot.id}")
+
+    html = render(view)
+    assert html =~ "fixed inset-x-0 top-0 z-10"
+    assert html =~ "bg-base-300 pt-16 lg:pt-0"
   end
 
   test "shows the bot name and edits its identity from the chat header", %{conn: conn, bot: bot} do
@@ -336,6 +350,42 @@ defmodule WebAppWeb.AgentLiveTest do
     })
 
     refute render(view) =~ "out of sequence"
+  end
+
+  test "switches model and thinking level from the composer controls", %{
+    conn: conn,
+    id: id,
+    root: root
+  } do
+    {:ok, view, _html} = live(conn, ~p"/sessions/#{id}")
+
+    assert has_element?(view, "#composer-box")
+    assert has_element?(view, "#model-select option[selected]", "Claude Sonnet")
+    assert has_element?(view, "#thinking-level-select option[selected]", "Medium")
+
+    view |> element("#model-select") |> render_change(%{"model" => "openai/gpt-5.6"})
+
+    assert has_element?(view, "#model-select option[selected]", "GPT-5.6")
+
+    view |> element("#thinking-level-select") |> render_change(%{"level" => "high"})
+
+    assert has_element?(view, "#thinking-level-select option[selected]", "High")
+
+    commands =
+      root
+      |> Path.join("commands.jsonl")
+      |> File.read!()
+      |> String.split("\n", trim: true)
+      |> Enum.map(&Jason.decode!/1)
+
+    assert Enum.any?(commands, fn command ->
+             command["type"] == "set_model" and command["provider"] == "openai" and
+               command["modelId"] == "gpt-5.6"
+           end)
+
+    assert Enum.any?(commands, fn command ->
+             command["type"] == "set_thinking_level" and command["level"] == "high"
+           end)
   end
 
   test "unsubscribes and clears the previous session after navigation", %{conn: conn, id: id} do

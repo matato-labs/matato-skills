@@ -245,7 +245,7 @@ defmodule WebAppWeb.SessionComponents do
     ~H"""
     <header
       id="chat-header"
-      class="flex min-h-16 shrink-0 items-center gap-3 border-b border-base-content/10 bg-base-300 px-5 lg:px-8"
+      class="fixed inset-x-0 top-0 z-10 flex min-h-16 shrink-0 items-center gap-3 border-b border-base-content/10 bg-base-300 px-5 lg:static lg:px-8"
     >
       <button
         id="mobile-menu-button"

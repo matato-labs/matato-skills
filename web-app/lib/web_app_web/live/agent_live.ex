@@ -47,6 +47,8 @@ defmodule WebAppWeb.AgentLive do
         session: nil,
         draft: "",
         error: nil,
+        available_models: [],
+        thinking_levels: [],
         composer_form: to_form(%{"message" => ""}, as: :composer),
         dialog_form: to_form(%{"value" => ""}, as: :dialog),
         expanded_work_ids: MapSet.new(),
@@ -229,6 +231,27 @@ defmodule WebAppWeb.AgentLive do
     {:noreply, assign(socket, session: %{socket.assigns.session | status: :stopped})}
   end
 
+  def handle_event("set_model", %{"model" => value}, socket) do
+    [provider, model_id] = String.split(value, "/", parts: 2)
+
+    case command(socket, %{"type" => "set_model", "provider" => provider, "modelId" => model_id}) do
+      :ok -> {:noreply, apply_model(socket, %{"provider" => provider, "id" => model_id})}
+      {:ok, model} -> {:noreply, apply_model(socket, model)}
+      {:error, error} -> {:noreply, assign(socket, error: error)}
+    end
+  end
+
+  def handle_event("set_thinking_level", %{"level" => level}, socket) do
+    case command(socket, %{"type" => "set_thinking_level", "level" => level}) do
+      :ok ->
+        session = Map.put(socket.assigns.session, :thinking_level, level)
+        {:noreply, assign(socket, session: session)}
+
+      {:error, error} ->
+        {:noreply, assign(socket, error: error)}
+    end
+  end
+
   def handle_event("resume", _params, socket) do
     id = socket.assigns.session_id
 
@@ -384,6 +407,64 @@ defmodule WebAppWeb.AgentLive do
     socket
     |> assign(session: snapshot, timeline_items: items)
     |> stream(:messages, items, reset: true)
+    |> assign_composer_options()
+  end
+
+  defp assign_composer_options(socket) do
+    if connected?(socket) do
+      socket
+      |> sync_model_state()
+      |> assign(
+        available_models: available_models(socket),
+        thinking_levels: thinking_levels(socket)
+      )
+    else
+      socket
+    end
+  end
+
+  defp sync_model_state(socket) do
+    case command(socket, %{"type" => "get_state"}) do
+      {:ok, data} ->
+        session =
+          socket.assigns.session
+          |> Map.put(:model, data["model"])
+          |> Map.put(:thinking_level, data["thinkingLevel"])
+
+        assign(socket, session: session)
+
+      _result ->
+        socket
+    end
+  end
+
+  defp apply_model(socket, model) do
+    assign(socket,
+      session: %{socket.assigns.session | model: model},
+      thinking_levels: thinking_levels(socket),
+      error: nil
+    )
+  end
+
+  defp available_models(socket) do
+    case command(socket, %{"type" => "get_available_models"}) do
+      {:ok, %{"models" => models}} -> models_with_current(socket.assigns.session.model, models)
+      _result -> []
+    end
+  end
+
+  defp models_with_current(nil, models), do: models
+
+  defp models_with_current(model, models) do
+    current? = &(&1["id"] == model["id"] and &1["provider"] == model["provider"])
+    if Enum.any?(models, current?), do: models, else: [model | models]
+  end
+
+  defp thinking_levels(socket) do
+    case command(socket, %{"type" => "get_available_thinking_levels"}) do
+      {:ok, %{"levels" => levels}} -> levels
+      _result -> []
+    end
   end
 
   defp resync_session(socket, id) do
