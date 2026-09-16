@@ -26,6 +26,24 @@ import {hooks as colocatedHooks} from "phoenix-colocated/web_app"
 import topbar from "../vendor/topbar.cjs"
 import {composer} from "./composer"
 
+const messageCopy = {
+  mounted() {
+    this.handleClick = async () => {
+      try {
+        await navigator.clipboard.writeText(this.el.dataset.copyText)
+        this.pushEvent("message_copied")
+      } catch (_error) {
+        this.pushEvent("message_copy_failed")
+      }
+    }
+
+    this.el.addEventListener("click", this.handleClick)
+  },
+  destroyed() {
+    this.el.removeEventListener("click", this.handleClick)
+  },
+}
+
 const workDisclosure = {
   mounted() {
     this.el.addEventListener("toggle", () => {
@@ -66,6 +84,7 @@ const liveSocket = new LiveSocket("/live", Socket, {
   hooks: {
     ...colocatedHooks,
     Composer: composer,
+    MessageCopy: messageCopy,
     Transcript: transcript,
     WorkDisclosure: workDisclosure,
   },
