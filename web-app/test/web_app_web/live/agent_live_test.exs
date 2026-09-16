@@ -405,7 +405,7 @@ defmodule WebAppWeb.AgentLiveTest do
 
     assert has_element?(view, "#composer-box")
     assert has_element?(view, "#composer-box .flex-nowrap")
-    assert has_element?(view, "#model-select.w-20")
+    assert has_element?(view, "#model-select.max-w-36")
     assert has_element?(view, "#model-select option[selected]", "Claude Sonnet")
     assert has_element?(view, "#thinking-level-select option[selected]", "Medium")
 
