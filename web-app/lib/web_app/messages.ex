@@ -33,6 +33,10 @@ defmodule WebApp.Messages do
     )
   end
 
+  def count_pending do
+    Repo.one(from(message in Message, where: message.sent_status == "pending", select: count()))
+  end
+
   def claim_pending(excluded_ids \\ []) do
     query =
       from(message in Message,

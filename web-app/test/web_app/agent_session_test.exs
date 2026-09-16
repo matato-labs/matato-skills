@@ -302,4 +302,46 @@ defmodule WebApp.AgentSessionTest do
 
     assert log =~ "Pi RPC protocol failure"
   end
+
+  test "emits telemetry for the session lifecycle and prompts", context do
+    test_pid = self()
+
+    :telemetry.attach_many(
+      "agent-session-test-#{System.unique_integer([:positive])}",
+      [
+        [:web_app, :agent_session, :start],
+        [:web_app, :agent_session, :prompt],
+        [:web_app, :agent_session, :stop]
+      ],
+      fn event, measurements, metadata, _config ->
+        send(test_pid, {:telemetry, event, measurements, metadata})
+      end,
+      nil
+    )
+
+    id = "test-#{System.unique_integer([:positive])}"
+
+    start_supervised!(
+      {AgentSession,
+       id: id,
+       name: "test",
+       project: context.root,
+       executable: context.executable,
+       interrupted: false}
+    )
+
+    assert :ok = AgentSession.await_ready(id)
+    assert_receive {:telemetry, [:web_app, :agent_session, :start], %{count: 1}, _metadata}
+
+    assert :ok = AgentSession.command(id, %{"type" => "prompt", "message" => "hello"})
+
+    assert_receive {:telemetry, [:web_app, :agent_session, :prompt], %{count: 1},
+                    %{type: "prompt"}}
+
+    assert :ok = AgentSession.stop(id)
+
+    assert_receive {:telemetry, [:web_app, :agent_session, :stop],
+                    %{count: 1, duration: duration}, _metadata}
+                   when is_integer(duration) and duration >= 0
+  end
 end

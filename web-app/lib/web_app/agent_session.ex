@@ -54,6 +54,8 @@ defmodule WebApp.AgentSession do
 
     port = open_port(executable, args, options[:project], stderr_path)
 
+    :telemetry.execute([:web_app, :agent_session, :start], %{count: 1})
+
     state = %{
       id: options[:id],
       project: options[:project],
@@ -69,6 +71,7 @@ defmodule WebApp.AgentSession do
       dialog_timer: nil,
       prompt_times: [],
       closing: false,
+      started_at: System.monotonic_time(),
       notifier: options[:notifier] || fn _event -> :ok end,
       view: AgentState.new(interrupted: options[:interrupted] || false)
     }
@@ -115,8 +118,7 @@ defmodule WebApp.AgentSession do
 
     if length(recent) >= 10,
       do: {:reply, {:error, "Prompt rate limit exceeded"}, %{state | prompt_times: recent}},
-      else:
-        {:noreply, send_command(%{state | prompt_times: [now | recent]}, command, :command, from)}
+      else: send_prompt(%{state | prompt_times: [now | recent]}, command, type, from)
   end
 
   def handle_call({:command, command}, from, state),
@@ -231,9 +233,19 @@ defmodule WebApp.AgentSession do
 
   @impl true
   def terminate(_reason, state) do
+    :telemetry.execute([:web_app, :agent_session, :stop], %{
+      count: 1,
+      duration: System.monotonic_time() - state.started_at
+    })
+
     if Port.info(state.port), do: Port.close(state.port)
     File.rm(state.stderr_path)
     :ok
+  end
+
+  defp send_prompt(state, command, type, from) do
+    :telemetry.execute([:web_app, :agent_session, :prompt], %{count: 1}, %{type: type})
+    {:noreply, send_command(state, command, :command, from)}
   end
 
   defp pi_args(options) do

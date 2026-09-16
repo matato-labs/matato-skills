@@ -50,6 +50,16 @@ end
 
 config :opentelemetry, :resource, service: [name: "matato-pi-web"]
 
+# LiveDashboard credentials. The /dashboard route responds with 404 until both
+# variables are set. The development-only /dev/dashboard stays unauthenticated.
+dashboard_username = System.get_env("DASHBOARD_USERNAME")
+dashboard_password = System.get_env("DASHBOARD_PASSWORD")
+
+if config_env() != :test and dashboard_username not in [nil, ""] and
+     dashboard_password not in [nil, ""] do
+  config :web_app, :dashboard_auth, username: dashboard_username, password: dashboard_password
+end
+
 if config_env() == :prod do
   otel_endpoint = System.get_env("OTEL_ENDPOINT", "http://localhost:4318") |> String.trim()
 
