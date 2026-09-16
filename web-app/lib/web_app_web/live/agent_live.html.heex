@@ -273,7 +273,9 @@
                           @session.model != nil && @session.model["provider"] == model["provider"] &&
                             @session.model["id"] == model["id"]
                         }
-                      >{model["name"] || model["id"]}</option>
+                      >
+                        {model["name"] || model["id"]}
+                      </option>
                     </select>
                     <.icon
                       name="hero-chevron-down"
@@ -296,7 +298,9 @@
                         :for={level <- @thinking_levels}
                         value={level}
                         selected={@session[:thinking_level] == level}
-                      >{String.capitalize(level)}</option>
+                      >
+                        {String.capitalize(level)}
+                      </option>
                     </select>
                     <.icon
                       name="hero-chevron-down"
