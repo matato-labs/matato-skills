@@ -125,6 +125,11 @@ defmodule WebAppWeb.AgentTranscript do
 
   def work_label(_item), do: "Worked"
 
+  defp format_duration(duration) when duration < 60_000, do: "#{max(div(duration, 1_000), 1)}s"
+
+  defp format_duration(duration),
+    do: "#{div(duration, 60_000)}m #{rem(div(duration, 1_000), 60)}s"
+
   def markdown(text), do: {:safe, MDEx.to_html!(text)}
   def command_location(command), do: get_in(command, ["sourceInfo", "scope"]) || "unknown"
   def command_path(command), do: get_in(command, ["sourceInfo", "path"]) || ""
@@ -201,8 +206,184 @@ defmodule WebAppWeb.AgentTranscript do
     |> String.slice(0, 12_000)
   end
 
-  defp format_duration(duration) when duration < 60_000, do: "#{max(div(duration, 1_000), 1)}s"
+  def mark_expanded_work(items, expanded_work_ids) do
+    Enum.map(items, fn item ->
+      if item.kind == :work_turn,
+        do: Map.put(item, :expanded?, MapSet.member?(expanded_work_ids, item.id)),
+        else: item
+    end)
+  end
 
-  defp format_duration(duration),
-    do: "#{div(duration, 60_000)}m #{rem(div(duration, 1_000), 60)}s"
+  def notification_items(messages) do
+    Enum.map(messages, fn message ->
+      %{
+        id: "notification-#{message.id}",
+        kind: :notification,
+        content: message.content,
+        status: message.sent_status,
+        timestamp: message.timestamp
+      }
+    end)
+  end
+
+  def timeline_items(transcript, notifications) do
+    Enum.sort_by(transcript ++ notifications, &timeline_sort_key/1)
+  end
+
+  defp timeline_sort_key(%{timestamp: %DateTime{} = timestamp}),
+    do: {0, DateTime.to_unix(timestamp, :millisecond)}
+
+  defp timeline_sort_key(%{timestamp: timestamp}) when is_integer(timestamp), do: {0, timestamp}
+
+  defp timeline_sort_key(%{timestamp: timestamp}) when is_binary(timestamp) do
+    case DateTime.from_iso8601(timestamp) do
+      {:ok, datetime, _offset} -> {0, DateTime.to_unix(datetime, :millisecond)}
+      _ -> {1, 0}
+    end
+  end
+
+  defp timeline_sort_key(_item), do: {1, 0}
+
+  def transcript_items(session) do
+    session
+    |> message_items_for_session()
+    |> work_turn_items(
+      partial_items(session),
+      agent_active?(session.status),
+      session.last_run_duration
+    )
+  end
+
+  defp message_items_for_session(session) do
+    session.messages
+    |> Enum.with_index()
+    |> Enum.flat_map(fn {message, message_index} ->
+      message_items(message, message_index, session)
+    end)
+  end
+
+  def work_turn_items(items, partial, active?), do: work_turn_items(items, partial, active?, nil)
+
+  def work_turn_items(items, partial, active?, duration) do
+    {result, current} =
+      Enum.reduce(items, {[], []}, fn item, {result, current} ->
+        if item.kind == :message && item.role == :user do
+          {result ++ finish_work_turn(current, false), [item]}
+        else
+          {result, current ++ [item]}
+        end
+      end)
+
+    result
+    |> Kernel.++(finish_work_turn(current ++ partial, active?))
+    |> put_work_duration(duration)
+  end
+
+  defp put_work_duration(items, nil), do: items
+
+  defp put_work_duration(items, duration) do
+    case Enum.find_index(Enum.reverse(items), &(&1.kind == :work_turn)) do
+      nil ->
+        items
+
+      reverse_index ->
+        List.update_at(
+          items,
+          length(items) - reverse_index - 1,
+          &Map.put(&1, :duration, duration)
+        )
+    end
+  end
+
+  defp finish_work_turn([], _active?), do: []
+
+  defp finish_work_turn([%{kind: :message, role: :user} = user | items], active?) do
+    {final, work} = split_final_message(items, active?)
+    work_item = work_turn_item(user, work, active?)
+    [user] ++ List.wrap(work_item) ++ List.wrap(final)
+  end
+
+  defp finish_work_turn(items, _active?), do: items
+
+  defp split_final_message(items, true), do: {nil, items}
+
+  defp split_final_message(items, false) do
+    case Enum.find_index(Enum.reverse(items), &agent_message?/1) do
+      nil ->
+        {nil, items}
+
+      reverse_index ->
+        index = length(items) - reverse_index - 1
+        {Enum.at(items, index), List.delete_at(items, index)}
+    end
+  end
+
+  defp work_turn_item(_user, [], _active?), do: nil
+
+  defp work_turn_item(user, items, active?) do
+    traces = Enum.filter(items, &(&1.kind in [:thinking, :tool]))
+    messages = Enum.filter(items, &agent_message?/1)
+
+    %{
+      id: "work-#{user.id}-#{if active?, do: "active", else: "settled"}",
+      kind: :work_turn,
+      timestamp: Map.get(user, :timestamp),
+      active?: active?,
+      duration: nil,
+      messages: messages,
+      traces: Enum.reverse(traces)
+    }
+  end
+
+  defp agent_message?(%{kind: :message, role: :agent}), do: true
+  defp agent_message?(_item), do: false
+
+  defp agent_active?(status), do: status in [:working, :retrying, :compacting, :waiting_for_input]
+
+  defp message_items(
+         %{"role" => "assistant", "content" => content} = message,
+         message_index,
+         session
+       )
+       when is_list(content) do
+    content
+    |> Enum.with_index()
+    |> Enum.flat_map(fn {block, block_index} ->
+      id = "message-#{message_index}-#{block_index}"
+
+      case block do
+        %{"type" => "text", "text" => text} when text != "" ->
+          [%{id: id, kind: :message, role: :agent, text: text, timestamp: message["timestamp"]}]
+
+        %{"type" => "thinking", "thinking" => text} when text != "" ->
+          [%{id: id, kind: :thinking, text: text}]
+
+        %{"type" => "toolCall", "id" => tool_id} ->
+          [%{id: id, kind: :tool, tool: session.tools[tool_id]}]
+
+        _ ->
+          []
+      end
+    end)
+  end
+
+  defp message_items(%{"role" => role} = message, message_index, _session)
+       when role in ["user", "custom", "branchSummary", "compactionSummary"] do
+    text = display_message_text(message)
+    role = if role == "user", do: :user, else: :agent
+
+    if text == "",
+      do: [],
+      else: [
+        %{
+          id: "message-#{message_index}",
+          kind: :message,
+          role: role,
+          text: text,
+          timestamp: message["timestamp"]
+        }
+      ]
+  end
+
+  defp message_items(_message, _message_index, _session), do: []
 end

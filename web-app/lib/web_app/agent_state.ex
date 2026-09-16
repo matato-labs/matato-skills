@@ -1,6 +1,8 @@
 defmodule WebApp.AgentState do
   @moduledoc "Semantic browser snapshot assembled from Pi RPC events."
 
+  import Kernel, except: [apply: 2]
+
   @active_statuses [:working, :waiting_for_input, :retrying, :compacting]
   @max_messages 200
   @max_text_bytes 24_000
@@ -28,6 +30,17 @@ defmodule WebApp.AgentState do
       last_run_duration: nil
     }
   end
+
+  def cap_event(event), do: cap_event_value(event)
+
+  def apply(state, {:event, event}), do: apply(state, event)
+  def apply(state, :dialog_cleared), do: clear_dialog(state)
+  def apply(state, {:commands_ready, commands}), do: commands_ready(state, commands)
+  def apply(state, {:commands_failed, error}), do: commands_failed(state, error)
+  def apply(state, {:command_error, error}), do: command_error(state, error)
+  def apply(state, {:exit, error}), do: exit(state, error)
+  def apply(state, {:hint, _event}), do: state
+  def apply(state, {:owner, _owner}), do: state
 
   def apply(state, %{"type" => "agent_start"}),
     do: %{state | status: :working, interrupted?: false, run_started_at: now()}
@@ -291,6 +304,15 @@ defmodule WebApp.AgentState do
 
   defp hydrate_tool(_message, state), do: state
 
+  defp cap_event_value(value) when is_binary(value), do: cap_text(value)
+  defp cap_event_value(value) when is_list(value), do: Enum.map(value, &cap_event_value/1)
+
+  defp cap_event_value(value) when is_map(value) do
+    Map.new(value, fn {key, item} -> {key, cap_event_value(item)} end)
+  end
+
+  defp cap_event_value(value), do: value
+
   defp cap_message(%{"content" => content} = message) when is_binary(content),
     do: Map.put(message, "content", cap_text(content))
 
@@ -321,5 +343,5 @@ defmodule WebApp.AgentState do
   end
 
   defp cap_message(message), do: message
-  defp cap_text(text), do: String.slice(text, 0, @max_text_bytes)
+  defp cap_text(text), do: String.byte_slice(text, 0, @max_text_bytes)
 end

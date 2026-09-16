@@ -89,6 +89,7 @@ defmodule WebApp.Messages do
   end
 
   def subscribe(bot_id), do: Phoenix.PubSub.subscribe(WebApp.PubSub, topic(bot_id))
+  def unsubscribe(bot_id), do: Phoenix.PubSub.unsubscribe(WebApp.PubSub, topic(bot_id))
   def subscribe_all, do: Phoenix.PubSub.subscribe(WebApp.PubSub, "messages")
 
   defp validate_receiver(changeset) do

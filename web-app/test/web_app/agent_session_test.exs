@@ -37,6 +37,9 @@ defmodule WebApp.AgentSessionTest do
       elif type == "dialog":
         print(json.dumps({"id": id, "type": "response", "command": type, "success": True}), flush=True)
         print(json.dumps({"type": "extension_ui_request", "id": "dialog-1", "method": "confirm", "title": "Continue?"}), flush=True)
+      elif type == "large_event":
+        print(json.dumps({"type": "message_update", "assistantMessageEvent": {"type": "text_delta", "contentIndex": 0, "delta": "x" * 30000}}), flush=True)
+        print(json.dumps({"id": id, "type": "response", "command": type, "success": True}), flush=True)
       elif type == "bad_record":
         print("[]", flush=True)
       elif type == "extension_ui_response":
@@ -100,8 +103,9 @@ defmodule WebApp.AgentSessionTest do
        interrupted: false}
     )
 
-    assert_receive {:agent_snapshot, %{status: :settled}}, 2_000
-    assert_receive {:agent_snapshot, %{commands: commands}}, 2_000
+    assert :ok = AgentSession.await_ready(id)
+    assert_receive {:agent_update, ^id, sequence, {:commands_ready, commands}}, 2_000
+    assert sequence > 0
     assert Enum.map(commands, & &1["name"]) == ["plan", "skill:review"]
     assert {:error, "rejected"} = AgentSession.command(id, %{"type" => "reject"})
     assert AgentSession.snapshot(id).status == :settled
@@ -117,7 +121,14 @@ defmodule WebApp.AgentSessionTest do
 
     assert :ok = AgentSession.command(id, %{"type" => "prompt", "message" => "from chat"})
     assert :ok = AgentSession.command(id, %{"type" => "dialog"})
-    assert_receive {:agent_snapshot, %{status: :waiting_for_input, dialog: dialog}}, 2_000
+
+    assert_receive {:agent_update, ^id, _sequence,
+                    {:event,
+                     %{"type" => "extension_ui_request", "id" => "dialog-1"} = dialog_event}},
+                   2_000
+
+    assert dialog_event["id"] == "dialog-1"
+    dialog = AgentSession.snapshot(id).dialog
 
     assert {:error, "Only the interaction owner can answer"} =
              AgentSession.respond(id, observer, %{
@@ -160,9 +171,55 @@ defmodule WebApp.AgentSessionTest do
     )
 
     assert :ok = AgentSession.await_ready(id)
-    assert_receive {:agent_snapshot, %{commands_error: "Command discovery failed: unavailable"}}
+
+    assert_receive {:agent_update, ^id, _sequence,
+                    {:commands_failed, "Command discovery failed: unavailable"}}
+
     assert AgentSession.snapshot(id).commands == []
     assert :ok = AgentSession.command(id, %{"type" => "prompt", "message" => "still works"})
+  end
+
+  test "caps event payloads before broadcasting", context do
+    id = "test-#{System.unique_integer([:positive])}"
+    AgentFanout.subscribe(id)
+
+    start_supervised!(
+      {AgentSession,
+       id: id,
+       name: "test",
+       project: context.root,
+       executable: context.executable,
+       interrupted: false}
+    )
+
+    assert :ok = AgentSession.await_ready(id)
+    assert :ok = AgentSession.command(id, %{"type" => "large_event"})
+
+    assert_receive {:agent_update, ^id, _sequence,
+                    {:event, %{"assistantMessageEvent" => %{"delta" => delta}}}},
+                   2_000
+
+    assert byte_size(delta) == 24_000
+  end
+
+  test "returns a canonical snapshot with its update sequence", context do
+    id = "test-#{System.unique_integer([:positive])}"
+
+    start_supervised!(
+      {AgentSession,
+       id: id,
+       name: "test",
+       project: context.root,
+       executable: context.executable,
+       interrupted: false}
+    )
+
+    assert :ok = AgentSession.await_ready(id)
+
+    assert %{sequence: sequence, view: %{status: :settled}} =
+             AgentSession.snapshot_with_sequence(id)
+
+    assert is_integer(sequence)
   end
 
   test "forwards slash commands unchanged through every submission mode", context do

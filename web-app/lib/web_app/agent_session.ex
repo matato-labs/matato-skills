@@ -15,6 +15,7 @@ defmodule WebApp.AgentSession do
 
   def start_link(options), do: GenServer.start_link(__MODULE__, options, name: via(options[:id]))
   def snapshot(id), do: GenServer.call(via(id), :snapshot)
+  def snapshot_with_sequence(id), do: GenServer.call(via(id), :snapshot_with_sequence)
 
   def await_ready(id) do
     GenServer.call(via(id), :await_ready, @command_timeout + 1_000)
@@ -62,6 +63,7 @@ defmodule WebApp.AgentSession do
       pending: %{},
       startup_waiters: [],
       sequence: 0,
+      update_sequence: 0,
       owner: nil,
       owner_monitor: nil,
       dialog_timer: nil,
@@ -80,6 +82,9 @@ defmodule WebApp.AgentSession do
 
   @impl true
   def handle_call(:snapshot, _from, state), do: {:reply, state.view, state}
+
+  def handle_call(:snapshot_with_sequence, _from, state),
+    do: {:reply, %{sequence: state.update_sequence, view: state.view}, state}
 
   def handle_call(:await_ready, from, %{view: %{status: :starting}} = state),
     do: {:noreply, %{state | startup_waiters: [from | state.startup_waiters]}}
@@ -140,7 +145,9 @@ defmodule WebApp.AgentSession do
     else
       true = Port.command(state.port, Jason.encode!(response) <> "\n")
       state = cancel_dialog_timer(state)
-      {:reply, :ok, publish(%{state | view: AgentState.clear_dialog(state.view)})}
+
+      {:reply, :ok,
+       publish(%{state | view: AgentState.clear_dialog(state.view)}, :dialog_cleared)}
     end
   end
 
@@ -176,7 +183,7 @@ defmodule WebApp.AgentSession do
     fail_pending(state.pending, error)
     reply_waiters(state.startup_waiters, {:error, error})
     view = if state.closing, do: state.view, else: AgentState.exit(state.view, error)
-    publish(%{state | view: view, pending: %{}})
+    publish(%{state | view: view, pending: %{}}, {:exit, error})
     {:stop, :normal, %{state | pending: %{}}}
   end
 
@@ -195,19 +202,23 @@ defmodule WebApp.AgentSession do
       {%{kind: :commands}, rest} ->
         error = "Command discovery failed: Pi did not respond"
         view = AgentState.commands_failed(state.view, error)
-        {:noreply, publish(%{state | pending: rest, view: view})}
+        {:noreply, publish(%{state | pending: rest, view: view}, {:commands_failed, error})}
 
       {pending, rest} ->
         error = "Pi command timed out; delivery is uncertain and was not retried"
         reply(pending.from, {:error, error})
         view = AgentState.command_error(state.view, error)
-        {:noreply, publish(%{state | pending: rest, view: view})}
+        {:noreply, publish(%{state | pending: rest, view: view}, {:command_error, error})}
     end
   end
 
   def handle_info({:dialog_timeout, id}, %{view: %{dialog: %{"id" => id}}} = state),
     do:
-      {:noreply, publish(%{state | dialog_timer: nil, view: AgentState.clear_dialog(state.view)})}
+      {:noreply,
+       publish(
+         %{state | dialog_timer: nil, view: AgentState.clear_dialog(state.view)},
+         :dialog_cleared
+       )}
 
   def handle_info({:dialog_timeout, _id}, state), do: {:noreply, state}
   def handle_info(:stop_protocol_failure, state), do: {:stop, :normal, state}
@@ -329,7 +340,11 @@ defmodule WebApp.AgentSession do
 
   defp apply_response(%{"success" => false} = response, %{kind: :commands}, state) do
     error = "Command discovery failed: #{response["error"] || "Pi rejected the request"}"
-    publish(%{state | view: AgentState.commands_failed(state.view, error)})
+
+    publish(
+      %{state | view: AgentState.commands_failed(state.view, error)},
+      {:commands_failed, error}
+    )
   end
 
   defp apply_response(%{"success" => false} = response, pending, state) do
@@ -340,7 +355,10 @@ defmodule WebApp.AgentSession do
       Port.close(state.port)
       protocol_failure(state, error)
     else
-      publish(%{state | view: AgentState.command_error(state.view, error)})
+      publish(
+        %{state | view: AgentState.command_error(state.view, error)},
+        {:command_error, error}
+      )
     end
   end
 
@@ -356,11 +374,14 @@ defmodule WebApp.AgentSession do
 
   defp apply_response(%{"data" => data}, %{kind: :messages}, state) do
     reply_waiters(state.startup_waiters, :ok)
-    publish(%{state | startup_waiters: [], view: AgentState.hydrate(state.view, data)})
+    %{state | startup_waiters: [], view: AgentState.hydrate(state.view, data)}
   end
 
   defp apply_response(%{"data" => %{"commands" => commands}}, %{kind: :commands}, state) do
-    publish(%{state | view: AgentState.commands_ready(state.view, commands)})
+    publish(
+      %{state | view: AgentState.commands_ready(state.view, commands)},
+      {:commands_ready, commands}
+    )
   end
 
   defp apply_response(response, pending, state) do
@@ -369,24 +390,34 @@ defmodule WebApp.AgentSession do
     state
   end
 
-  defp publish_event(%{"type" => "extension_ui_request", "method" => method} = event, state)
-       when method in ["setTitle", "set_editor_text", "setStatus", "setWidget"] do
-    AgentFanout.broadcast(state.id, {:agent_hint, event})
-    state
+  defp publish_event(event, state) do
+    event = AgentState.cap_event(event)
+    publish_capped_event(event, state)
   end
 
-  defp publish_event(%{"type" => "extension_ui_request", "method" => method} = event, state)
+  defp publish_capped_event(
+         %{"type" => "extension_ui_request", "method" => method} = event,
+         state
+       )
+       when method in ["setTitle", "set_editor_text", "setStatus", "setWidget"],
+       do: publish(state, {:hint, event})
+
+  defp publish_capped_event(
+         %{"type" => "extension_ui_request", "method" => method} = event,
+         state
+       )
        when method in ["select", "confirm", "input", "editor"] do
     state = state |> cancel_dialog_timer() |> schedule_dialog_timer(event)
-    publish(%{state | view: AgentState.apply(state.view, event)})
+    publish(%{state | view: AgentState.apply(state.view, event)}, {:event, event})
   end
 
-  defp publish_event(event, state),
-    do: publish(%{state | view: AgentState.apply(state.view, event)})
+  defp publish_capped_event(event, state),
+    do: publish(%{state | view: AgentState.apply(state.view, event)}, {:event, event})
 
-  defp publish(state) do
+  defp publish(state, update) do
+    state = %{state | update_sequence: state.update_sequence + 1}
     state.notifier.({:status, state.id, state.view.status})
-    AgentFanout.broadcast(state.id, {:agent_snapshot, state.view})
+    AgentFanout.broadcast(state.id, {:agent_update, state.id, state.update_sequence, update})
     state
   end
 
@@ -396,13 +427,16 @@ defmodule WebApp.AgentSession do
     fail_pending(state.pending, error)
     reply_waiters(state.startup_waiters, {:error, error})
 
-    publish(%{
-      state
-      | closing: true,
-        pending: %{},
-        startup_waiters: [],
-        view: AgentState.exit(state.view, error)
-    })
+    publish(
+      %{
+        state
+        | closing: true,
+          pending: %{},
+          startup_waiters: [],
+          view: AgentState.exit(state.view, error)
+      },
+      {:exit, error}
+    )
   end
 
   defp fail_pending(pending, error),
@@ -412,14 +446,14 @@ defmodule WebApp.AgentSession do
 
   defp set_owner(state, owner) do
     state = clear_owner(state)
-    %{state | owner: owner, owner_monitor: Process.monitor(owner)}
+    publish(%{state | owner: owner, owner_monitor: Process.monitor(owner)}, {:owner, owner})
   end
 
   defp clear_owner(%{owner_monitor: nil} = state), do: %{state | owner: nil}
 
   defp clear_owner(state) do
     Process.demonitor(state.owner_monitor, [:flush])
-    %{state | owner: nil, owner_monitor: nil}
+    publish(%{state | owner: nil, owner_monitor: nil}, {:owner, nil})
   end
 
   defp schedule_dialog_timer(state, %{"timeout" => timeout, "id" => id})

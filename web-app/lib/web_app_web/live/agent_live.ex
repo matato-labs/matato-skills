@@ -12,7 +12,7 @@ defmodule WebAppWeb.AgentLive do
     RemoteSessions
   }
 
-  alias WebAppWeb.SessionComponents
+  alias WebAppWeb.{AgentTranscript, SessionComponents}
 
   @max_prompt_bytes 100_000
 
@@ -49,7 +49,9 @@ defmodule WebAppWeb.AgentLive do
         error: nil,
         composer_form: to_form(%{"message" => ""}, as: :composer),
         dialog_form: to_form(%{"value" => ""}, as: :dialog),
-        expanded_work_ids: MapSet.new()
+        expanded_work_ids: MapSet.new(),
+        last_sequence: 0,
+        timeline_items: []
       )
 
     {:ok, stream(socket, :messages, [])}
@@ -57,6 +59,8 @@ defmodule WebAppWeb.AgentLive do
 
   @impl true
   def handle_params(%{"bot_id" => bot_id}, _uri, socket) do
+    socket = unsubscribe_session(socket)
+
     case Bots.get(bot_id) do
       nil ->
         {:noreply, assign(socket, bot: nil, chat_name: nil, session: nil, error: "Bot not found")}
@@ -68,11 +72,12 @@ defmodule WebAppWeb.AgentLive do
   end
 
   def handle_params(%{"id" => id}, _uri, socket) do
+    socket = unsubscribe_session(socket)
     if connected?(socket), do: AgentFanout.subscribe(id)
 
     case RemoteRegistry.open(id) do
       :ok ->
-        snapshot = AgentSession.snapshot(id)
+        %{sequence: sequence, view: snapshot} = AgentSession.snapshot_with_sequence(id)
 
         {:noreply,
          socket
@@ -82,7 +87,8 @@ defmodule WebAppWeb.AgentLive do
            chat_name: session_name(id),
            mobile_sidebar_open: false,
            expanded_work_ids: MapSet.new(),
-           error: nil
+           error: nil,
+           last_sequence: sequence
          )
          |> sync_session(snapshot)}
 
@@ -99,7 +105,7 @@ defmodule WebAppWeb.AgentLive do
     end
   end
 
-  def handle_params(_params, _uri, socket), do: {:noreply, socket}
+  def handle_params(_params, _uri, socket), do: {:noreply, unsubscribe_session(socket)}
 
   @impl true
   def handle_event("show_bot_form", _params, socket),
@@ -227,7 +233,7 @@ defmodule WebAppWeb.AgentLive do
     id = socket.assigns.session_id
 
     case RemoteRegistry.open(id) do
-      :ok -> {:noreply, socket |> assign(error: nil) |> sync_session(AgentSession.snapshot(id))}
+      :ok -> {:noreply, resync_session(socket |> assign(error: nil), id)}
       {:error, error} -> {:noreply, assign(socket, error: error)}
     end
   catch
@@ -246,44 +252,59 @@ defmodule WebAppWeb.AgentLive do
   @impl true
   def handle_info(:changed, socket), do: {:noreply, assign_sessions(socket)}
 
-  def handle_info({:message_changed, _bot_id}, %{assigns: %{session: session, bot: bot}} = socket)
-      when not is_nil(session) and not is_nil(bot),
-      do: {:noreply, sync_session(socket, session)}
+  def handle_info(
+        {:message_changed, bot_id},
+        %{assigns: %{session: session, bot: %{id: bot_id}}} = socket
+      )
+      when not is_nil(session),
+      do: {:noreply, reconcile_timeline(socket)}
 
-  def handle_info({:agent_snapshot, snapshot}, socket) do
-    dialog_form =
-      to_form(%{"value" => get_in(snapshot, [:dialog, "prefill"]) || ""}, as: :dialog)
+  def handle_info({:message_changed, _bot_id}, socket), do: {:noreply, socket}
 
-    {:noreply,
-     socket
-     |> assign_sessions()
-     |> assign(dialog_form: dialog_form, error: nil)
-     |> sync_session(snapshot)}
+  def handle_info({:agent_update, session_id, sequence, update}, socket) do
+    cond do
+      session_id != socket.assigns.session_id ->
+        {:noreply, socket}
+
+      sequence <= socket.assigns.last_sequence ->
+        {:noreply, socket}
+
+      sequence != socket.assigns.last_sequence + 1 ->
+        {:noreply, resync_session(socket, session_id)}
+
+      true ->
+        socket =
+          socket
+          |> apply_hint(update)
+          |> apply_dialog_form(update)
+          |> assign(
+            session: AgentState.apply(socket.assigns.session, update),
+            last_sequence: sequence
+          )
+
+        {:noreply, socket |> assign_sessions() |> reconcile_timeline()}
+    end
   end
 
-  def handle_info({:agent_hint, %{"method" => "set_editor_text", "text" => text}}, socket),
-    do: {:noreply, set_draft(socket, text)}
+  defdelegate transcript_item(assigns), to: AgentTranscript
+  defdelegate work_label(item), to: AgentTranscript
+  defdelegate markdown(text), to: AgentTranscript
+  defdelegate command_location(command), to: AgentTranscript
+  defdelegate command_path(command), to: AgentTranscript
+  defdelegate message_text(message), to: AgentTranscript
+  defdelegate display_message_text(message), to: AgentTranscript
+  defdelegate visible_message?(message), to: AgentTranscript
+  defdelegate partial_text(session), to: AgentTranscript
+  defdelegate partial_thinking(session), to: AgentTranscript
+  defdelegate partial_items(session), to: AgentTranscript
+  defdelegate tool_status(tool), to: AgentTranscript
+  defdelegate tool_output(tool), to: AgentTranscript
+  defdelegate tool_result(result), to: AgentTranscript
+  defdelegate work_turn_items(items, partial, active?), to: AgentTranscript
+  defdelegate work_turn_items(items, partial, active?, duration), to: AgentTranscript
 
-  def handle_info({:agent_hint, %{"method" => "setTitle", "title" => title}}, socket),
-    do: {:noreply, assign(socket, page_title: title)}
-
-  def handle_info({:agent_hint, _hint}, socket), do: {:noreply, socket}
-
-  defdelegate transcript_item(assigns), to: WebAppWeb.AgentTranscript
-
-  defdelegate work_label(item), to: WebAppWeb.AgentTranscript
-  defdelegate markdown(text), to: WebAppWeb.AgentTranscript
-  defdelegate command_location(command), to: WebAppWeb.AgentTranscript
-  defdelegate command_path(command), to: WebAppWeb.AgentTranscript
-  defdelegate message_text(message), to: WebAppWeb.AgentTranscript
-  defdelegate display_message_text(message), to: WebAppWeb.AgentTranscript
-  defdelegate visible_message?(message), to: WebAppWeb.AgentTranscript
-  defdelegate partial_text(session), to: WebAppWeb.AgentTranscript
-  defdelegate partial_thinking(session), to: WebAppWeb.AgentTranscript
-  defdelegate partial_items(session), to: WebAppWeb.AgentTranscript
-  defdelegate tool_status(tool), to: WebAppWeb.AgentTranscript
-  defdelegate tool_output(tool), to: WebAppWeb.AgentTranscript
-  defdelegate tool_result(result), to: WebAppWeb.AgentTranscript
+  defp agent_active?(status),
+    do: status in [:working, :retrying, :compacting, :waiting_for_input]
 
   defp send_command(socket, _type, message) when message in [nil, ""], do: {:noreply, socket}
 
@@ -358,17 +379,71 @@ defmodule WebAppWeb.AgentLive do
   defp format_error(reason), do: inspect(reason)
 
   defp sync_session(socket, snapshot) do
-    internal_messages =
-      if socket.assigns.bot, do: Messages.list_for_bot(socket.assigns.bot.id), else: []
+    items = timeline_for(socket, snapshot)
 
     socket
-    |> assign(session: snapshot)
-    |> stream(
-      :messages,
-      timeline_items(transcript_items(snapshot), notification_items(internal_messages))
-      |> mark_expanded_work(socket.assigns.expanded_work_ids),
-      reset: true
-    )
+    |> assign(session: snapshot, timeline_items: items)
+    |> stream(:messages, items, reset: true)
+  end
+
+  defp resync_session(socket, id) do
+    %{sequence: sequence, view: snapshot} = AgentSession.snapshot_with_sequence(id)
+
+    socket
+    |> assign(last_sequence: sequence, error: nil)
+    |> sync_session(snapshot)
+  end
+
+  defp reconcile_timeline(socket) do
+    items = timeline_for(socket, socket.assigns.session)
+    old_items = Map.new(socket.assigns.timeline_items, &{&1.id, &1})
+    new_items = Map.new(items, &{&1.id, &1})
+
+    socket =
+      Enum.reduce(old_items, socket, fn {id, _item}, socket ->
+        if Map.has_key?(new_items, id),
+          do: socket,
+          else: stream_delete(socket, :messages, %{id: id})
+      end)
+
+    socket =
+      Enum.reduce(Enum.with_index(items), socket, fn {item, index}, socket ->
+        if old_items[item.id] == item,
+          do: socket,
+          else: stream_insert(socket, :messages, item, at: index)
+      end)
+
+    assign(socket, timeline_items: items)
+  end
+
+  defp timeline_for(socket, session) do
+    messages = if socket.assigns.bot, do: Messages.list_for_bot(socket.assigns.bot.id), else: []
+
+    session
+    |> AgentTranscript.transcript_items()
+    |> AgentTranscript.timeline_items(AgentTranscript.notification_items(messages))
+    |> AgentTranscript.mark_expanded_work(socket.assigns.expanded_work_ids)
+  end
+
+  defp apply_hint(socket, {:hint, %{"method" => "set_editor_text", "text" => text}}),
+    do: set_draft(socket, text)
+
+  defp apply_hint(socket, {:hint, %{"method" => "setTitle", "title" => title}}),
+    do: assign(socket, page_title: title)
+
+  defp apply_hint(socket, _update), do: socket
+
+  defp apply_dialog_form(socket, {:event, %{"type" => "extension_ui_request"} = event}),
+    do: assign(socket, dialog_form: to_form(%{"value" => event["prefill"] || ""}, as: :dialog))
+
+  defp apply_dialog_form(socket, _update), do: socket
+
+  defp unsubscribe_session(socket) do
+    if connected?(socket) and socket.assigns.session_id,
+      do: AgentFanout.unsubscribe(socket.assigns.session_id)
+
+    if connected?(socket) and socket.assigns.bot, do: Messages.unsubscribe(socket.assigns.bot.id)
+    socket
   end
 
   defp open_bot_chat(socket, bot) do
@@ -387,7 +462,7 @@ defmodule WebAppWeb.AgentLive do
            expanded_work_ids: MapSet.new(),
            error: nil
          )
-         |> sync_session(AgentSession.snapshot(id))}
+         |> resync_session(id)}
 
       {:error, error} ->
         {:noreply,
@@ -401,187 +476,6 @@ defmodule WebAppWeb.AgentLive do
          )}
     end
   end
-
-  defp mark_expanded_work(items, expanded_work_ids) do
-    Enum.map(items, fn item ->
-      if item.kind == :work_turn,
-        do: Map.put(item, :expanded?, MapSet.member?(expanded_work_ids, item.id)),
-        else: item
-    end)
-  end
-
-  defp notification_items(messages) do
-    Enum.map(messages, fn message ->
-      %{
-        id: "notification-#{message.id}",
-        kind: :notification,
-        content: message.content,
-        status: message.sent_status,
-        timestamp: message.timestamp
-      }
-    end)
-  end
-
-  defp timeline_items(transcript, notifications) do
-    Enum.sort_by(transcript ++ notifications, &timeline_sort_key/1)
-  end
-
-  defp timeline_sort_key(%{timestamp: %DateTime{} = timestamp}),
-    do: {0, DateTime.to_unix(timestamp, :millisecond)}
-
-  defp timeline_sort_key(%{timestamp: timestamp}) when is_integer(timestamp), do: {0, timestamp}
-
-  defp timeline_sort_key(%{timestamp: timestamp}) when is_binary(timestamp) do
-    case DateTime.from_iso8601(timestamp) do
-      {:ok, datetime, _offset} -> {0, DateTime.to_unix(datetime, :millisecond)}
-      _ -> {1, 0}
-    end
-  end
-
-  defp timeline_sort_key(_item), do: {1, 0}
-
-  defp transcript_items(session) do
-    session
-    |> message_items_for_session()
-    |> work_turn_items(
-      partial_items(session),
-      agent_active?(session.status),
-      session.last_run_duration
-    )
-  end
-
-  defp message_items_for_session(session) do
-    session.messages
-    |> Enum.with_index()
-    |> Enum.flat_map(fn {message, message_index} ->
-      message_items(message, message_index, session)
-    end)
-  end
-
-  def work_turn_items(items, partial, active?), do: work_turn_items(items, partial, active?, nil)
-
-  def work_turn_items(items, partial, active?, duration) do
-    {result, current} =
-      Enum.reduce(items, {[], []}, fn item, {result, current} ->
-        if item.kind == :message && item.role == :user do
-          {result ++ finish_work_turn(current, false), [item]}
-        else
-          {result, current ++ [item]}
-        end
-      end)
-
-    result
-    |> Kernel.++(finish_work_turn(current ++ partial, active?))
-    |> put_work_duration(duration)
-  end
-
-  defp put_work_duration(items, nil), do: items
-
-  defp put_work_duration(items, duration) do
-    case Enum.find_index(Enum.reverse(items), &(&1.kind == :work_turn)) do
-      nil ->
-        items
-
-      reverse_index ->
-        List.update_at(
-          items,
-          length(items) - reverse_index - 1,
-          &Map.put(&1, :duration, duration)
-        )
-    end
-  end
-
-  defp finish_work_turn([], _active?), do: []
-
-  defp finish_work_turn([%{kind: :message, role: :user} = user | items], active?) do
-    {final, work} = split_final_message(items, active?)
-    work_item = work_turn_item(user, work, active?)
-    [user] ++ List.wrap(work_item) ++ List.wrap(final)
-  end
-
-  defp finish_work_turn(items, _active?), do: items
-
-  defp split_final_message(items, true), do: {nil, items}
-
-  defp split_final_message(items, false) do
-    case Enum.find_index(Enum.reverse(items), &agent_message?/1) do
-      nil ->
-        {nil, items}
-
-      reverse_index ->
-        index = length(items) - reverse_index - 1
-        {Enum.at(items, index), List.delete_at(items, index)}
-    end
-  end
-
-  defp work_turn_item(_user, [], _active?), do: nil
-
-  defp work_turn_item(user, items, active?) do
-    traces = Enum.filter(items, &(&1.kind in [:thinking, :tool]))
-    messages = Enum.filter(items, &agent_message?/1)
-
-    %{
-      id: "work-#{user.id}-#{if active?, do: "active", else: "settled"}",
-      kind: :work_turn,
-      timestamp: Map.get(user, :timestamp),
-      active?: active?,
-      duration: nil,
-      messages: messages,
-      traces: Enum.reverse(traces)
-    }
-  end
-
-  defp agent_message?(%{kind: :message, role: :agent}), do: true
-  defp agent_message?(_item), do: false
-
-  defp agent_active?(status), do: status in [:working, :retrying, :compacting, :waiting_for_input]
-
-  defp message_items(
-         %{"role" => "assistant", "content" => content} = message,
-         message_index,
-         session
-       )
-       when is_list(content) do
-    content
-    |> Enum.with_index()
-    |> Enum.flat_map(fn {block, block_index} ->
-      id = "message-#{message_index}-#{block_index}"
-
-      case block do
-        %{"type" => "text", "text" => text} when text != "" ->
-          [%{id: id, kind: :message, role: :agent, text: text, timestamp: message["timestamp"]}]
-
-        %{"type" => "thinking", "thinking" => text} when text != "" ->
-          [%{id: id, kind: :thinking, text: text}]
-
-        %{"type" => "toolCall", "id" => tool_id} ->
-          [%{id: id, kind: :tool, tool: session.tools[tool_id]}]
-
-        _ ->
-          []
-      end
-    end)
-  end
-
-  defp message_items(%{"role" => role} = message, message_index, _session)
-       when role in ["user", "custom", "branchSummary", "compactionSummary"] do
-    text = display_message_text(message)
-    role = if role == "user", do: :user, else: :agent
-
-    if text == "",
-      do: [],
-      else: [
-        %{
-          id: "message-#{message_index}",
-          kind: :message,
-          role: role,
-          text: text,
-          timestamp: message["timestamp"]
-        }
-      ]
-  end
-
-  defp message_items(_message, _message_index, _session), do: []
 
   defp dialog_response(%{"id" => id, "method" => "confirm"}, params) do
     %{"type" => "extension_ui_response", "id" => id, "confirmed" => params["answer"] == "true"}

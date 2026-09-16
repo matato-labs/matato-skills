@@ -85,5 +85,9 @@ jobs:
         with:
           path: web-app/deps
           key: elixir-deps-${{ runner.os }}-${{ hashFiles('web-app/mix.lock') }}
+      - uses: actions/cache@v4
+        with:
+          path: web-app/_build
+          key: elixir-build-dev-${{ runner.os }}-${{ hashFiles('web-app/mix.lock') }}
       - run: mix deps.get
       - run: mix format --check-formatted
