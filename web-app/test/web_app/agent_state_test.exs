@@ -188,9 +188,9 @@ defmodule WebApp.AgentStateTest do
     assert byte_size(hd(state.messages)["content"]) == 24_000
   end
 
-  test "hydrates every tool record in a long session" do
+  test "retains every tool record from a long persisted session" do
     messages =
-      Enum.map(1..102, fn index ->
+      Enum.map(1..210, fn index ->
         %{
           "role" => "assistant",
           "content" => [
@@ -206,7 +206,23 @@ defmodule WebApp.AgentStateTest do
 
     state = AgentState.hydrate(AgentState.new(), %{"messages" => messages})
 
-    assert length(state.messages) == 102
+    assert length(state.messages) == 210
+    assert length(state.tool_order) == 210
+    assert Map.has_key?(state.tools, "call-1")
+    assert Map.has_key?(state.tools, "call-210")
+  end
+
+  test "retains every tool record from a long live session" do
+    state =
+      Enum.reduce(1..102, AgentState.new(), fn index, state ->
+        AgentState.apply(state, %{
+          "type" => "tool_execution_start",
+          "toolCallId" => "call-#{index}",
+          "toolName" => "bash",
+          "args" => "{}"
+        })
+      end)
+
     assert length(state.tool_order) == 102
     assert Map.has_key?(state.tools, "call-1")
     assert Map.has_key?(state.tools, "call-102")
