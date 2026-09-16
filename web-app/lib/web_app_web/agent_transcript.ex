@@ -177,7 +177,7 @@ defmodule WebAppWeb.AgentTranscript do
           [%{id: "partial-#{index}", kind: :thinking, text: text}]
 
         %{type: :tool_call, content: id} ->
-          [%{id: "partial-#{index}", kind: :tool, tool: session.tools[id]}]
+          tool_item("partial-#{index}", session.tools[id])
 
         _ ->
           []
@@ -340,6 +340,9 @@ defmodule WebAppWeb.AgentTranscript do
 
   defp agent_active?(status), do: status in [:working, :retrying, :compacting, :waiting_for_input]
 
+  defp tool_item(_id, nil), do: []
+  defp tool_item(id, tool), do: [%{id: id, kind: :tool, tool: tool}]
+
   defp message_items(
          %{"role" => "assistant", "content" => content} = message,
          message_index,
@@ -359,7 +362,7 @@ defmodule WebAppWeb.AgentTranscript do
           [%{id: id, kind: :thinking, text: text}]
 
         %{"type" => "toolCall", "id" => tool_id} ->
-          [%{id: id, kind: :tool, tool: session.tools[tool_id]}]
+          tool_item(id, session.tools[tool_id])
 
         _ ->
           []

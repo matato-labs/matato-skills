@@ -4,9 +4,7 @@ defmodule WebApp.AgentState do
   import Kernel, except: [apply: 2]
 
   @active_statuses [:working, :waiting_for_input, :retrying, :compacting]
-  @max_messages 200
   @max_text_bytes 24_000
-  @max_tools 100
 
   def new(options \\ []) do
     %{
@@ -82,7 +80,7 @@ defmodule WebApp.AgentState do
   end
 
   def apply(state, %{"type" => "message_end", "message" => message}) do
-    messages = (state.messages ++ [cap_message(message)]) |> Enum.take(-@max_messages)
+    messages = state.messages ++ [cap_message(message)]
     %{state | messages: messages, partial: empty_partial()}
   end
 
@@ -132,7 +130,7 @@ defmodule WebApp.AgentState do
     %{
       tools_state
       | status: status,
-        messages: messages |> Enum.take(-@max_messages) |> Enum.map(&cap_message/1)
+        messages: Enum.map(messages, &cap_message/1)
     }
   end
 
@@ -244,13 +242,8 @@ defmodule WebApp.AgentState do
 
   defp put_tool(state, id, tool) do
     order = if id in state.tool_order, do: state.tool_order, else: state.tool_order ++ [id]
-    order = Enum.take(order, -@max_tools)
 
-    %{
-      state
-      | tools: state.tools |> Map.put(id, cap_tool(tool)) |> Map.take(order),
-        tool_order: order
-    }
+    %{state | tools: Map.put(state.tools, id, cap_tool(tool)), tool_order: order}
   end
 
   defp cap_tool(tool) do

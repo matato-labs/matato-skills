@@ -152,6 +152,20 @@ defmodule WebAppWeb.AgentLiveTest do
     assert WebAppWeb.AgentLive.display_message_text(message) == "/skill:review\n\nCheck the API"
   end
 
+  test "omits tool calls missing from incomplete session history" do
+    session = %{
+      WebApp.AgentState.new()
+      | messages: [
+          %{
+            "role" => "assistant",
+            "content" => [%{"type" => "toolCall", "id" => "missing"}]
+          }
+        ]
+    }
+
+    assert WebAppWeb.AgentTranscript.transcript_items(session) == []
+  end
+
   test "groups live work and keeps the settled final reply outside it" do
     user = %{id: "user", kind: :message, role: :user, text: "Fix it"}
     progress = %{id: "progress", kind: :message, role: :agent, text: "I will inspect it"}
