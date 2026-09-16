@@ -1,5 +1,5 @@
 ---
-name: how
+name: why
 description: Use this skill when the user wants to know why something works the way it does in a codebase
 disable-model-invocation: true
 ---
