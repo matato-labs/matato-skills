@@ -173,7 +173,7 @@ defmodule WebApp.AgentStateTest do
     assert byte_size(get_in(event, ["assistantMessageEvent", "delta"])) == 24_000
   end
 
-  test "keeps warm reconnect snapshots bounded" do
+  test "keeps complete warm reconnect snapshots" do
     long_text = String.duplicate("x", 30_000)
 
     state =
@@ -184,7 +184,47 @@ defmodule WebApp.AgentStateTest do
         })
       end)
 
-    assert length(state.messages) == 200
+    assert length(state.messages) == 210
     assert byte_size(hd(state.messages)["content"]) == 24_000
+  end
+
+  test "retains every tool record from a long persisted session" do
+    messages =
+      Enum.map(1..210, fn index ->
+        %{
+          "role" => "assistant",
+          "content" => [
+            %{
+              "type" => "toolCall",
+              "id" => "call-#{index}",
+              "name" => "bash",
+              "arguments" => "{}"
+            }
+          ]
+        }
+      end)
+
+    state = AgentState.hydrate(AgentState.new(), %{"messages" => messages})
+
+    assert length(state.messages) == 210
+    assert length(state.tool_order) == 210
+    assert Map.has_key?(state.tools, "call-1")
+    assert Map.has_key?(state.tools, "call-210")
+  end
+
+  test "retains every tool record from a long live session" do
+    state =
+      Enum.reduce(1..102, AgentState.new(), fn index, state ->
+        AgentState.apply(state, %{
+          "type" => "tool_execution_start",
+          "toolCallId" => "call-#{index}",
+          "toolName" => "bash",
+          "args" => "{}"
+        })
+      end)
+
+    assert length(state.tool_order) == 102
+    assert Map.has_key?(state.tools, "call-1")
+    assert Map.has_key?(state.tools, "call-102")
   end
 end
