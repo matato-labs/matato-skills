@@ -99,6 +99,24 @@ defmodule WebApp.AgentStateTest do
     assert state.tool_order == ["call-1"]
   end
 
+  test "keeps Pi queue updates for reconnecting clients and clears processed messages" do
+    state =
+      AgentState.apply(AgentState.new(), %{
+        "type" => "queue_update",
+        "steering" => ["Change the approach"],
+        "followUp" => ["Run the tests"]
+      })
+
+    assert state.queue == %{
+             "steering" => ["Change the approach"],
+             "followUp" => ["Run the tests"]
+           }
+
+    state = AgentState.apply(state, %{"type" => "queue_update", "followUp" => []})
+
+    assert state.queue == %{"steering" => ["Change the approach"], "followUp" => []}
+  end
+
   test "uses message_end as the authoritative completed message" do
     message = %{"role" => "assistant", "content" => [%{"type" => "text", "text" => "Done"}]}
     state = AgentState.apply(AgentState.new(), %{"type" => "message_end", "message" => message})

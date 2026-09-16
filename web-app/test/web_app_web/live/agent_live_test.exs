@@ -17,6 +17,8 @@ defmodule WebAppWeb.AgentLiveTest do
     import json, sys
     for line in sys.stdin:
       command = json.loads(line)
+      with open("#{root}/commands.jsonl", "a") as file:
+        file.write(json.dumps(command) + "\\n")
       response = {"id": command["id"], "type": "response", "command": command["type"], "success": True}
       if command["type"] == "get_state":
         response["data"] = {"model": None, "isStreaming": False, "isCompacting": False, "sessionFile": None, "sessionId": "pi-1"}
@@ -24,6 +26,16 @@ defmodule WebAppWeb.AgentLiveTest do
         response["data"] = {"messages": [{"role": "user", "content": "First prompt", "timestamp": 1000}, {"role": "assistant", "content": [{"type": "text", "text": "First reply"}], "timestamp": 3000}]}
       elif command["type"] == "get_commands":
         response["data"] = {"commands": [{"name": "plan", "description": "Plan the work", "source": "prompt", "sourceInfo": {"path": "#{root}/.pi/prompts/plan.md", "scope": "project"}}]}
+      if command["type"] == "trigger_active":
+        print(json.dumps({"type": "agent_start"}), flush=True)
+      elif command["type"] == "queue_follow_up":
+        print(json.dumps({"type": "queue_update", "followUp": ["Run the tests"]}), flush=True)
+      elif command["type"] == "queue_steering":
+        print(json.dumps({"type": "queue_update", "steering": ["Work on the design"]}), flush=True)
+      elif command["type"] == "abort":
+        print(json.dumps({"type": "queue_update", "steering": [], "followUp": []}), flush=True)
+      elif command["type"] == "clear_follow_up":
+        print(json.dumps({"type": "queue_update", "followUp": []}), flush=True)
       print(json.dumps(response), flush=True)
     """)
 
@@ -70,7 +82,7 @@ defmodule WebAppWeb.AgentLiveTest do
       File.rm_rf!(project)
     end)
 
-    %{id: id, bot: bot}
+    %{id: id, bot: bot, root: root}
   end
 
   test "renders persisted bot activity in the bot chat", %{conn: conn, bot: bot} do
@@ -218,6 +230,73 @@ defmodule WebAppWeb.AgentLiveTest do
     assert has_element?(view, "#slash-command-plan[title$='.pi/prompts/plan.md']")
   end
 
+  test "submits settled browser chat input without ownership or a Send button", %{
+    conn: conn,
+    id: id,
+    root: root
+  } do
+    :owner = AgentSession.claim(id, self())
+    {:ok, view, _html} = live(conn, ~p"/sessions/#{id}")
+
+    refute has_element?(view, "button[value='send']")
+    refute has_element?(view, "button[value='later']")
+    refute has_element?(view, "[phx-click='takeover']")
+
+    view
+    |> form("#composer-form", composer: %{message: "Review this"})
+    |> render_submit()
+
+    assert command_types(root) |> Enum.member?("prompt")
+  end
+
+  test "queues normal input while active, keeps Steer immediate, and clears processed queue", %{
+    conn: conn,
+    id: id,
+    root: root
+  } do
+    {:ok, view, _html} = live(conn, ~p"/sessions/#{id}")
+    assert :ok = AgentSession.command(id, %{"type" => "trigger_active"})
+    sync_snapshot(view, id)
+    assert has_element?(view, "button[value='steer']")
+
+    assert :ok = AgentSession.command(id, %{"type" => "queue_steering"})
+    sync_snapshot(view, id)
+    assert has_element?(view, "#queued-steering", "Work on the design")
+
+    view
+    |> form("#composer-form", composer: %{message: "Run the tests"})
+    |> render_submit()
+
+    assert List.last(command_types(root)) == "follow_up"
+    assert :ok = AgentSession.command(id, %{"type" => "queue_follow_up"})
+    sync_snapshot(view, id)
+    assert has_element?(view, "#queued-follow-up")
+    assert has_element?(view, "#queued-follow-up", "Run the tests")
+
+    render_submit(view, "compose", %{
+      "composer" => %{"message" => "Stop here"},
+      "behavior" => "steer"
+    })
+
+    assert List.last(command_types(root)) == "steer"
+
+    assert :ok = AgentSession.command(id, %{"type" => "clear_follow_up"})
+    sync_snapshot(view, id)
+    refute has_element?(view, "#queued-follow-up")
+  end
+
+  test "aborts and restores queued messages to the composer", %{conn: conn, id: id} do
+    {:ok, view, _html} = live(conn, ~p"/sessions/#{id}")
+    assert :ok = AgentSession.command(id, %{"type" => "trigger_active"})
+    assert :ok = AgentSession.command(id, %{"type" => "queue_steering"})
+    sync_snapshot(view, id)
+
+    render_hook(view, "abort_and_restore_queue")
+
+    assert render(view) =~ "Work on the design"
+    refute has_element?(view, "#queued-steering")
+  end
+
   test "opens and closes the mobile session drawer", %{conn: conn, id: id} do
     {:ok, view, _html} = live(conn, ~p"/sessions/#{id}")
 
@@ -245,5 +324,19 @@ defmodule WebAppWeb.AgentLiveTest do
     view |> element("#mobile-sidebar-backdrop") |> render_click()
 
     refute has_element?(view, "#mobile-sidebar-backdrop")
+  end
+
+  defp sync_snapshot(view, id) do
+    send(view.pid, {:agent_snapshot, AgentSession.snapshot(id)})
+    _ = :sys.get_state(view.pid)
+  end
+
+  defp command_types(root) do
+    root
+    |> Path.join("commands.jsonl")
+    |> File.read!()
+    |> String.split("\n", trim: true)
+    |> Enum.map(&Jason.decode!/1)
+    |> Enum.map(& &1["type"])
   end
 end

@@ -77,21 +77,6 @@
               </div>
 
               <div
-                :if={@session.queue["steering"] != [] || @session.queue["followUp"] != []}
-                class="flex items-center gap-3 rounded-lg border border-warning/25 bg-warning/5 px-3 py-2 text-xs text-warning-content"
-              >
-                <.icon name="hero-clock" class="size-4 text-warning" />
-                <span>{length(@session.queue["steering"])} steering, {length(
-                  @session.queue["followUp"]
-                )} later</span>
-                <button
-                  phx-click="clear_queue"
-                  disabled={!@interaction_owner}
-                  class="ml-auto font-semibold text-warning hover:underline"
-                >Clear queue</button>
-              </div>
-
-              <div
                 :if={@session.error}
                 class="rounded-lg border border-error/30 bg-error/8 px-4 py-3 text-sm text-error"
                 role="alert"
@@ -128,14 +113,12 @@
                   id={"dialog-option-#{:erlang.phash2(option)}"}
                   phx-click="dialog"
                   phx-value-value={option}
-                  disabled={!@interaction_owner}
                   class="btn btn-sm btn-outline"
                 >{option}</button>
                 <button
                   id="dialog-cancel"
                   phx-click="dialog"
                   phx-value-cancel="true"
-                  disabled={!@interaction_owner}
                   class="btn btn-sm btn-ghost"
                 >Cancel</button>
               </div>
@@ -143,14 +126,12 @@
               <div :if={@session.dialog["method"] == "confirm"} class="mt-3 flex gap-2">
                 <button
                   id="dialog-confirm"
-                  disabled={!@interaction_owner}
                   phx-click="dialog"
                   phx-value-answer="true"
                   class="btn btn-sm btn-primary"
                 >Confirm</button>
                 <button
                   id="dialog-decline"
-                  disabled={!@interaction_owner}
                   phx-click="dialog"
                   phx-value-answer="false"
                   class="btn btn-sm btn-ghost"
@@ -171,10 +152,9 @@
                   placeholder={@session.dialog["placeholder"]}
                   class="textarea textarea-bordered min-h-10 flex-1 bg-base-200 text-sm"
                 />
-                <button disabled={!@interaction_owner} class="btn btn-sm btn-primary">Submit</button>
+                <button class="btn btn-sm btn-primary">Submit</button>
                 <button
                   type="button"
-                  disabled={!@interaction_owner}
                   phx-click="dialog"
                   phx-value-cancel="true"
                   class="btn btn-sm btn-ghost"
@@ -184,6 +164,41 @@
           </section>
 
           <footer class="shrink-0 border-t border-base-content/10 bg-base-300 px-5 py-4 lg:px-8">
+            <div class="mx-auto max-w-3xl space-y-2">
+              <section
+                :if={@session.queue["steering"] != []}
+                id="queued-steering"
+                class="mx-2 rounded-md border border-base-content/10 bg-base-200/70 px-3 py-2 text-sm text-base-content/75"
+                role="status"
+                aria-label="Queued steering message"
+              >
+                <p :for={message <- @session.queue["steering"]} class="whitespace-pre-wrap">
+                  {message}
+                </p>
+                <p class="mt-1 text-[11px] text-base-content/35">
+                  Enter to steer · Alt + Enter to follow up · Esc to undo
+                </p>
+              </section>
+              <section
+                :if={@session.queue["followUp"] != []}
+                id="queued-follow-up"
+                class="flex items-start gap-3 rounded-lg border border-warning/25 bg-warning/5 px-3 py-2.5 text-sm"
+                role="status"
+              >
+                <.icon name="hero-clock" class="mt-0.5 size-4 shrink-0 text-warning" />
+                <div class="min-w-0 flex-1">
+                  <p class="text-xs font-semibold uppercase tracking-wide text-warning">
+                    Up next
+                  </p>
+                  <p
+                    :for={message <- @session.queue["followUp"]}
+                    class="mt-0.5 whitespace-pre-wrap text-base-content"
+                  >
+                    {message}
+                  </p>
+                </div>
+              </section>
+            </div>
             <.form
               for={@composer_form}
               id="composer-form"
@@ -240,44 +255,22 @@
                 class="textarea w-full resize-none border-base-content/15 bg-base-200 text-sm leading-6 placeholder:text-base-content/30 focus:border-primary focus:outline-none"
               />
               <div class="mt-2 flex items-center gap-2">
-                <p class="hidden text-xs text-base-content/35 sm:block">
-                  Shift + Enter for a new line
-                </p>
                 <div class="ml-auto flex gap-2">
                   <button
                     :if={@session.status in [:working, :retrying, :compacting]}
                     name="behavior"
                     value="steer"
-                    disabled={!@interaction_owner}
+                    data-steer-button
                     class="btn btn-sm btn-ghost"
                   >Steer</button>
-                  <button
-                    :if={@session.status in [:working, :retrying, :compacting]}
-                    name="behavior"
-                    value="later"
-                    disabled={!@interaction_owner}
-                    class="btn btn-sm btn-ghost"
-                  >Later</button>
                   <button
                     :if={@session.status not in [:stopped, :failed]}
                     id="stop-button"
                     type="button"
-                    disabled={!@interaction_owner}
                     phx-click="stop"
                     class="btn btn-sm btn-ghost text-error"
                   >
                     <.icon name="hero-stop" class="size-3.5" /> Stop
-                  </button>
-                  <button
-                    name="behavior"
-                    value="send"
-                    class="btn btn-sm btn-primary"
-                    disabled={
-                      !@interaction_owner ||
-                        @session.status in [:starting, :waiting_for_input, :stopped, :failed]
-                    }
-                  >
-                    Send <.icon name="hero-arrow-up" class="size-3.5" />
                   </button>
                 </div>
               </div>

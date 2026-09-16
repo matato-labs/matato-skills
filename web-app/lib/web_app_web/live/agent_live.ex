@@ -46,7 +46,6 @@ defmodule WebAppWeb.AgentLive do
         mobile_sidebar_open: false,
         session: nil,
         draft: "",
-        interaction_owner: false,
         error: nil,
         composer_form: to_form(%{"message" => ""}, as: :composer),
         dialog_form: to_form(%{"value" => ""}, as: :dialog),
@@ -73,8 +72,6 @@ defmodule WebAppWeb.AgentLive do
 
     case RemoteRegistry.open(id) do
       :ok ->
-        owner = if connected?(socket), do: AgentSession.claim(id, self()) == :owner, else: false
-
         snapshot = AgentSession.snapshot(id)
 
         {:noreply,
@@ -83,7 +80,6 @@ defmodule WebAppWeb.AgentLive do
            session_id: id,
            bot: nil,
            chat_name: session_name(id),
-           interaction_owner: owner,
            mobile_sidebar_open: false,
            expanded_work_ids: MapSet.new(),
            error: nil
@@ -106,11 +102,6 @@ defmodule WebAppWeb.AgentLive do
   def handle_params(_params, _uri, socket), do: {:noreply, socket}
 
   @impl true
-  def handle_event(event, _params, %{assigns: %{interaction_owner: false}} = socket)
-      when event in ["compose", "abort", "clear_queue", "stop", "dialog"] do
-    {:noreply, assign(socket, error: "Take interaction control before changing this session")}
-  end
-
   def handle_event("show_bot_form", _params, socket),
     do: {:noreply, assign(socket, show_bot_form: true, bot_error: nil, bot_form: bot_form())}
 
@@ -199,79 +190,56 @@ defmodule WebAppWeb.AgentLive do
 
   def handle_event(
         "compose",
-        %{"composer" => %{"message" => message}, "behavior" => behavior},
+        %{"composer" => %{"message" => message}, "behavior" => "steer"},
         socket
-      ) do
-    type = %{"send" => "prompt", "steer" => "steer", "later" => "follow_up"}[behavior] || "prompt"
-    send_command(socket, type, message)
-  end
+      ),
+      do: send_command(socket, "steer", message)
+
+  def handle_event("compose", %{"composer" => %{"message" => message}}, socket),
+    do:
+      send_command(
+        socket,
+        if(agent_active?(socket.assigns.session.status), do: "follow_up", else: "prompt"),
+        message
+      )
 
   def handle_event("draft", %{"composer" => %{"message" => message}}, socket),
     do: {:noreply, set_draft(socket, message)}
 
   def handle_event("abort", _params, socket), do: run_command(socket, %{"type" => "abort"})
 
-  def handle_event("clear_queue", _params, socket) do
-    case command(socket, %{"type" => "clear_queue"}) do
-      {:ok, data} ->
-        restored = (data["steering"] || []) ++ (data["followUp"] || [])
-        draft = Enum.join(restored, "\n\n")
-        {:noreply, socket |> set_draft(draft) |> assign(error: nil)}
+  def handle_event("abort_and_restore_queue", _params, socket) do
+    queued_messages =
+      socket.assigns.session.queue["steering"] ++ socket.assigns.session.queue["followUp"]
 
-      {:error, error} ->
-        {:noreply, assign(socket, error: error)}
-    end
+    socket
+    |> set_draft(Enum.join(queued_messages ++ [socket.assigns.draft], "\n\n"))
+    |> run_command(%{"type" => "abort"})
   end
 
   def handle_event("stop", _params, socket) do
     :ok = RemoteRegistry.stop(socket.assigns.session_id)
 
-    {:noreply,
-     assign(socket,
-       session: %{socket.assigns.session | status: :stopped},
-       interaction_owner: false
-     )}
+    {:noreply, assign(socket, session: %{socket.assigns.session | status: :stopped})}
   end
 
   def handle_event("resume", _params, socket) do
     id = socket.assigns.session_id
 
-    with :ok <- RemoteRegistry.open(id),
-         :owner <- AgentSession.claim(id, self(), true) do
-      {:noreply,
-       socket
-       |> assign(interaction_owner: true, error: nil)
-       |> sync_session(AgentSession.snapshot(id))}
-    else
+    case RemoteRegistry.open(id) do
+      :ok -> {:noreply, socket |> assign(error: nil) |> sync_session(AgentSession.snapshot(id))}
       {:error, error} -> {:noreply, assign(socket, error: error)}
     end
   catch
     :exit, _reason -> {:noreply, assign(socket, error: "Agent process could not be resumed")}
   end
 
-  def handle_event("takeover", _params, socket) do
-    case AgentSession.claim(socket.assigns.session_id, self(), true) do
-      :owner -> {:noreply, assign(socket, interaction_owner: true, error: nil)}
-      :observer -> {:noreply, assign(socket, error: "Interaction control is unavailable")}
-    end
-  catch
-    :exit, _reason ->
-      {:noreply, assign(socket, error: "Resume the session before taking control")}
-  end
-
   def handle_event("dialog", params, socket) do
-    if socket.assigns.interaction_owner do
-      response = dialog_response(socket.assigns.session.dialog, params)
+    response = dialog_response(socket.assigns.session.dialog, params)
 
-      case AgentSession.respond(socket.assigns.session_id, self(), response) do
-        :ok ->
-          {:noreply, assign(socket, session: AgentState.clear_dialog(socket.assigns.session))}
-
-        {:error, error} ->
-          {:noreply, assign(socket, error: error)}
-      end
-    else
-      {:noreply, assign(socket, error: "Take interaction control before answering")}
+    case AgentSession.respond(socket.assigns.session_id, response) do
+      :ok -> {:noreply, assign(socket, session: AgentState.clear_dialog(socket.assigns.session))}
+      {:error, error} -> {:noreply, assign(socket, error: error)}
     end
   end
 
@@ -293,233 +261,29 @@ defmodule WebAppWeb.AgentLive do
      |> sync_session(snapshot)}
   end
 
-  def handle_info({:agent_owner, owner}, socket),
-    do: {:noreply, assign(socket, interaction_owner: owner == self())}
-
-  def handle_info(
-        {:agent_hint, %{"method" => "set_editor_text", "text" => text}},
-        %{assigns: %{interaction_owner: true}} = socket
-      ),
-      do: {:noreply, set_draft(socket, text)}
-
-  def handle_info({:agent_hint, %{"method" => "set_editor_text"}}, socket),
-    do: {:noreply, socket}
+  def handle_info({:agent_hint, %{"method" => "set_editor_text", "text" => text}}, socket),
+    do: {:noreply, set_draft(socket, text)}
 
   def handle_info({:agent_hint, %{"method" => "setTitle", "title" => title}}, socket),
     do: {:noreply, assign(socket, page_title: title)}
 
   def handle_info({:agent_hint, _hint}, socket), do: {:noreply, socket}
 
-  @impl true
-  def terminate(_reason, %{assigns: %{session_id: id}}) when is_binary(id) do
-    if AgentSession.whereis(id), do: AgentSession.release(id, self())
-    :ok
-  end
+  defdelegate transcript_item(assigns), to: WebAppWeb.AgentTranscript
 
-  def terminate(_reason, _socket), do: :ok
-
-  attr :id, :string, required: true
-  attr :item, :map, required: true
-  attr :streaming, :boolean, default: false
-  attr :expanded, :boolean, default: false
-
-  def transcript_item(assigns) do
-    ~H"""
-    <article
-      :if={@item.kind == :message}
-      id={@id}
-      class={[
-        "text-sm leading-6 text-base-content/85",
-        @item.role == :agent &&
-          if(Map.get(@item, :after_activity?, false), do: "mt-4", else: "mt-8"),
-        @item.role == :user && "mt-8 first:mt-0",
-        @item.role == :user &&
-          "ml-auto w-fit max-w-[92%] rounded-2xl border border-base-content/12 bg-base-200/35 px-3.5 py-2.5 text-left"
-      ]}
-    >
-      <div :if={!@streaming} class="markdown">{markdown(@item.text)}</div>
-      <div :if={@streaming} class="whitespace-pre-wrap">
-        {@item.text}<span
-          :if={@item.role == :agent}
-          class="ml-1 inline-block h-4 w-0.5 animate-pulse bg-primary align-middle"
-        ></span>
-      </div>
-    </article>
-
-    <details
-      :if={@item.kind == :work_turn}
-      id={@id}
-      data-work-id={String.replace_prefix(@id, "messages-", "")}
-      phx-hook="WorkDisclosure"
-      open={Map.get(@item, :expanded?, false)}
-      class="group mt-8 w-full text-sm text-base-content/70"
-    >
-      <summary class="flex cursor-pointer list-none items-center gap-2 text-xs font-medium text-base-content/55 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">
-        <.icon name="hero-chevron-down" class="size-3 transition-transform group-open:rotate-180" />
-        <span>{work_label(@item)}</span>
-      </summary>
-      <div class="space-y-4 pt-3">
-        <p :for={message <- @item.messages} class="whitespace-pre-wrap">{message.text}</p>
-        <details
-          :if={@item.traces != []}
-          id={"#{@id}-activity"}
-          class="group/activity text-xs text-base-content/60"
-        >
-          <summary class="flex cursor-pointer list-none items-center gap-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">
-            <.icon name="hero-wrench-screwdriver" class="size-3.5" />
-            <span>Activity ({length(@item.traces)})</span>
-          </summary>
-          <div class="mt-3 max-h-96 space-y-2 overflow-y-auto px-1">
-            <.transcript_item
-              :for={trace <- @item.traces}
-              id={trace.id}
-              item={trace}
-              expanded={false}
-            />
-          </div>
-        </details>
-      </div>
-    </details>
-
-    <article
-      :if={@item.kind == :notification}
-      id={@id}
-      class={[
-        "mt-4 rounded-lg border px-4 py-3 text-sm text-base-content/75",
-        @item.status == "sent" && "border-info/30 bg-info/10",
-        @item.status == "failed" && "border-error/30 bg-error/10",
-        @item.status not in ["sent", "failed"] && "border-primary/20 bg-primary/5"
-      ]}
-    >
-      <p class={[
-        "mb-1 text-xs font-semibold uppercase tracking-wide",
-        @item.status == "sent" && "text-info",
-        @item.status == "failed" && "text-error",
-        @item.status not in ["sent", "failed"] && "text-primary"
-      ]}>
-        Activity · {@item.status}
-      </p>
-      <div class="markdown">{markdown(@item.content)}</div>
-    </article>
-
-    <details
-      :if={@item.kind == :thinking}
-      id={@id}
-      open={@expanded}
-      class="group w-full py-2 text-xs text-base-content/55"
-    >
-      <summary class="flex cursor-pointer list-none items-center gap-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">
-        <span class="text-sm leading-none" role="img" aria-label="Thinking">🧠</span>
-        <span>Thinking</span>
-      </summary>
-      <p class="mt-3 whitespace-pre-wrap">{@item.text}</p>
-    </details>
-
-    <details
-      :if={@item.kind == :tool}
-      id={@id}
-      open={@expanded}
-      class="group w-full py-2 text-xs text-base-content/55"
-    >
-      <summary class={[
-        "flex cursor-pointer list-none items-center gap-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary",
-        @item.tool.error && "text-error"
-      ]}>
-        <.icon name="hero-command-line" class="size-3.5" />
-        <span class="font-mono font-medium">{@item.tool.name}</span>
-      </summary>
-      <pre class="mt-3 max-h-72 overflow-auto rounded-lg bg-base-200 p-3 font-mono text-[0.7rem] leading-5 text-base-content/65">{tool_output(@item.tool)}</pre>
-    </details>
-    """
-  end
-
-  def work_label(%{active?: true}), do: "Working"
-
-  def work_label(%{duration: duration}) when is_integer(duration),
-    do: "Worked for #{format_duration(duration)}"
-
-  def work_label(_item), do: "Worked"
-
-  defp format_duration(duration) when duration < 60_000, do: "#{max(div(duration, 1_000), 1)}s"
-
-  defp format_duration(duration),
-    do: "#{div(duration, 60_000)}m #{rem(div(duration, 1_000), 60)}s"
-
-  def markdown(text), do: {:safe, MDEx.to_html!(text)}
-  def command_location(command), do: get_in(command, ["sourceInfo", "scope"]) || "unknown"
-  def command_path(command), do: get_in(command, ["sourceInfo", "path"]) || ""
-
-  def message_text(%{"content" => content}) when is_binary(content), do: content
-
-  def message_text(%{"content" => content}) when is_list(content) do
-    content
-    |> Enum.filter(&(&1["type"] == "text"))
-    |> Enum.map_join("\n", & &1["text"])
-  end
-
-  def message_text(%{"summary" => summary}), do: summary
-  def message_text(_message), do: ""
-
-  def display_message_text(message) do
-    case Regex.run(~r/^<skill name="([^"]+)"[^>]*>.*<\/skill>(.*)$/s, message_text(message)) do
-      [_, name, arguments] ->
-        command = "/skill:#{name}"
-        arguments = String.trim(arguments)
-        if arguments == "", do: command, else: command <> "\n\n" <> arguments
-
-      nil ->
-        message_text(message)
-    end
-  end
-
-  def visible_message?(%{"role" => role}),
-    do: role in ["user", "assistant", "custom", "branchSummary", "compactionSummary"]
-
-  def visible_message?(_message), do: false
-
-  def partial_text(session), do: AgentState.partial_text(session)
-  def partial_thinking(session), do: AgentState.partial_thinking(session)
-
-  def partial_items(session) do
-    session.partial.blocks
-    |> Enum.sort_by(&elem(&1, 0))
-    |> Enum.flat_map(fn {index, block} ->
-      case block do
-        %{type: :text, content: text} when text != "" ->
-          [%{id: "partial-#{index}", kind: :message, role: :agent, text: text}]
-
-        %{type: :thinking, content: text} when text != "" ->
-          [%{id: "partial-#{index}", kind: :thinking, text: text}]
-
-        %{type: :tool_call, content: id} ->
-          [%{id: "partial-#{index}", kind: :tool, tool: session.tools[id]}]
-
-        _ ->
-          []
-      end
-    end)
-  end
-
-  def tool_status(tool) do
-    cond do
-      tool.status == :preparing -> "Preparing"
-      tool.status == :running -> "Running"
-      tool.error -> "Failed"
-      true -> "Complete"
-    end
-  end
-
-  def tool_output(%{args: args, result: nil}), do: args
-  def tool_output(%{args: args, result: result}), do: args <> "\n\n" <> tool_result(result)
-  def tool_result(nil), do: ""
-
-  def tool_result(result) do
-    result
-    |> Map.get("content", [])
-    |> Enum.filter(&(&1["type"] == "text"))
-    |> Enum.map_join("\n", & &1["text"])
-    |> String.slice(0, 12_000)
-  end
+  defdelegate work_label(item), to: WebAppWeb.AgentTranscript
+  defdelegate markdown(text), to: WebAppWeb.AgentTranscript
+  defdelegate command_location(command), to: WebAppWeb.AgentTranscript
+  defdelegate command_path(command), to: WebAppWeb.AgentTranscript
+  defdelegate message_text(message), to: WebAppWeb.AgentTranscript
+  defdelegate display_message_text(message), to: WebAppWeb.AgentTranscript
+  defdelegate visible_message?(message), to: WebAppWeb.AgentTranscript
+  defdelegate partial_text(session), to: WebAppWeb.AgentTranscript
+  defdelegate partial_thinking(session), to: WebAppWeb.AgentTranscript
+  defdelegate partial_items(session), to: WebAppWeb.AgentTranscript
+  defdelegate tool_status(tool), to: WebAppWeb.AgentTranscript
+  defdelegate tool_output(tool), to: WebAppWeb.AgentTranscript
+  defdelegate tool_result(result), to: WebAppWeb.AgentTranscript
 
   defp send_command(socket, _type, message) when message in [nil, ""], do: {:noreply, socket}
 
@@ -550,7 +314,7 @@ defmodule WebAppWeb.AgentLive do
   end
 
   defp command(socket, command) do
-    AgentSession.owner_command(socket.assigns.session_id, self(), command)
+    AgentSession.command(socket.assigns.session_id, command)
   catch
     :exit, _reason -> {:error, "Agent process is unavailable. Resume the session to reconnect."}
   end
@@ -613,15 +377,12 @@ defmodule WebAppWeb.AgentLive do
 
     case RemoteRegistry.open(id, Bots.identity_for(bot)) do
       :ok ->
-        owner = if connected?(socket), do: AgentSession.claim(id, self()) == :owner, else: false
-
         {:noreply,
          socket
          |> assign(
            bot: bot,
            chat_name: bot.name,
            session_id: id,
-           interaction_owner: owner,
            mobile_sidebar_open: false,
            expanded_work_ids: MapSet.new(),
            error: nil
