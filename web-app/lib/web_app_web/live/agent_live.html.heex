@@ -164,15 +164,40 @@
           </section>
 
           <footer class="shrink-0 border-t border-base-content/10 bg-base-300 px-5 py-4 lg:px-8">
-            <div
-              :if={@session.queue["followUp"] != []}
-              id="queued-follow-up"
-              class="mx-auto mb-3 max-w-3xl rounded-lg border border-warning/25 bg-warning/5 px-3 py-2 text-sm text-warning-content"
-              role="status"
-            >
-              <p :for={message <- @session.queue["followUp"]} class="whitespace-pre-wrap">
-                {message}
-              </p>
+            <div class="mx-auto max-w-3xl space-y-2">
+              <section
+                :if={@session.queue["steering"] != []}
+                id="queued-steering"
+                class="mx-2 rounded-md border border-base-content/10 bg-base-200/70 px-3 py-2 text-sm text-base-content/75"
+                role="status"
+                aria-label="Queued steering message"
+              >
+                <p :for={message <- @session.queue["steering"]} class="whitespace-pre-wrap">
+                  {message}
+                </p>
+                <p class="mt-1 text-[11px] text-base-content/35">
+                  Enter to steer · Alt + Enter to follow up · Esc to undo
+                </p>
+              </section>
+              <section
+                :if={@session.queue["followUp"] != []}
+                id="queued-follow-up"
+                class="flex items-start gap-3 rounded-lg border border-warning/25 bg-warning/5 px-3 py-2.5 text-sm"
+                role="status"
+              >
+                <.icon name="hero-clock" class="mt-0.5 size-4 shrink-0 text-warning" />
+                <div class="min-w-0 flex-1">
+                  <p class="text-xs font-semibold uppercase tracking-wide text-warning">
+                    Up next
+                  </p>
+                  <p
+                    :for={message <- @session.queue["followUp"]}
+                    class="mt-0.5 whitespace-pre-wrap text-base-content"
+                  >
+                    {message}
+                  </p>
+                </div>
+              </section>
             </div>
             <.form
               for={@composer_form}
@@ -230,14 +255,12 @@
                 class="textarea w-full resize-none border-base-content/15 bg-base-200 text-sm leading-6 placeholder:text-base-content/30 focus:border-primary focus:outline-none"
               />
               <div class="mt-2 flex items-center gap-2">
-                <p class="hidden text-xs text-base-content/35 sm:block">
-                  Shift + Enter for a new line
-                </p>
                 <div class="ml-auto flex gap-2">
                   <button
                     :if={@session.status in [:working, :retrying, :compacting]}
                     name="behavior"
                     value="steer"
+                    data-steer-button
                     class="btn btn-sm btn-ghost"
                   >Steer</button>
                   <button

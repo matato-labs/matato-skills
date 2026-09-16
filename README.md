@@ -1,86 +1,85 @@
-# Matato Pi Package
+# Matato Pi
 
-MatatoPi is a pi package with extensions, skills promps that could help to have a nice e2e workflow to write code AI using pi. It has an extra feature to scheudled work direactly linked to a skill and allows you to run deterministic scripts before the AI workflow trigger.
+Matato Pi extends [Pi](https://github.com/earendil-works/pi) with coding skills, prompts, subagents, scheduled automations, Telegram support, and an optional web app for remote sessions, bots, and automation management.
+
+It works as a Pi package: Pi loads the extensions, skills, and prompts declared in `package.json`. The web app starts Pi in RPC mode, stores automation and remote-session metadata in SQLite, and keeps Pi JSONL files as the conversation history.
+
+## Install
+
+Install the package in Pi:
 
 ```bash
 pi install /absolute/path/to/matato-pi
 ```
-> You can install from github as well `pi -e git:github.com/user/repo`
 
-## Environment variables
+Or install it from Git:
 
-| Variable | Required by | Description |
-| --- | --- | --- |
-| `TELEGRAM_BOT_TOKEN` | Telegram | Bot API token. |
-| `TELEGRAM_OWNER_ID` | Telegram | Owner chat ID allowed to use the inbox and receive replies. |
-| `WORKSPACE` | Workspace skills | Directory containing your repositories. |
-
-## Remote Agent Web App
-
-A Phoenix LiveView client for `pi --mode rpc` lives in [`web-app/`](web-app/README.md). It stores remote-session metadata and automations in `$MATATO_PI_CONFIG/matato-pi.sqlite3`; Pi JSONL remains the conversation source of truth.
-
-## Features
-* Subagents, including bounded parallel batches
-* Scheduled jobs
-* Plans and researches storage in local files
-* E2E software lifecycle skills
-* Prepare for AI assistant work
-* Telegram two-way connection
-
-## Development
-
-### Test, Linting, Formating...
 ```bash
-npm run test
-npm run lint
+pi -e git:github.com/<owner>/matato-pi
+```
+
+Set these variables when using the matching features:
+
+```bash
+export WORKSPACE=/absolute/path/to/projects
+export TELEGRAM_BOT_TOKEN=your-token
+export TELEGRAM_OWNER_ID=your-chat-id
+export TAVILY_API_KEY=your-tavily-api-key
+```
+
+`TAVILY_API_KEY` enables the web-search skill; create a key at [Tavily](https://app.tavily.com). `MATATO_PI_CONFIG` optionally changes the data directory; it defaults to `~/.config/matato-pi`.
+
+## Web app
+
+The optional Phoenix app provides remote Pi sessions, bots, and automations.
+
+```bash
+cd web-app
+WORKSPACE=/absolute/path/to/projects mix setup
+WORKSPACE=/absolute/path/to/projects mix phx.server
+```
+
+Open `http://localhost:4000`. Its SQLite database is `$MATATO_PI_CONFIG/matato-pi.sqlite3`.
+
+## API
+
+The web app exposes JSON CRUD endpoints for bots and automations:
+
+```text
+GET, POST                 /api/bots
+GET, PUT, DELETE          /api/bots/:id
+GET, POST                 /api/automations
+GET, PUT, DELETE          /api/automations/:id
+```
+
+The API has no built-in authentication. Keep the server private or place authenticated TLS ingress in front of it.
+
+## Bots
+
+Create a bot from the web app or asking your agent to do it. A bot has a name, role, and description; Matato creates separate durable chat and background Pi sessions and gives both its identity. Open the bot from the web app to chat with it. Add its `bot_id` to an automation to run scheduled work as that bot.
+
+For Telegram, configure `TELEGRAM_BOT_TOKEN` and `TELEGRAM_OWNER_ID`, then create a `telegram-inbox` automation with `use_skill` enabled. It polls Telegram, accepts messages only from the owner chat ID, and replies through the configured bot.
+
+## Automations
+Create an automation from the web app or ask your agent to do it. It runs a prompt on a cron schedule with the selected model and thinking level. An automation without `bot_id` is a workspace automation; set `bot_id` to make it a bot automation that runs with the bot's identity. `use_skill` runs the skill whose name matches `job_name`; its optional `scripts/preScript.ts` output is added to the agent context. After Pi completes, optional `scripts/postScript.ts` runs for follow-up work; a failing script fails the automation. `daily_session` reuses one Pi session per day, `can_overlap` permits concurrent runs, and `monitor` shows the job in the web app. Use `/automations` in Pi to inspect scheduled jobs.
+
+## Contribute
+
+Install Node dependencies and run the package checks:
+
+```bash
+npm install
 npm run check
+npm run lint
+npm test
 ```
 
-## Examples
+For the web app, install Elixir/Erlang and run:
 
-### Subagents
-
-`subagent` accepts its existing single-task form with `prompt` and optional `cwd`. For independent work, use `tasks` instead; the modes are mutually exclusive. Batches accept up to 16 tasks and run no more than four child Pi processes at once. Progress shows aggregate completion while every task's ordered success or failure is retained in the final tool result.
-
-```json
-{
-  "tasks": [
-    { "prompt": "Review the API changes." },
-    { "prompt": "Review the test coverage.", "cwd": "/path/to/project" }
-  ]
-}
+```bash
+cd web-app
+mix setup
+MIX_ENV=test mix precommit
 ```
 
-Cancelling a batch stops every running child. A failed task is reported alongside, rather than replacing, successful sibling outputs.
-
-### Plans
-You can see all plans you have created with matato-pi with `/plans`, plans are stored in `~/.config/matato-pi/plans/{repo}/{name}.md`
-
-### Researches
-Researches are under `/researches` and they are stored in `~/.config/matato-pi/researches/{name}.md`
-
-
-### Scheduled jobs
-Scheduled jobs are stored in `$MATATO_PI_CONFIG/matato-pi.sqlite3` (default root: `~/.config/matato-pi`). `canOverlap` defaults to `false`; set it to `true` to allow a new run before the previous one finishes. Set `useSkill` to use a skill matching `jobName`; it can run `scripts/preScript.ts` beforehand and includes non-empty output as automation context. Without it, Pi receives only `userPrompt`. Set `monitor` to register launched jobs in the remote registry and show active work in the web UI.
-
-Use `/automations` to inspect cron jobs. Ask the agent to create, update, or delete them through the local automation API.
-### Telegram
-Add this automation through `/automations`:
-
-```json
-{
-  "jobName": "telegram-inbox",
-  "enabled": true,
-  "schedule": "*/3 * * * * *",
-  "userPrompt": "Process the new Telegram messages.",
-  "dailySession": true,
-  "canOverlap": false,
-  "model": "your-model",
-  "thinkingLevel": "low",
-  "canLaunchSubAgents": false,
-  "monitor": false,
-  "useSkill": true
-}
-```
-
-Each day uses one continuous Pi session in Pi's default session directory (`~/.pi/agent/sessions`, or `PI_CODING_AGENT_SESSION_DIR`). Empty polls skip Pi entirely. The inbox accepts messages only from `TELEGRAM_OWNER_ID`; agents reply through `telegram_send_message`.
+Build a production web release with `cd web-app && bin/deploy`. Set `SECRET_KEY_BASE`, `PHX_HOST`, and `WORKSPACE` before starting it with `MIX_ENV=prod mix phx.server`.

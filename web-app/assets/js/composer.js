@@ -30,6 +30,7 @@ export const composer = {
     this.textarea = textarea
     this.picker = this.el.querySelector("#slash-command-picker")
     this.emptyMessage = this.el.querySelector("#slash-command-empty")
+    this.steerButton = this.el.querySelector("[data-steer-button]")
     if (previousTextarea === textarea) return
     if (previousTextarea) previousTextarea.removeEventListener("input", this.handleInput)
 
@@ -111,6 +112,12 @@ export const composer = {
   handlePickerDismissal(event) {
     if (event.key !== "Escape") return false
 
+    if (this.picker.hidden && this.steerButton) {
+      event.preventDefault()
+      this.pushEvent("abort_and_restore_queue")
+      return true
+    }
+
     this.pickerDismissed = true
     this.dismissedValue = this.textarea.value
     this.hidePicker()
@@ -120,6 +127,6 @@ export const composer = {
     if (event.key !== "Enter" || event.shiftKey || event.isComposing) return
 
     event.preventDefault()
-    this.el.requestSubmit()
+    this.el.requestSubmit(event.altKey || !this.steerButton ? undefined : this.steerButton)
   },
 }
