@@ -7,6 +7,7 @@ defmodule WebApp.Application do
 
   @impl true
   def start(_type, _args) do
+    Calendar.put_time_zone_database(Tzdata.TimeZoneDatabase)
     WebApp.Workspace.validate!()
     OpentelemetryBandit.setup()
     OpentelemetryPhoenix.setup(adapter: :bandit, liveview: true)

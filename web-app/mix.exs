@@ -72,6 +72,7 @@ defmodule WebApp.MixProject do
       {:dns_cluster, "~> 0.3.0"},
       {:bandit, "~> 1.5"},
       {:quantum, "~> 3.5"},
+      {:tzdata, "~> 1.1"},
       {:ecto_sql, "~> 3.12"},
       {:ecto_sqlite3, "~> 0.17"}
     ]

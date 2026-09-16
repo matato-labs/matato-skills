@@ -1,6 +1,12 @@
 import Config
 
 workspace = System.get_env("WORKSPACE")
+time_zone = WebApp.TimeZone.configured()
+
+config :web_app,
+  time_zone: time_zone
+
+config :web_app, WebApp.AutomationScheduler, timezone: time_zone
 
 if config_env() != :test and (is_nil(workspace) or String.trim(workspace) == "") do
   raise "WORKSPACE is required and must point to an accessible directory"
