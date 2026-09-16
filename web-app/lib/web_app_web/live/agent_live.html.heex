@@ -172,7 +172,9 @@
                 role="status"
                 aria-label="Queued steering message"
               >
-                <p :for={message <- @session.queue["steering"]} class="whitespace-pre-wrap">{message}</p>
+                <p :for={message <- @session.queue["steering"]} class="whitespace-pre-wrap">
+                  {message}
+                </p>
                 <p class="mt-1 text-[11px] text-base-content/35">
                   Enter to steer · Alt + Enter to follow up · Esc to undo
                 </p>
