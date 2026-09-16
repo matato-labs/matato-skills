@@ -30,6 +30,10 @@ defmodule WebAppWeb.AgentLiveTest do
         print(json.dumps({"type": "agent_start"}), flush=True)
       elif command["type"] == "queue_follow_up":
         print(json.dumps({"type": "queue_update", "followUp": ["Run the tests"]}), flush=True)
+      elif command["type"] == "queue_steering":
+        print(json.dumps({"type": "queue_update", "steering": ["Work on the design"]}), flush=True)
+      elif command["type"] == "abort":
+        print(json.dumps({"type": "queue_update", "steering": [], "followUp": []}), flush=True)
       elif command["type"] == "clear_follow_up":
         print(json.dumps({"type": "queue_update", "followUp": []}), flush=True)
       print(json.dumps(response), flush=True)
@@ -255,6 +259,10 @@ defmodule WebAppWeb.AgentLiveTest do
     sync_snapshot(view, id)
     assert has_element?(view, "button[value='steer']")
 
+    assert :ok = AgentSession.command(id, %{"type" => "queue_steering"})
+    sync_snapshot(view, id)
+    assert has_element?(view, "#queued-steering", "Work on the design")
+
     view
     |> form("#composer-form", composer: %{message: "Run the tests"})
     |> render_submit()
@@ -275,6 +283,18 @@ defmodule WebAppWeb.AgentLiveTest do
     assert :ok = AgentSession.command(id, %{"type" => "clear_follow_up"})
     sync_snapshot(view, id)
     refute has_element?(view, "#queued-follow-up")
+  end
+
+  test "aborts and restores queued messages to the composer", %{conn: conn, id: id} do
+    {:ok, view, _html} = live(conn, ~p"/sessions/#{id}")
+    assert :ok = AgentSession.command(id, %{"type" => "trigger_active"})
+    assert :ok = AgentSession.command(id, %{"type" => "queue_steering"})
+    sync_snapshot(view, id)
+
+    render_hook(view, "abort_and_restore_queue")
+
+    assert render(view) =~ "Work on the design"
+    refute has_element?(view, "#queued-steering")
   end
 
   test "opens and closes the mobile session drawer", %{conn: conn, id: id} do

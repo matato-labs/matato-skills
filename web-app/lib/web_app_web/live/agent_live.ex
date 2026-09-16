@@ -208,6 +208,15 @@ defmodule WebAppWeb.AgentLive do
 
   def handle_event("abort", _params, socket), do: run_command(socket, %{"type" => "abort"})
 
+  def handle_event("abort_and_restore_queue", _params, socket) do
+    queued_messages =
+      socket.assigns.session.queue["steering"] ++ socket.assigns.session.queue["followUp"]
+
+    socket
+    |> set_draft(Enum.join(queued_messages ++ [socket.assigns.draft], "\n\n"))
+    |> run_command(%{"type" => "abort"})
+  end
+
   def handle_event("stop", _params, socket) do
     :ok = RemoteRegistry.stop(socket.assigns.session_id)
 
