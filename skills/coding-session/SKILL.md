@@ -6,10 +6,10 @@ disable-model-invocation: true
 
 # Task Implementation
 
-When invoked, use the supplied issue or information and repository data. Given a plan from a ticket, GH Issue, or user's prompt, you must implement the changes in the target repository the user provides. You MUST always create a worktree under `/tmp` to isolate yourself from other agents running in the same repository and do the changes in that worktree.
+Use the supplied issue or information and repository data. Given a plan from a ticket, GH Issue, or user's prompt, you must implement the changes in the target repository the user provides. You MUST always create a worktree under `/tmp` to isolate yourself from other agents running in the same repository and do the changes in that worktree.
 
 Understand the code involved in the user change. Decide the implementation approach yourself, then analyse the files that need to be changed and the code surrounding those files that impacts the change in the overall architecture and E2E workflow. Do not limit your scope to the most obvious files.
 
 The tests need to cover all cases and be based on the business impact following a BDD approach. Define a testing case and acceptance criteria to draft the test. There are times when the changes are purely technical, in such cases you don't need to follow up BDD.
 
-Create one PR with `gh` and add a label `ai-validation`, if the label do not exist, create it and then add it to the PR, commit the changes and push to the PR.
+You MUST always create one PR with `gh` and add a label `ai-validation`, if the label do not exist, create it and then add it to the PR, commit the changes and push to the PR.

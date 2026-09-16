@@ -19,6 +19,7 @@ defmodule WebApp.AgentState do
       dialog: nil,
       notices: [],
       model: nil,
+      thinking_level: nil,
       session_file: nil,
       session_id: nil,
       error: nil,
@@ -146,6 +147,7 @@ defmodule WebApp.AgentState do
       state
       | discovered_status: discovered_status,
         model: data["model"],
+        thinking_level: data["thinkingLevel"],
         session_file: data["sessionFile"],
         session_id: data["sessionId"]
     }

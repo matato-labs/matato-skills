@@ -26,7 +26,7 @@
       >
       </div>
 
-      <main class="relative flex h-full min-h-0 flex-col overflow-hidden bg-base-300">
+      <main class="relative flex h-full min-h-0 flex-col overflow-hidden bg-base-300 pt-16 lg:pt-0">
         <SessionComponents.chat_header
           chat_name={@chat_name}
           bot={@bot}
@@ -244,34 +244,87 @@
               >
                 {@session.commands_error}
               </p>
-              <.input
-                id="composer-message"
-                field={@composer_form[:message]}
-                type="textarea"
-                rows="3"
-                placeholder="Ask Pi to work on this project…"
-                aria-controls="slash-command-picker"
-                aria-expanded={@draft != "" && String.starts_with?(@draft, "/")}
-                class="textarea w-full resize-none border-base-content/15 bg-base-200 text-sm leading-6 placeholder:text-base-content/30 focus:border-primary focus:outline-none"
-              />
-              <div class="mt-2 flex items-center gap-2">
-                <div class="ml-auto flex gap-2">
-                  <button
-                    :if={@session.status in [:working, :retrying, :compacting]}
-                    name="behavior"
-                    value="steer"
-                    data-steer-button
-                    class="btn btn-sm btn-ghost"
-                  >Steer</button>
-                  <button
-                    :if={@session.status not in [:stopped, :failed]}
-                    id="stop-button"
-                    type="button"
-                    phx-click="stop"
-                    class="btn btn-sm btn-ghost text-error"
-                  >
-                    <.icon name="hero-stop" class="size-3.5" /> Stop
-                  </button>
+              <div
+                id="composer-box"
+                class="rounded-2xl border border-base-content/15 bg-base-200 px-4 pb-1.5 pt-3 transition-colors focus-within:border-base-content/30"
+              >
+                <textarea
+                  id="composer-message"
+                  name={@composer_form[:message].name}
+                  rows="3"
+                  placeholder="Ask Pi to work on this project…"
+                  aria-controls="slash-command-picker"
+                  aria-expanded={@draft != "" && String.starts_with?(@draft, "/")}
+                  class="w-full resize-none bg-transparent text-sm leading-6 placeholder:text-base-content/30 focus:outline-none"
+                >{@composer_form[:message].value}</textarea>
+                <div class="mt-1 flex flex-nowrap items-center gap-y-1">
+                  <label :if={@available_models != []} class="relative flex shrink-0 items-center">
+                    <select
+                      id="model-select"
+                      name="model"
+                      phx-change="set_model"
+                      aria-label="Model"
+                      class="w-20 cursor-pointer appearance-none truncate rounded-lg bg-transparent py-1.5 pl-2.5 pr-7 text-xs font-medium text-base-content/70 hover:bg-base-content/5 hover:text-base-content focus:outline-none"
+                    >
+                      <option
+                        :for={model <- @available_models}
+                        value={"#{model["provider"]}/#{model["id"]}"}
+                        selected={
+                          @session.model != nil && @session.model["provider"] == model["provider"] &&
+                            @session.model["id"] == model["id"]
+                        }
+                      >
+                        {model["name"] || model["id"]}
+                      </option>
+                    </select>
+                    <.icon
+                      name="hero-chevron-down"
+                      class="pointer-events-none absolute right-2 size-3 text-base-content/40"
+                    />
+                  </label>
+                  <span
+                    :if={@available_models != [] && @thinking_levels != []}
+                    class="mx-1 h-4 w-px bg-base-content/10"
+                  />
+                  <label :if={@thinking_levels != []} class="relative flex shrink-0 items-center">
+                    <select
+                      id="thinking-level-select"
+                      name="level"
+                      phx-change="set_thinking_level"
+                      aria-label="Thinking level"
+                      class="cursor-pointer appearance-none rounded-lg bg-transparent py-1.5 pl-2.5 pr-7 text-xs font-medium text-base-content/70 hover:bg-base-content/5 hover:text-base-content focus:outline-none"
+                    >
+                      <option
+                        :for={level <- @thinking_levels}
+                        value={level}
+                        selected={@session[:thinking_level] == level}
+                      >
+                        {String.capitalize(level)}
+                      </option>
+                    </select>
+                    <.icon
+                      name="hero-chevron-down"
+                      class="pointer-events-none absolute right-2 size-3 text-base-content/40"
+                    />
+                  </label>
+                  <div class="ml-auto flex shrink-0 items-center gap-2">
+                    <button
+                      :if={@session.status in [:working, :retrying, :compacting]}
+                      name="behavior"
+                      value="steer"
+                      data-steer-button
+                      hidden
+                    >Steer</button>
+                    <button
+                      :if={@session.status not in [:stopped, :failed]}
+                      id="stop-button"
+                      type="button"
+                      phx-click="stop"
+                      class="btn btn-sm btn-ghost text-error"
+                    >
+                      <.icon name="hero-stop" class="size-3.5" /> Stop
+                    </button>
+                  </div>
                 </div>
               </div>
             </.form>
