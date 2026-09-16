@@ -1,7 +1,7 @@
 import Config
 
 workspace = System.get_env("WORKSPACE")
-time_zone = System.get_env("WEB_APP_TIME_ZONE") |> WebApp.TimeZone.configured()
+time_zone = WebApp.TimeZone.configured()
 
 config :web_app,
   time_zone: time_zone

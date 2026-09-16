@@ -1,8 +1,5 @@
 defmodule WebApp.TimeZone do
   @default "Europe/Berlin"
 
-  def default, do: @default
-
-  def configured(nil), do: @default
-  def configured(time_zone) when is_binary(time_zone), do: time_zone
+  def configured, do: System.get_env("WEB_APP_TIME_ZONE", @default)
 end
