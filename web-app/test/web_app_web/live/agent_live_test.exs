@@ -258,8 +258,10 @@ defmodule WebAppWeb.AgentLiveTest do
     assert user_html =~ "phx-hook=\"MessageCopy\""
     assert user_html =~ "data-copy-text=\"Fix it\""
     assert user_html =~ "hero-square-2-stack"
+    assert user_html =~ "self-end"
     assert final_html =~ "phx-hook=\"MessageCopy\""
     assert final_html =~ "data-copy-text=\"Fixed\""
+    refute final_html =~ "self-end"
     assert progress_html =~ "phx-hook=\"MessageCopy\""
     assert progress_html =~ "data-copy-text=\"I will inspect it\""
   end
