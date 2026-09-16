@@ -230,8 +230,38 @@ defmodule WebAppWeb.AgentLiveTest do
 
     assert html =~ "Worked"
     assert html =~ "Activity (1)"
+    assert html =~ "data-copy-text=\"I will inspect it\""
+    assert html =~ "hero-square-2-stack"
     refute html =~ "border-b border-base-content/10"
     refute html =~ "bg-base-content/5 p-3"
+  end
+
+  test "shows copy controls below every user and agent text" do
+    user_html =
+      render_component(&WebAppWeb.AgentLive.transcript_item/1,
+        id: "user-message",
+        item: %{kind: :message, role: :user, text: "Fix it"}
+      )
+
+    final_html =
+      render_component(&WebAppWeb.AgentLive.transcript_item/1,
+        id: "agent-message",
+        item: %{kind: :message, role: :agent, text: "Fixed"}
+      )
+
+    progress_html =
+      render_component(&WebAppWeb.AgentLive.transcript_item/1,
+        id: "progress-message",
+        item: %{kind: :message, role: :agent, text: "I will inspect it"}
+      )
+
+    assert user_html =~ "phx-hook=\"MessageCopy\""
+    assert user_html =~ "data-copy-text=\"Fix it\""
+    assert user_html =~ "hero-square-2-stack"
+    assert final_html =~ "phx-hook=\"MessageCopy\""
+    assert final_html =~ "data-copy-text=\"Fixed\""
+    assert progress_html =~ "phx-hook=\"MessageCopy\""
+    assert progress_html =~ "data-copy-text=\"I will inspect it\""
   end
 
   test "renders agent replies without a message bubble" do
@@ -243,6 +273,16 @@ defmodule WebAppWeb.AgentLiveTest do
 
     refute html =~ "max-w-[72ch]"
     refute html =~ "rounded-2xl"
+  end
+
+  test "shows native feedback after copying a message", %{conn: conn, id: id} do
+    {:ok, view, _html} = live(conn, ~p"/sessions/#{id}")
+
+    assert has_element?(view, "[phx-hook='MessageCopy'][data-copy-text='First prompt']")
+    assert has_element?(view, "[phx-hook='MessageCopy'][data-copy-text='First reply']")
+
+    assert render_click(view, "message_copied") =~ "Message copied"
+    assert render_click(view, "message_copy_failed") =~ "Message could not be copied"
   end
 
   test "renders discovered slash commands when the composer starts with a slash", %{

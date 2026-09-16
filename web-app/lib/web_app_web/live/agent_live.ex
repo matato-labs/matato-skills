@@ -177,6 +177,12 @@ defmodule WebAppWeb.AgentLive do
   def handle_event("toggle_work", %{"id" => id, "open" => "false"}, socket),
     do: {:noreply, update(socket, :expanded_work_ids, &MapSet.delete(&1, id))}
 
+  def handle_event("message_copied", _params, socket),
+    do: {:noreply, put_flash(socket, :info, "Message copied")}
+
+  def handle_event("message_copy_failed", _params, socket),
+    do: {:noreply, put_flash(socket, :error, "Message could not be copied")}
+
   def handle_event("toggle_mobile_sidebar", _params, socket),
     do: {:noreply, update(socket, :mobile_sidebar_open, &(!&1))}
 
