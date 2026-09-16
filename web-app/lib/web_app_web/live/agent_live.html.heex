@@ -257,14 +257,14 @@
                   aria-expanded={@draft != "" && String.starts_with?(@draft, "/")}
                   class="w-full resize-none bg-transparent text-sm leading-6 placeholder:text-base-content/30 focus:outline-none"
                 >{@composer_form[:message].value}</textarea>
-                <div class="mt-1 flex flex-wrap items-center gap-y-1">
-                  <label :if={@available_models != []} class="relative flex items-center">
+                <div class="mt-1 flex flex-nowrap items-center gap-y-1">
+                  <label :if={@available_models != []} class="relative flex shrink-0 items-center">
                     <select
                       id="model-select"
                       name="model"
                       phx-change="set_model"
                       aria-label="Model"
-                      class="max-w-36 cursor-pointer appearance-none truncate rounded-lg bg-transparent py-1.5 pl-2.5 pr-7 text-xs font-medium text-base-content/70 hover:bg-base-content/5 hover:text-base-content focus:outline-none"
+                      class="w-20 cursor-pointer appearance-none truncate rounded-lg bg-transparent py-1.5 pl-2.5 pr-7 text-xs font-medium text-base-content/70 hover:bg-base-content/5 hover:text-base-content focus:outline-none"
                     >
                       <option
                         :for={model <- @available_models}
@@ -286,7 +286,7 @@
                     :if={@available_models != [] && @thinking_levels != []}
                     class="mx-1 h-4 w-px bg-base-content/10"
                   />
-                  <label :if={@thinking_levels != []} class="relative flex items-center">
+                  <label :if={@thinking_levels != []} class="relative flex shrink-0 items-center">
                     <select
                       id="thinking-level-select"
                       name="level"
@@ -307,7 +307,7 @@
                       class="pointer-events-none absolute right-2 size-3 text-base-content/40"
                     />
                   </label>
-                  <div class="ml-auto flex items-center gap-2">
+                  <div class="ml-auto flex shrink-0 items-center gap-2">
                     <button
                       :if={@session.status in [:working, :retrying, :compacting]}
                       name="behavior"
