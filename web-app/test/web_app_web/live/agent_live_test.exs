@@ -15,19 +15,21 @@ defmodule WebAppWeb.AgentLiveTest do
     File.write!(executable, """
     #!/usr/bin/env python3
     import json, sys
+    model = {"provider": "anthropic", "id": "claude-sonnet", "name": "Claude Sonnet"}
     for line in sys.stdin:
       command = json.loads(line)
       with open("#{root}/commands.jsonl", "a") as file:
         file.write(json.dumps(command) + "\\n")
       response = {"id": command["id"], "type": "response", "command": command["type"], "success": True}
       if command["type"] == "get_state":
-        response["data"] = {"model": {"provider": "anthropic", "id": "claude-sonnet", "name": "Claude Sonnet"}, "thinkingLevel": "medium", "isStreaming": False, "isCompacting": False, "sessionFile": None, "sessionId": "pi-1"}
+        response["data"] = {"model": model, "thinkingLevel": "medium", "isStreaming": False, "isCompacting": False, "sessionFile": None, "sessionId": "pi-1"}
       elif command["type"] == "get_available_models":
         response["data"] = {"models": [{"provider": "anthropic", "id": "claude-sonnet", "name": "Claude Sonnet"}, {"provider": "openai", "id": "gpt-5.6", "name": "GPT-5.6"}]}
       elif command["type"] == "get_available_thinking_levels":
-        response["data"] = {"levels": ["off", "low", "medium", "high"]}
+        response["data"] = {"levels": ["low", "high"] if model["id"] == "gpt-5.6" else ["off", "low", "medium", "high"]}
       elif command["type"] == "set_model":
-        response["data"] = {"provider": command["provider"], "id": command["modelId"], "name": command["modelId"]}
+        model = {"provider": command["provider"], "id": command["modelId"], "name": command["modelId"]}
+        response["data"] = model
       elif command["type"] == "get_messages":
         response["data"] = {"messages": [{"role": "user", "content": "First prompt", "timestamp": 1000}, {"role": "assistant", "content": [{"type": "text", "text": "First reply"}], "timestamp": 3000}]}
       elif command["type"] == "get_commands":
@@ -360,12 +362,16 @@ defmodule WebAppWeb.AgentLiveTest do
     {:ok, view, _html} = live(conn, ~p"/sessions/#{id}")
 
     assert has_element?(view, "#composer-box")
+    assert has_element?(view, "#composer-box .flex-nowrap")
+    assert has_element?(view, "#model-select.w-20")
     assert has_element?(view, "#model-select option[selected]", "Claude Sonnet")
     assert has_element?(view, "#thinking-level-select option[selected]", "Medium")
 
     view |> element("#model-select") |> render_change(%{"model" => "openai/gpt-5.6"})
 
     assert has_element?(view, "#model-select option[selected]", "GPT-5.6")
+    assert has_element?(view, "#thinking-level-select option", "High")
+    refute has_element?(view, "#thinking-level-select option", "Medium")
 
     view |> element("#thinking-level-select") |> render_change(%{"level" => "high"})
 

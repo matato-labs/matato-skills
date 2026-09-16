@@ -245,7 +245,7 @@ defmodule WebAppWeb.AgentLive do
     case command(socket, %{"type" => "set_thinking_level", "level" => level}) do
       :ok ->
         session = Map.put(socket.assigns.session, :thinking_level, level)
-        {:noreply, assign(socket, session: session)}
+        {:noreply, assign(socket, session: session, error: nil)}
 
       {:error, error} ->
         {:noreply, assign(socket, error: error)}
@@ -412,9 +412,9 @@ defmodule WebAppWeb.AgentLive do
 
   defp assign_composer_options(socket) do
     if connected?(socket) do
-      socket
-      |> sync_model_state()
-      |> assign(
+      socket = sync_model_state(socket)
+
+      assign(socket,
         available_models: available_models(socket),
         thinking_levels: thinking_levels(socket)
       )
@@ -439,11 +439,8 @@ defmodule WebAppWeb.AgentLive do
   end
 
   defp apply_model(socket, model) do
-    assign(socket,
-      session: %{socket.assigns.session | model: model},
-      thinking_levels: thinking_levels(socket),
-      error: nil
-    )
+    socket = assign(socket, session: %{socket.assigns.session | model: model})
+    assign(socket, thinking_levels: thinking_levels(socket), error: nil)
   end
 
   defp available_models(socket) do

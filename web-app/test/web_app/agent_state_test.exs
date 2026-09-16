@@ -124,6 +124,17 @@ defmodule WebApp.AgentStateTest do
     assert state.partial == %{blocks: %{}}
   end
 
+  test "discovers the current thinking level" do
+    state =
+      AgentState.discover(AgentState.new(), %{
+        "isStreaming" => false,
+        "isCompacting" => false,
+        "thinkingLevel" => "high"
+      })
+
+    assert state.thinking_level == "high"
+  end
+
   test "hydrates the discovered active status with compaction taking precedence" do
     state =
       AgentState.discover(AgentState.new(), %{"isStreaming" => true, "isCompacting" => true})
