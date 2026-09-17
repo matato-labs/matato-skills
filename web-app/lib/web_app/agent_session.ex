@@ -113,10 +113,12 @@ defmodule WebApp.AgentSession do
     now = System.monotonic_time(:millisecond)
     recent = Enum.filter(state.prompt_times, &(now - &1 < 1_000))
 
-    if length(recent) >= 10,
-      do: {:reply, {:error, "Prompt rate limit exceeded"}, %{state | prompt_times: recent}},
-      else:
-        {:noreply, send_command(%{state | prompt_times: [now | recent]}, command, :command, from)}
+    if length(recent) >= 10 do
+      {:reply, {:error, "Prompt rate limit exceeded"}, %{state | prompt_times: recent}}
+    else
+      state.notifier.({:prompt, state.id, command["message"]})
+      {:noreply, send_command(%{state | prompt_times: [now | recent]}, command, :command, from)}
+    end
   end
 
   def handle_call({:command, command}, from, state),
