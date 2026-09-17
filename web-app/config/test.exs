@@ -25,9 +25,6 @@ config :web_app, WebAppWeb.Endpoint,
 # In test we don't send emails
 config :web_app, WebApp.Mailer, adapter: Swoosh.Adapters.Test
 
-# Dummy credentials to exercise the dashboard authentication
-config :web_app, :dashboard_auth, username: "admin", password: "dashboard-secret"
-
 # Disable swoosh api client as it is only required for production adapters
 config :swoosh, :api_client, false
 

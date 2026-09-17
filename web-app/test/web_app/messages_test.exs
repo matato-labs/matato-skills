@@ -51,16 +51,6 @@ defmodule WebApp.MessagesTest do
     assert {:receiver_bot_id, {"does not exist", []}} in changeset.errors
   end
 
-  test "counts messages waiting for delivery", %{bot: bot} do
-    create_message(bot, DateTime.utc_now(), "first")
-    create_message(bot, DateTime.utc_now(), "second")
-
-    assert Messages.count_pending() == 2
-
-    assert %Message{} = Messages.claim_pending()
-    assert Messages.count_pending() == 1
-  end
-
   test "claims a pending message only once", %{bot: bot} do
     message = create_message(bot, DateTime.utc_now(), "claim me")
 

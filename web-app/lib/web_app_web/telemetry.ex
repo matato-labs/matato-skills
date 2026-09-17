@@ -109,41 +109,6 @@ defmodule WebAppWeb.Telemetry do
           "The time the connection spent waiting before being checked out for the query"
       ),
 
-      # Automation Metrics
-      counter("web_app.automation.run.count",
-        tags: [:result],
-        description: "The number of automation runs by result"
-      ),
-      summary("web_app.automation.run.duration",
-        tags: [:result],
-        unit: {:native, :millisecond},
-        description: "The time spent executing an automation run"
-      ),
-
-      # Agent Session Metrics
-      counter("web_app.agent_session.start.count",
-        description: "The number of agent sessions started"
-      ),
-      counter("web_app.agent_session.stop.count",
-        description: "The number of agent sessions stopped"
-      ),
-      summary("web_app.agent_session.stop.duration",
-        unit: {:native, :second},
-        description: "The lifetime of an agent session"
-      ),
-      counter("web_app.agent_session.prompt.count",
-        tags: [:type],
-        description: "The number of prompts sent to agent sessions by command type"
-      ),
-
-      # Runtime Metrics
-      last_value("web_app.agent_sessions.active",
-        description: "The number of currently running agent sessions"
-      ),
-      last_value("web_app.messages.pending",
-        description: "The number of messages waiting for delivery"
-      ),
-
       # VM Metrics
       summary("vm.memory.total", unit: {:byte, :kilobyte}),
       summary("vm.total_run_queue_lengths.total"),
@@ -152,28 +117,11 @@ defmodule WebAppWeb.Telemetry do
     ]
   end
 
-  def measure_agent_sessions do
-    count =
-      case Process.whereis(WebApp.AgentSupervisor) do
-        nil -> 0
-        _pid -> DynamicSupervisor.count_children(WebApp.AgentSupervisor).active
-      end
-
-    :telemetry.execute([:web_app, :agent_sessions], %{active: count})
-  end
-
-  def measure_pending_messages do
-    :telemetry.execute([:web_app, :messages], %{pending: WebApp.Messages.count_pending()})
-  rescue
-    # The Repo may be unavailable or sandbox-owned (for example in tests);
-    # skip the measurement instead of crashing the poller.
-    _error -> :ok
-  end
-
   defp periodic_measurements do
     [
-      {__MODULE__, :measure_agent_sessions, []},
-      {__MODULE__, :measure_pending_messages, []}
+      # A module, function and arguments to be invoked periodically.
+      # This function must call :telemetry.execute/3 and a metric must be added above.
+      # {WebAppWeb, :count_users, []}
     ]
   end
 end

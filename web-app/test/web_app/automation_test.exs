@@ -269,7 +269,7 @@ defmodule WebApp.AutomationTest do
 
     File.write!(
       pi_path,
-      "#!/bin/sh\ntouch #{pi_marker}\nprintf '{\"type\":\"agent_settled\"}\\n'\n"
+      "#!/bin/sh\nIFS= read -r line\ntouch #{pi_marker}\nprintf '{\"type\":\"agent_settled\"}\\n'\n"
     )
 
     File.chmod!(pi_path, 0o755)
@@ -312,7 +312,11 @@ defmodule WebApp.AutomationTest do
       "await Bun.write(#{inspect(post_mix_env_path)}, Bun.env.MIX_ENV ?? \"unset\")"
     )
 
-    File.write!(pi_path, "#!/bin/sh\nprintf '{\"type\":\"agent_settled\"}\\n'\n")
+    File.write!(
+      pi_path,
+      "#!/bin/sh\nIFS= read -r line\nprintf '{\"type\":\"agent_settled\"}\\n'\n"
+    )
+
     File.chmod!(pi_path, 0o755)
     original_path = System.get_env("PATH")
     original_mix_env = System.fetch_env("MIX_ENV")
@@ -345,7 +349,7 @@ defmodule WebApp.AutomationTest do
 
     File.write!(
       pi_path,
-      "#!/bin/sh\ntouch #{pi_marker}\nprintf '%s\\n' '{\"type\":\"tool_execution_start\",\"toolName\":\"bash\"}' '{\"type\":\"tool_execution_end\",\"toolName\":\"bash\",\"isError\":false}' '{\"type\":\"agent_settled\"}'\n"
+      "#!/bin/sh\nIFS= read -r line\ntouch #{pi_marker}\nprintf '%s\\n' '{\"type\":\"tool_execution_start\",\"toolName\":\"bash\"}' '{\"type\":\"tool_execution_end\",\"toolName\":\"bash\",\"isError\":false}' '{\"type\":\"agent_settled\"}'\n"
     )
 
     File.chmod!(pi_path, 0o755)
@@ -361,55 +365,6 @@ defmodule WebApp.AutomationTest do
 
     AutomationRunner.run(automation(job_name, "* * * * *"))
     assert File.exists?(pi_marker)
-  end
-
-  test "emits run telemetry tagged with the automation result" do
-    test_pid = self()
-
-    :telemetry.attach_many(
-      "automation-run-test-#{System.unique_integer([:positive])}",
-      [[:web_app, :automation, :run]],
-      fn event, measurements, metadata, _config ->
-        send(test_pid, {:telemetry, event, measurements, metadata})
-      end,
-      nil
-    )
-
-    job_name = "automation-#{System.unique_integer([:positive])}"
-    pi_dir = Path.join(System.tmp_dir!(), "pi-#{System.unique_integer([:positive])}")
-    pi_path = Path.join(pi_dir, "pi")
-    File.mkdir_p!(pi_dir)
-
-    File.write!(
-      pi_path,
-      "#!/bin/sh\nIFS= read -r line\nprintf '{\"type\":\"agent_settled\"}\\n'\n"
-    )
-
-    File.chmod!(pi_path, 0o755)
-    original_path = System.get_env("PATH")
-    System.put_env("PATH", "#{pi_dir}:#{original_path}")
-
-    skill_path = Path.join([System.user_home!(), ".pi", "agent", "skills", job_name])
-    File.mkdir_p!(Path.join(skill_path, "scripts"))
-    File.write!(Path.join(skill_path, "scripts/preScript.ts"), "console.log()")
-
-    on_exit(fn ->
-      System.put_env("PATH", original_path)
-      File.rm_rf!(skill_path)
-      File.rm_rf!(pi_dir)
-    end)
-
-    AutomationRunner.run(%{automation(job_name, "* * * * *") | use_skill: false})
-
-    assert_receive {:telemetry, [:web_app, :automation, :run], %{count: 1, duration: duration},
-                    %{result: :ok}}
-                   when is_integer(duration) and duration >= 0
-
-    AutomationRunner.run(automation(job_name, "* * * * *"))
-    assert_receive {:telemetry, [:web_app, :automation, :run], _measurements, %{result: :skipped}}
-
-    AutomationRunner.run(automation("missing-#{System.unique_integer([:positive])}", "* * * * *"))
-    assert_receive {:telemetry, [:web_app, :automation, :run], _measurements, %{result: :error}}
   end
 
   defp sync_subscription do

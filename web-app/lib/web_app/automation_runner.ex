@@ -5,41 +5,24 @@ defmodule WebApp.AutomationRunner do
 
   def run(%Automation{use_skill: false} = automation) do
     Logger.debug("Automation started: #{automation.job_name}")
-    timed_run(fn -> run_automation(automation, nil, nil) end)
+    run_automation(automation, nil, nil)
   end
 
   def run(%Automation{} = automation) do
     Logger.debug("Automation started: #{automation.job_name}")
 
-    timed_run(fn ->
-      with {:ok, skill_path} <- skill_path(automation.job_name),
-           {:ok, output} <- script(skill_path, "preScript.ts") do
-        run_automation(automation, skill_path, output)
-      else
-        {:error, reason} ->
-          persist_result(automation, "Automation failed: #{reason}")
-          log_failure(automation, reason)
-          :error
-      end
-    end)
-  end
-
-  defp timed_run(fun) do
-    start = System.monotonic_time()
-    result = fun.()
-
-    :telemetry.execute(
-      [:web_app, :automation, :run],
-      %{count: 1, duration: System.monotonic_time() - start},
-      %{result: result}
-    )
-
-    result
+    with {:ok, skill_path} <- skill_path(automation.job_name),
+         {:ok, output} <- script(skill_path, "preScript.ts") do
+      run_automation(automation, skill_path, output)
+    else
+      {:error, reason} ->
+        persist_result(automation, "Automation failed: #{reason}")
+        log_failure(automation, reason)
+    end
   end
 
   defp run_automation(%{use_skill: true} = automation, _skill_path, "") do
     Logger.debug("Automation skipped: #{automation.job_name} (pre-script returned no work)")
-    :skipped
   end
 
   defp run_automation(automation, skill_path, output) do
@@ -58,12 +41,10 @@ defmodule WebApp.AutomationRunner do
       {:ok, response} ->
         persist_result(automation, response)
         Logger.info("Automation completed: #{automation.job_name}")
-        :ok
 
       {:error, reason} ->
         persist_result(automation, "Automation failed: #{reason}")
         log_failure(automation, reason)
-        :error
     end
   end
 
