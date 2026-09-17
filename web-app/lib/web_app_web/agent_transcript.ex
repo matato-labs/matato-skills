@@ -98,6 +98,16 @@ defmodule WebAppWeb.AgentTranscript do
       <div class="markdown">{markdown(@item.content)}</div>
     </article>
 
+    <section
+      :if={@item.kind == :agent_error}
+      id={@id}
+      class="mt-4 rounded-lg border border-error/30 bg-error/10 px-4 py-3 text-sm text-error"
+      role="alert"
+    >
+      <p class="mb-1 text-xs font-semibold uppercase tracking-wide">Agent error</p>
+      <p class="whitespace-pre-wrap">{@item.text}</p>
+    </section>
+
     <details
       :if={@item.kind == :thinking}
       id={@id}
@@ -332,9 +342,10 @@ defmodule WebAppWeb.AgentTranscript do
   defp finish_work_turn([], _active?), do: []
 
   defp finish_work_turn([%{kind: :message, role: :user} = user | items], active?) do
+    {errors, items} = Enum.split_with(items, &(&1.kind == :agent_error))
     {final, work} = split_final_message(items, active?)
     work_item = work_turn_item(user, work, active?)
-    [user] ++ List.wrap(work_item) ++ List.wrap(final)
+    [user] ++ List.wrap(work_item) ++ errors ++ List.wrap(final)
   end
 
   defp finish_work_turn(items, _active?), do: items
@@ -383,25 +394,28 @@ defmodule WebAppWeb.AgentTranscript do
          session
        )
        when is_list(content) do
-    content
-    |> Enum.with_index()
-    |> Enum.flat_map(fn {block, block_index} ->
-      id = "message-#{message_index}-#{block_index}"
+    items =
+      content
+      |> Enum.with_index()
+      |> Enum.flat_map(fn {block, block_index} ->
+        id = "message-#{message_index}-#{block_index}"
 
-      case block do
-        %{"type" => "text", "text" => text} when text != "" ->
-          [%{id: id, kind: :message, role: :agent, text: text, timestamp: message["timestamp"]}]
+        case block do
+          %{"type" => "text", "text" => text} when text != "" ->
+            [%{id: id, kind: :message, role: :agent, text: text, timestamp: message["timestamp"]}]
 
-        %{"type" => "thinking", "thinking" => text} when text != "" ->
-          [%{id: id, kind: :thinking, text: text}]
+          %{"type" => "thinking", "thinking" => text} when text != "" ->
+            [%{id: id, kind: :thinking, text: text}]
 
-        %{"type" => "toolCall", "id" => tool_id} ->
-          tool_item(id, session.tools[tool_id])
+          %{"type" => "toolCall", "id" => tool_id} ->
+            tool_item(id, session.tools[tool_id])
 
-        _ ->
-          []
-      end
-    end)
+          _ ->
+            []
+        end
+      end)
+
+    items ++ agent_error_item(message, message_index)
   end
 
   defp message_items(%{"role" => role} = message, message_index, _session)
@@ -423,4 +437,21 @@ defmodule WebAppWeb.AgentTranscript do
   end
 
   defp message_items(_message, _message_index, _session), do: []
+
+  defp agent_error_item(
+         %{"stopReason" => "error", "errorMessage" => error_message} = message,
+         message_index
+       )
+       when is_binary(error_message) and error_message != "" do
+    [
+      %{
+        id: "message-#{message_index}-error",
+        kind: :agent_error,
+        text: error_message,
+        timestamp: message["timestamp"]
+      }
+    ]
+  end
+
+  defp agent_error_item(_message, _message_index), do: []
 end

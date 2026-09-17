@@ -3,7 +3,7 @@ defmodule WebAppWeb.AgentLiveTest do
 
   import Phoenix.LiveViewTest
 
-  alias WebApp.{AgentFanout, AgentSession, Messages, RemoteSessions, Repo, Workspace}
+  alias WebApp.{AgentFanout, AgentSession, AgentState, Messages, RemoteSessions, Repo, Workspace}
   alias WebApp.Bots.Bot
   alias WebApp.Messages.Message
 
@@ -285,6 +285,49 @@ defmodule WebAppWeb.AgentLiveTest do
 
     assert render_click(view, "message_copied") =~ "Message copied"
     assert render_click(view, "message_copy_failed") =~ "Message could not be copied"
+  end
+
+  test "constructs a durable transcript item for a failed assistant turn" do
+    snapshot =
+      AgentState.new()
+      |> AgentState.apply(%{
+        "type" => "message_end",
+        "message" => %{
+          "role" => "assistant",
+          "content" => [],
+          "stopReason" => "error",
+          "errorMessage" => "The model is unavailable"
+        }
+      })
+      |> AgentState.apply(%{"type" => "agent_settled"})
+
+    assert [
+             %{id: "message-0-error", kind: :agent_error, text: "The model is unavailable"}
+           ] = WebAppWeb.AgentTranscript.transcript_items(snapshot)
+  end
+
+  test "keeps a failed assistant turn visible after its work turn" do
+    snapshot =
+      AgentState.new()
+      |> AgentState.apply(%{
+        "type" => "message_end",
+        "message" => %{"role" => "user", "content" => "Do the thing"}
+      })
+      |> AgentState.apply(%{
+        "type" => "message_end",
+        "message" => %{
+          "role" => "assistant",
+          "content" => [],
+          "stopReason" => "error",
+          "errorMessage" => "The model is unavailable"
+        }
+      })
+      |> AgentState.apply(%{"type" => "agent_settled"})
+
+    assert [
+             %{kind: :message, role: :user},
+             %{kind: :agent_error, text: "The model is unavailable"}
+           ] = WebAppWeb.AgentTranscript.transcript_items(snapshot)
   end
 
   test "renders discovered slash commands when the composer starts with a slash", %{
