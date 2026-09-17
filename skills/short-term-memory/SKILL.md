@@ -11,6 +11,8 @@ You have access to all daily activity via two sources: sessions, which include a
 
 **Sessions**: `~/.pi/agent/sessions/matato/`
 
+**Logs**: `~/.config/matato-pi/logs/web-app.log` — the web app writes every log event to this rotating file (10 MB, 5 files kept). Use `grep '\[error\]'` to find error-level entries, e.g. `grep '\[error\]' ~/.config/matato-pi/logs/web-app.log`.
+
 ## Task
 
 Analyze the sources to find anything related to the user's query. When looking at the data, try to make sure you limit the search to the last 24 hours. Don't stop after you get a first match; the analysis has to be deep to make sure you don't miss an earlier case.
