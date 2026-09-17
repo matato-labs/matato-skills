@@ -46,6 +46,25 @@ if config_env() != :test do
     busy_timeout: 5_000,
     journal_mode: :wal,
     foreign_keys: :on
+
+  log_dir = Path.join(matato_pi_config, "logs")
+  File.mkdir_p!(log_dir)
+
+  config :web_app, :logger, [
+    {:handler, :file_log, :logger_std_h,
+     %{
+       config: %{
+         file: String.to_charlist(Path.join(log_dir, "web-app.log")),
+         max_no_bytes: 10_485_760,
+         max_no_files: 5
+       },
+       formatter:
+         Logger.Formatter.new(
+           format: "$time $metadata[$level] $message\n",
+           metadata: [:request_id]
+         )
+     }}
+  ]
 end
 
 config :opentelemetry, :resource, service: [name: "matato-pi-web"]
