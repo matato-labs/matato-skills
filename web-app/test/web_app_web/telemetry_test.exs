@@ -59,6 +59,41 @@ defmodule WebAppWeb.TelemetryTest do
     assert "web_app.messages.pending" in names
   end
 
+  test "skips the pending messages gauge when the repo is unavailable" do
+    test_pid = self()
+
+    :telemetry.attach(
+      "pending-messages-guard-test-#{System.unique_integer([:positive])}",
+      [:web_app, :messages],
+      fn event, measurements, _metadata, _config ->
+        send(test_pid, {:measured, event, measurements})
+      end,
+      nil
+    )
+
+    :ok = Supervisor.stop(WebApp.Repo)
+    assert :ok = Telemetry.measure_pending_messages()
+    refute_receive {:measured, [:web_app, :messages], _measurements}
+  end
+
+  test "reports zero active sessions when the agent supervisor is unavailable" do
+    test_pid = self()
+
+    :telemetry.attach(
+      "agent-sessions-guard-test-#{System.unique_integer([:positive])}",
+      [:web_app, :agent_sessions],
+      fn event, measurements, _metadata, _config ->
+        send(test_pid, {:measured, event, measurements})
+      end,
+      nil
+    )
+
+    :ok = Supervisor.stop(WebApp.AgentSupervisor)
+    Telemetry.measure_agent_sessions()
+
+    assert_receive {:measured, [:web_app, :agent_sessions], %{active: 0}}
+  end
+
   test "periodic measurements emit runtime gauges" do
     test_pid = self()
 
