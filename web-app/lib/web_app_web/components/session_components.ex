@@ -104,14 +104,14 @@ defmodule WebAppWeb.SessionComponents do
           </h2>
           <nav id="automation-session-groups" class="space-y-1.5" aria-label="Active automation work">
             <.session_group
-              :for={group <- visible_groups(@automation_groups)}
+              :for={group <- @automation_groups}
               group={group}
               prefix="automation"
               session_id={@session_id}
               delete_session_id={@delete_session_id}
             />
             <p
-              :if={visible_groups(@automation_groups) == []}
+              :if={@automation_groups == []}
               class="px-2 py-1 text-xs leading-5 text-base-content/40"
             >
               No active work.
