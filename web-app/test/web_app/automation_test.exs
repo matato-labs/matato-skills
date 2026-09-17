@@ -269,7 +269,7 @@ defmodule WebApp.AutomationTest do
 
     File.write!(
       pi_path,
-      "#!/bin/sh\ntouch #{pi_marker}\nprintf '{\"type\":\"agent_settled\"}\\n'\n"
+      "#!/bin/sh\nIFS= read -r line\ntouch #{pi_marker}\nprintf '{\"type\":\"agent_settled\"}\\n'\n"
     )
 
     File.chmod!(pi_path, 0o755)
@@ -312,7 +312,11 @@ defmodule WebApp.AutomationTest do
       "await Bun.write(#{inspect(post_mix_env_path)}, Bun.env.MIX_ENV ?? \"unset\")"
     )
 
-    File.write!(pi_path, "#!/bin/sh\nprintf '{\"type\":\"agent_settled\"}\\n'\n")
+    File.write!(
+      pi_path,
+      "#!/bin/sh\nIFS= read -r line\nprintf '{\"type\":\"agent_settled\"}\\n'\n"
+    )
+
     File.chmod!(pi_path, 0o755)
     original_path = System.get_env("PATH")
     original_mix_env = System.fetch_env("MIX_ENV")
@@ -345,7 +349,7 @@ defmodule WebApp.AutomationTest do
 
     File.write!(
       pi_path,
-      "#!/bin/sh\ntouch #{pi_marker}\nprintf '%s\\n' '{\"type\":\"tool_execution_start\",\"toolName\":\"bash\"}' '{\"type\":\"tool_execution_end\",\"toolName\":\"bash\",\"isError\":false}' '{\"type\":\"agent_settled\"}'\n"
+      "#!/bin/sh\nIFS= read -r line\ntouch #{pi_marker}\nprintf '%s\\n' '{\"type\":\"tool_execution_start\",\"toolName\":\"bash\"}' '{\"type\":\"tool_execution_end\",\"toolName\":\"bash\",\"isError\":false}' '{\"type\":\"agent_settled\"}'\n"
     )
 
     File.chmod!(pi_path, 0o755)
