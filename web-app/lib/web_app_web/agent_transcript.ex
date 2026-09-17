@@ -3,33 +3,41 @@ defmodule WebAppWeb.AgentTranscript do
 
   alias WebApp.AgentState
 
-  attr :id, :string, required: true
-  attr :item, :map, required: true
-  attr :streaming, :boolean, default: false
-  attr :expanded, :boolean, default: false
+  attr(:id, :string, required: true)
+  attr(:item, :map, required: true)
+  attr(:streaming, :boolean, default: false)
+  attr(:expanded, :boolean, default: false)
 
   def transcript_item(assigns) do
     ~H"""
-    <article
+    <div
       :if={@item.kind == :message}
       id={@id}
       class={[
         "text-sm leading-6 text-base-content/85",
         @item.role == :agent &&
           if(Map.get(@item, :after_activity?, false), do: "mt-4", else: "mt-8"),
-        @item.role == :user && "mt-8 first:mt-0",
-        @item.role == :user &&
-          "ml-auto w-fit max-w-[92%] rounded-2xl border border-base-content/12 bg-base-200/35 px-3.5 py-2.5 text-left"
+        @item.role == :user && "mt-8 flex flex-col items-end first:mt-0"
       ]}
     >
-      <div :if={!@streaming} class="markdown">{markdown(@item.text)}</div>
-      <div :if={@streaming} class="whitespace-pre-wrap">
-        {@item.text}<span
-          :if={@item.role == :agent}
-          class="ml-1 inline-block h-4 w-0.5 animate-pulse bg-primary align-middle"
-        ></span>
-      </div>
-    </article>
+      <article class={[
+        @item.role == :user &&
+          "w-fit max-w-[92%] rounded-2xl border border-base-content/12 bg-base-200/35 px-3.5 py-2.5 text-left"
+      ]}>
+        <div :if={!@streaming} class="markdown">{markdown(@item.text)}</div>
+        <div :if={@streaming} class="whitespace-pre-wrap">
+          {@item.text}<span
+            :if={@item.role == :agent}
+            class="ml-1 inline-block h-4 w-0.5 animate-pulse bg-primary align-middle"
+          ></span>
+        </div>
+      </article>
+      <.copy_message_button
+        id={"#{@id}-copy"}
+        text={@item.text}
+        align={if @item.role == :user, do: :right, else: :left}
+      />
+    </div>
 
     <details
       :if={@item.kind == :work_turn}
@@ -44,7 +52,10 @@ defmodule WebAppWeb.AgentTranscript do
         <span>{work_label(@item)}</span>
       </summary>
       <div class="space-y-4 pt-3">
-        <p :for={message <- @item.messages} class="whitespace-pre-wrap">{message.text}</p>
+        <div :for={message <- @item.messages} class="space-y-1">
+          <p class="whitespace-pre-wrap">{message.text}</p>
+          <.copy_message_button id={"#{@id}-#{message.id}-copy"} text={message.text} />
+        </div>
         <details
           :if={@item.traces != []}
           id={"#{@id}-activity"}
@@ -115,6 +126,29 @@ defmodule WebAppWeb.AgentTranscript do
       </summary>
       <pre class="mt-3 max-h-72 overflow-auto rounded-lg bg-base-200 p-3 font-mono text-[0.7rem] leading-5 text-base-content/65">{tool_output(@item.tool)}</pre>
     </details>
+    """
+  end
+
+  attr(:id, :string, required: true)
+  attr(:text, :string, required: true)
+  attr(:align, :atom, values: [:left, :right], default: :left)
+
+  defp copy_message_button(assigns) do
+    ~H"""
+    <button
+      id={@id}
+      type="button"
+      phx-hook="MessageCopy"
+      data-copy-text={@text}
+      aria-label="Copy message"
+      title="Copy message"
+      class={[
+        "mt-1 flex cursor-pointer rounded-md p-1 text-base-content/35 transition hover:bg-base-content/8 hover:text-base-content/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary",
+        @align == :right && "self-end"
+      ]}
+    >
+      <.icon name="hero-square-2-stack" class="size-3.5" />
+    </button>
     """
   end
 

@@ -136,6 +136,11 @@ defmodule WebApp.RemoteRegistry do
     {:noreply, state}
   end
 
+  def handle_cast({:prompt, id, message}, state) do
+    derive_session_name(id, message)
+    {:noreply, state}
+  end
+
   def handle_cast({:status, id, status}, state) do
     put_status(id, status)
     {:noreply, state}
@@ -236,6 +241,35 @@ defmodule WebApp.RemoteRegistry do
         GenServer.cast(__MODULE__, {:discard_failed, id})
         {:error, format_error(reason)}
     end
+  end
+
+  defp derive_session_name(id, message) when is_binary(message) do
+    case RemoteSessions.get(id) do
+      %{"source" => "web", "name" => name, "project" => project} ->
+        if name == Path.basename(project), do: rename_session(id, message)
+
+      _session ->
+        :ok
+    end
+  end
+
+  defp derive_session_name(_id, _message), do: :ok
+
+  defp rename_session(id, message) do
+    name =
+      message
+      |> String.replace(~r/\s+/u, " ")
+      |> String.trim()
+      |> String.split(" ")
+      |> Enum.take(6)
+      |> Enum.join(" ")
+
+    if name == "", do: :ok, else: store_session_name(id, name)
+  end
+
+  defp store_session_name(id, name) do
+    {:ok, _session} = RemoteSessions.update(id, %{name: name})
+    notify_sessions_changed()
   end
 
   defp put_status(id, status) do
