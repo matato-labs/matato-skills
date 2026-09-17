@@ -52,6 +52,63 @@ defmodule WebAppWeb.Telemetry do
         unit: {:native, :millisecond}
       ),
 
+      # LiveView Metrics
+      summary("phoenix.live_view.mount.start.system_time",
+        unit: {:native, :millisecond}
+      ),
+      summary("phoenix.live_view.mount.stop.duration",
+        unit: {:native, :millisecond}
+      ),
+      summary("phoenix.live_view.mount.exception.duration",
+        tags: [:exception],
+        unit: {:native, :millisecond}
+      ),
+      summary("phoenix.live_view.handle_event.start.system_time",
+        unit: {:native, :millisecond}
+      ),
+      summary("phoenix.live_view.handle_event.stop.duration",
+        tags: [:event],
+        unit: {:native, :millisecond}
+      ),
+      summary("phoenix.live_view.handle_event.exception.duration",
+        tags: [:event, :exception],
+        unit: {:native, :millisecond}
+      ),
+      summary("phoenix.live_component.handle_event.start.system_time",
+        unit: {:native, :millisecond}
+      ),
+      summary("phoenix.live_component.handle_event.stop.duration",
+        tags: [:event],
+        unit: {:native, :millisecond}
+      ),
+      summary("phoenix.live_component.handle_event.exception.duration",
+        tags: [:event, :exception],
+        unit: {:native, :millisecond}
+      ),
+
+      # Database Metrics
+      summary("web_app.repo.query.total_time",
+        unit: {:native, :millisecond},
+        description: "The sum of the other measurements"
+      ),
+      summary("web_app.repo.query.decode_time",
+        unit: {:native, :millisecond},
+        description: "The time spent decoding the data received from the database"
+      ),
+      summary("web_app.repo.query.query_time",
+        unit: {:native, :millisecond},
+        description: "The time spent executing the query"
+      ),
+      summary("web_app.repo.query.queue_time",
+        unit: {:native, :millisecond},
+        description: "The time spent waiting for a database connection"
+      ),
+      summary("web_app.repo.query.idle_time",
+        unit: {:native, :millisecond},
+        description:
+          "The time the connection spent waiting before being checked out for the query"
+      ),
+
       # VM Metrics
       summary("vm.memory.total", unit: {:byte, :kilobyte}),
       summary("vm.total_run_queue_lengths.total"),

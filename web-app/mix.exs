@@ -74,7 +74,8 @@ defmodule WebApp.MixProject do
       {:quantum, "~> 3.5"},
       {:tzdata, "~> 1.1"},
       {:ecto_sql, "~> 3.12"},
-      {:ecto_sqlite3, "~> 0.17"}
+      {:ecto_sqlite3, "~> 0.17"},
+      {:ecto_sqlite3_extras, "~> 1.2"}
     ]
   end
 
