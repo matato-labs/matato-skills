@@ -13,7 +13,12 @@ defmodule WebApp.Bots do
     with %Bot{} = bot <- get(id), do: identity_for(bot)
   end
 
-  def identity_for(%Bot{} = bot), do: "You are #{bot.name}, #{bot.role}. #{bot.description}"
+  @collaboration_instructions """
+  You can collaborate with other bots through the web API. List bots with `GET /api/bots` to discover their names and IDs (find your own ID by matching your name), then send a message with `POST /api/messages` using `receiver_bot_id`, `sender_id` (your bot ID), `kind`, and `content`. Delivery is asynchronous: your message is queued and appears as a normal prompt in the receiver's chat session once that session is free. Messages from other bots arrive as `Internal <kind> from <sender>:` prompts.
+  """
+
+  def identity_for(%Bot{} = bot),
+    do: "You are #{bot.name}, #{bot.role}. #{bot.description}\n\n#{@collaboration_instructions}"
 
   def identity_for_session(session_id) do
     with %Bot{} = bot <-

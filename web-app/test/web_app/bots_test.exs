@@ -49,13 +49,14 @@ defmodule WebApp.BotsTest do
         background_remote_session_id: "background-identity"
       })
 
-    assert Bots.identity(bot.id) == "You are Research, researcher. Find facts"
-
-    assert Bots.identity_for_session("chat-identity") ==
-             "You are Research, researcher. Find facts"
-
-    assert Bots.identity_for_session("background-identity") ==
-             "You are Research, researcher. Find facts"
+    for identity <- [
+          Bots.identity(bot.id),
+          Bots.identity_for_session("chat-identity"),
+          Bots.identity_for_session("background-identity")
+        ] do
+      assert identity =~ "You are Research, researcher. Find facts"
+      assert identity =~ "POST /api/messages"
+    end
 
     assert Bots.identity("missing") == nil
     assert Bots.identity_for_session("missing") == nil

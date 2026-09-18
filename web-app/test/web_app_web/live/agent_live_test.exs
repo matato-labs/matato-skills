@@ -118,6 +118,38 @@ defmodule WebAppWeb.AgentLiveTest do
     assert activity_index < reply_index
   end
 
+  test "hides delivered bot messages from the activity timeline", %{conn: conn, bot: bot} do
+    :ok = :sys.suspend(WebApp.MessageWorker)
+    on_exit(fn -> :ok = :sys.resume(WebApp.MessageWorker) end)
+
+    {:ok, _delivered} =
+      Messages.create(%{
+        receiver_bot_id: bot.id,
+        sender_type: "bot",
+        sender_id: bot.id,
+        timestamp: DateTime.from_unix!(2, :second),
+        kind: "request",
+        content: "Already in the chat",
+        sent_status: "sent"
+      })
+
+    {:ok, _pending} =
+      Messages.create(%{
+        receiver_bot_id: bot.id,
+        sender_type: "bot",
+        sender_id: bot.id,
+        timestamp: DateTime.from_unix!(3, :second),
+        kind: "request",
+        content: "Still queued"
+      })
+
+    {:ok, view, _html} = live(conn, "/bots/#{bot.id}")
+
+    html = render(view)
+    refute html =~ "Already in the chat"
+    assert html =~ "Still queued"
+  end
+
   test "keeps the chat header fixed on mobile", %{conn: conn, bot: bot} do
     {:ok, view, _html} = live(conn, "/bots/#{bot.id}")
 

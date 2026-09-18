@@ -2,6 +2,7 @@ defmodule WebApp.MessageWorker do
   use GenServer
 
   alias WebApp.{AgentSession, Bots, Messages, RemoteRegistry}
+  alias WebApp.Messages.Message
 
   @busy_statuses [:working, :waiting_for_input, :retrying, :compacting]
 
@@ -37,8 +38,9 @@ defmodule WebApp.MessageWorker do
 
   defp delivery_status(message) do
     with bot when not is_nil(bot) <- Bots.get(message.receiver_bot_id),
-         :ok <- RemoteRegistry.open(bot.background_remote_session_id, Bots.identity_for(bot)) do
-      deliver_to_bot(bot, message)
+         session_id <- session_id_for(bot, message),
+         :ok <- RemoteRegistry.open(session_id, Bots.identity_for(bot)) do
+      deliver_to_bot(session_id, message)
     else
       _ -> :failed
     end
@@ -46,9 +48,10 @@ defmodule WebApp.MessageWorker do
     :exit, _reason -> :failed
   end
 
-  defp deliver_to_bot(bot, message) do
-    session_id = bot.background_remote_session_id
+  defp session_id_for(bot, %Message{sender_type: "bot"}), do: bot.chat_remote_session_id
+  defp session_id_for(bot, _message), do: bot.background_remote_session_id
 
+  defp deliver_to_bot(session_id, message) do
     cond do
       AgentSession.snapshot(session_id).status in @busy_statuses ->
         :pending
@@ -58,7 +61,7 @@ defmodule WebApp.MessageWorker do
 
       true ->
         try do
-          if AgentSession.owner_command(session_id, self(), command(bot, message)) == :ok,
+          if AgentSession.owner_command(session_id, self(), command(message)) == :ok,
             do: :sent,
             else: :failed
         after
@@ -69,11 +72,13 @@ defmodule WebApp.MessageWorker do
     :exit, _reason -> :failed
   end
 
-  defp command(bot, message) do
+  defp command(message) do
     %{
       "type" => "prompt",
-      "message" =>
-        "You are #{bot.name}, #{bot.role}. #{bot.description}\n\nInternal #{message.kind} from #{message.sender_type}:\n#{message.content}"
+      "message" => "Internal #{message.kind} from #{sender_name(message)}:\n#{message.content}"
     }
   end
+
+  defp sender_name(%Message{sender_type: "bot", sender_id: sender_id}), do: Bots.name(sender_id)
+  defp sender_name(message), do: message.sender_type
 end
