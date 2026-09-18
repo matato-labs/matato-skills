@@ -184,6 +184,75 @@ defmodule WebApp.MessageWorkerTest do
     assert message_id == message.id
   end
 
+  test "continues delivering remaining messages after a failure", %{bot: bot} do
+    unavailable =
+      Repo.insert!(%Bot{
+        name: "Unavailable",
+        role: "operator",
+        description: "Cannot receive work",
+        chat_remote_session_id: "chat-unavailable",
+        background_remote_session_id: "background-unavailable"
+      })
+
+    {:ok, failing} =
+      Messages.create(%{
+        receiver_bot_id: unavailable.id,
+        sender_type: "automation",
+        kind: "result",
+        content: "Delivery fails",
+        timestamp: DateTime.from_unix!(1, :second)
+      })
+
+    {:ok, deliverable} =
+      Messages.create(%{
+        receiver_bot_id: bot.id,
+        sender_type: "automation",
+        kind: "result",
+        content: "Delivery works",
+        timestamp: DateTime.from_unix!(2, :second)
+      })
+
+    :ok = MessageWorker.deliver_pending()
+
+    assert [%Message{id: message_id, sent_status: "failed"}] =
+             Messages.list_for_bot(unavailable.id)
+
+    assert message_id == failing.id
+
+    assert [%Message{id: message_id, sent_status: "sent"}] = Messages.list_for_bot(bot.id)
+    assert message_id == deliverable.id
+  end
+
+  test "continues delivering remaining messages after a success", %{bot: bot, project: project} do
+    {:ok, first} =
+      Messages.create(%{
+        receiver_bot_id: bot.id,
+        sender_type: "automation",
+        kind: "result",
+        content: "First",
+        timestamp: DateTime.from_unix!(1, :second)
+      })
+
+    {:ok, second} =
+      Messages.create(%{
+        receiver_bot_id: bot.id,
+        sender_type: "automation",
+        kind: "result",
+        content: "Second",
+        timestamp: DateTime.from_unix!(2, :second)
+      })
+
+    :ok = MessageWorker.deliver_pending()
+
+    assert [%Message{sent_status: "sent"}, %Message{sent_status: "sent"}] =
+             Messages.list_for_bot(bot.id)
+
+    assert [first_prompt, second_prompt] = prompts(project)
+    assert first_prompt["message"] == "Internal result from automation:\nFirst"
+    assert second_prompt["message"] == "Internal result from automation:\nSecond"
+    assert first.id != second.id
+  end
+
   test "defers a message when the background bot is busy", %{bot: bot} do
     :owner = AgentSession.claim(bot.background_remote_session_id, self())
 

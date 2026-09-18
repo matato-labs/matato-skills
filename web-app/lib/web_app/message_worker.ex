@@ -1,6 +1,8 @@
 defmodule WebApp.MessageWorker do
   use GenServer
 
+  require Logger
+
   alias WebApp.{AgentSession, Bots, Messages, RemoteRegistry}
   alias WebApp.Messages.Message
 
@@ -29,8 +31,17 @@ defmodule WebApp.MessageWorker do
             :ok = Messages.requeue(message)
             deliver([message.id | deferred_ids])
 
-          status ->
-            :ok = Messages.finish(message, Atom.to_string(status))
+          :failed ->
+            Logger.warning("Message delivery failed",
+              message_id: message.id,
+              receiver_bot_id: message.receiver_bot_id
+            )
+
+            :ok = Messages.finish(message, "failed")
+            deliver(deferred_ids)
+
+          :sent ->
+            :ok = Messages.finish(message, "sent")
             deliver(deferred_ids)
         end
     end

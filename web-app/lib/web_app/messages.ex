@@ -107,10 +107,14 @@ defmodule WebApp.Messages do
     if Ecto.Changeset.get_field(changeset, :sender_type) != "bot" do
       :ok
     else
-      if Bots.get(Ecto.Changeset.get_field(changeset, :sender_id)),
-        do: :ok,
-        else: {:error, Ecto.Changeset.add_error(changeset, :sender_id, "does not exist")}
+      validate_sender_exists(changeset)
     end
+  end
+
+  defp validate_sender_exists(changeset) do
+    if Bots.get(Ecto.Changeset.get_field(changeset, :sender_id)),
+      do: :ok,
+      else: {:error, Ecto.Changeset.add_error(changeset, :sender_id, "does not exist")}
   end
 
   defp validate_receiver(changeset) do
