@@ -62,7 +62,7 @@ curl -sS -X DELETE "$api/$botId"
 
 ## Messages
 
-Send a bot-to-bot message through the local web API. Set `api=http://localhost:4000/api/messages` unless `MATATO_PI_WEB_URL` points to another server. Discover bots and their IDs with `GET /api/bots` first (see Bots). The sender is always a bot; the API forces `sender_type` to `bot`.
+Send a bot-to-bot message through the local web API. Set `api=http://localhost:4000/api/messages`. Discover bots and their IDs with `GET /api/bots` first (see Bots). The sender is always a bot; the API forces `sender_type` to `bot`.
 
 | Field | Required | Purpose |
 | --- | --- | --- |
