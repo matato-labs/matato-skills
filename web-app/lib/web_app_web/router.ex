@@ -31,6 +31,8 @@ defmodule WebAppWeb.Router do
       only: [:index, :show, :create, :update, :delete]
 
     resources "/bots", BotController, only: [:index, :show, :create, :update, :delete]
+
+    post "/sessions", SessionController, :create
   end
 
   # Runtime observability dashboard. Available in every environment.

@@ -36,6 +36,19 @@ defmodule WebApp.RemoteSessions do
     |> result()
   end
 
+  def register(attributes) do
+    with {:ok, project, relative} <- registration_project(attributes["relative_project"]),
+         {:ok, session_file} <- registration_session_file(attributes["session_file"]) do
+      upsert_registered(%{
+        name: registration_name(attributes["name"], project),
+        project_path: project,
+        relative_project: relative,
+        session_file: session_file,
+        pi_session_id: attributes["pi_session_id"]
+      })
+    end
+  end
+
   def update(id, attributes) do
     with %RemoteSession{} = session <- Repo.get(RemoteSession, id),
          {:ok, session} <- session |> RemoteSession.changeset(attributes) |> Repo.update() do
@@ -82,6 +95,56 @@ defmodule WebApp.RemoteSessions do
   end
 
   def validate_session_file(_path), do: {:error, "Invalid session path"}
+
+  defp registration_project(relative) when is_binary(relative) do
+    project = Workspace.resolve(relative)
+    {:ok, project, Path.relative_to(project, Workspace.root())}
+  rescue
+    _error in [ArgumentError, File.Error] -> {:error, "Invalid project"}
+  end
+
+  defp registration_project(_relative), do: {:error, "Invalid project"}
+
+  defp registration_session_file(path) do
+    case validate_session_file(path) do
+      {:ok, file} when is_binary(file) -> {:ok, file}
+      {:ok, nil} -> {:error, "Session file not found"}
+      {:error, message} -> {:error, message}
+    end
+  end
+
+  defp registration_name(name, project) when is_binary(name) do
+    case String.trim(name) do
+      "" -> Path.basename(project)
+      trimmed -> trimmed
+    end
+  end
+
+  defp registration_name(_name, project), do: Path.basename(project)
+
+  defp upsert_registered(attributes) do
+    attributes = Map.put(attributes, :status, "stopped")
+
+    case Repo.get_by(RemoteSession, session_file: attributes.session_file) do
+      nil ->
+        attributes
+        |> Map.merge(%{id: registration_id(), source: "extension"})
+        |> create()
+
+      %RemoteSession{} = session ->
+        session |> RemoteSession.changeset(attributes) |> Repo.update() |> result()
+    end
+    |> tap(fn
+      {:ok, _session} -> notify_sessions_changed()
+      {:error, _reason} -> :ok
+    end)
+  end
+
+  defp registration_id, do: Base.url_encode64(:crypto.strong_rand_bytes(9), padding: false)
+
+  defp notify_sessions_changed,
+    do: Phoenix.PubSub.broadcast(WebApp.PubSub, "remote_sessions", :changed)
+
   defp valid_id?(id), do: is_binary(id) and Regex.match?(~r/\A[A-Za-z0-9_-]{12}\z/, id)
 
   defp session_path_allowed?(path, root),
