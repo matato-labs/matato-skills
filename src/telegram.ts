@@ -82,6 +82,7 @@ export async function sendTelegramMessage(input: {
 
 export async function getTelegramUpdates(input: {
   offset: number | null;
+  ownerId: string;
 }): Promise<{
   updates: Array<TelegramMessage>;
   nextOffset: number;
@@ -108,6 +109,7 @@ export async function getTelegramUpdates(input: {
   const lastUpdateId = payload.result.at(-1)?.update_id;
   return {
     updates: payload.result
+      .filter((update) => String(update.message?.from?.id) === input.ownerId)
       .map(toMessage)
       .filter((message): message is TelegramMessage => message !== null),
     nextOffset:

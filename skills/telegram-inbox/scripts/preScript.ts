@@ -13,8 +13,9 @@ const checkpoint = await readTelegramCheckpoint();
 // newest one, so the first poll cannot leave stale pages to answer later.
 const result = await getTelegramUpdates({
   offset: checkpoint.nextOffset ?? -1,
+  ownerId,
 });
-const messages = result.updates.filter(({ chatId }) => chatId === ownerId);
+const messages = result.updates;
 // Acknowledge first-poll backlog and updates that need no agent turn.
 if (checkpoint.nextOffset === null || messages.length === 0) {
   await writeTelegramCheckpoint(result.nextOffset);

@@ -60,6 +60,15 @@ describe("Telegram API", () => {
               message: {
                 date: 1,
                 chat: { id: 2 },
+                from: { id: 8, username: "not-leon" },
+                text: "ignore",
+              },
+            },
+            {
+              update_id: 6,
+              message: {
+                date: 1,
+                chat: { id: 2 },
                 from: { id: 7, username: "leon" },
                 text: "hello",
               },
@@ -69,8 +78,10 @@ describe("Telegram API", () => {
       ),
     );
 
-    await expect(getTelegramUpdates({ offset: 4 })).resolves.toEqual({
-      nextOffset: 6,
+    await expect(
+      getTelegramUpdates({ offset: 4, ownerId: "7" }),
+    ).resolves.toEqual({
+      nextOffset: 7,
       updates: [
         {
           chatId: "2",
@@ -101,7 +112,9 @@ describe("Telegram API", () => {
       ),
     );
 
-    await expect(getTelegramUpdates({ offset: 8 })).resolves.toEqual({
+    await expect(
+      getTelegramUpdates({ offset: 8, ownerId: "7" }),
+    ).resolves.toEqual({
       nextOffset: 9,
       updates: [],
     });
@@ -127,7 +140,9 @@ describe("Telegram API", () => {
       ),
     );
 
-    await expect(getTelegramUpdates({ offset: 9 })).resolves.toEqual({
+    await expect(
+      getTelegramUpdates({ offset: 9, ownerId: "7" }),
+    ).resolves.toEqual({
       nextOffset: 10,
       updates: [
         {
@@ -145,7 +160,9 @@ describe("Telegram API", () => {
       new Response(JSON.stringify({ ok: true, result: [] })),
     );
 
-    await expect(getTelegramUpdates({ offset: 7 })).resolves.toEqual({
+    await expect(
+      getTelegramUpdates({ offset: 7, ownerId: "7" }),
+    ).resolves.toEqual({
       updates: [],
       nextOffset: 7,
     });
@@ -157,7 +174,9 @@ describe("Telegram API", () => {
       new Response(JSON.stringify({ ok: true, result: [] })),
     );
 
-    await expect(getTelegramUpdates({ offset: -1 })).resolves.toEqual({
+    await expect(
+      getTelegramUpdates({ offset: -1, ownerId: "7" }),
+    ).resolves.toEqual({
       updates: [],
       nextOffset: 0,
     });
@@ -166,15 +185,17 @@ describe("Telegram API", () => {
 
   test("fails clearly when configuration or Telegram rejects a request", async () => {
     delete process.env.TELEGRAM_BOT_TOKEN;
-    await expect(getTelegramUpdates({ offset: null })).rejects.toThrow(
-      "TELEGRAM_BOT_TOKEN is required",
-    );
+    await expect(
+      getTelegramUpdates({ offset: null, ownerId: "7" }),
+    ).rejects.toThrow("TELEGRAM_BOT_TOKEN is required");
 
     process.env.TELEGRAM_BOT_TOKEN = "token";
     fetchSpy.mockResolvedValue(
       new Response("server exploded", { status: 500 }),
     );
-    await expect(getTelegramUpdates({ offset: null })).rejects.toThrow(
+    await expect(
+      getTelegramUpdates({ offset: null, ownerId: "7" }),
+    ).rejects.toThrow(
       "Telegram getUpdates request failed with status 500 and message server exploded",
     );
 
@@ -186,9 +207,9 @@ describe("Telegram API", () => {
     ).rejects.toThrow("Telegram sendMessage failed: blocked");
 
     fetchSpy.mockResolvedValue(new Response(JSON.stringify({ ok: true })));
-    await expect(getTelegramUpdates({ offset: null })).rejects.toThrow(
-      "Telegram getUpdates failed: Unknown Telegram API error",
-    );
+    await expect(
+      getTelegramUpdates({ offset: null, ownerId: "7" }),
+    ).rejects.toThrow("Telegram getUpdates failed: Unknown Telegram API error");
 
     await expect(
       sendTelegramMessage({ chatId: "", text: "hello" }),
