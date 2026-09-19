@@ -50,9 +50,18 @@ GET, POST                 /api/bots
 GET, PUT, DELETE          /api/bots/:id
 GET, POST                 /api/automations
 GET, PUT, DELETE          /api/automations/:id
+POST                      /api/sessions
 ```
 
+`POST /api/sessions` registers a session started outside the web app (see `/remote` below); it accepts `name`, `relative_project`, `session_file`, and `pi_session_id`.
+
 The API has no built-in authentication. Keep the server private or place authenticated TLS ingress in front of it.
+
+## Remote sessions
+
+Run `/remote [name]` in an interactive Pi session to register it in the web app so it appears in the session list on your phone. Without a name, the project directory name is used. The web app URL is read from `MATATO_PI_WEB_URL` and defaults to `http://localhost:4000`. Ephemeral sessions cannot be registered. Running `/remote` again on the same session updates the existing entry.
+
+A registered session must not be driven from the terminal and the phone at the same time: both write to the same Pi session file, so concurrent use corrupts the conversation history.
 
 ## Bots
 
