@@ -1,10 +1,10 @@
 defmodule WebAppWeb.SessionController do
   use WebAppWeb, :controller
 
-  alias WebApp.RemoteSessions
+  alias WebApp.Sessions
 
   def create(conn, params) do
-    case RemoteSessions.register(params) do
+    case Sessions.register(params) do
       {:ok, session} ->
         conn |> put_status(:created) |> json(%{session: session})
 

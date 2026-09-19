@@ -1,16 +1,7 @@
 defmodule WebAppWeb.AgentLive do
   use WebAppWeb, :live_view
 
-  alias WebApp.{
-    AgentFanout,
-    AgentSession,
-    AgentState,
-    Bots,
-    Messages,
-    ProjectSessionCatalog,
-    RemoteRegistry,
-    RemoteSessions
-  }
+  alias WebApp.{Bots, Messages, Sessions}
 
   alias WebAppWeb.{AgentTranscript, SessionComponents}
 
@@ -19,18 +10,18 @@ defmodule WebAppWeb.AgentLive do
   @impl true
   def mount(_params, _session, socket) do
     if connected?(socket) do
-      RemoteRegistry.subscribe()
+      Sessions.subscribe()
       Bots.subscribe()
     end
 
-    sessions = RemoteRegistry.list()
+    sessions = Sessions.list()
 
     socket =
       assign(socket,
         page_title: "Matato Agent",
         sessions: sessions,
-        workspace_groups: ProjectSessionCatalog.workspace_groups(sessions),
-        automation_groups: ProjectSessionCatalog.automation_groups(sessions),
+        workspace_groups: Sessions.workspace_groups(sessions),
+        automation_groups: Sessions.automation_groups(sessions),
         bots: Bots.list(),
         session_id: nil,
         bot: nil,
@@ -75,11 +66,11 @@ defmodule WebAppWeb.AgentLive do
 
   def handle_params(%{"id" => id}, _uri, socket) do
     socket = unsubscribe_session(socket)
-    if connected?(socket), do: AgentFanout.subscribe(id)
+    if connected?(socket), do: Sessions.subscribe_agent(id)
 
-    case RemoteRegistry.open(id) do
+    case Sessions.open(id) do
       :ok ->
-        %{sequence: sequence, view: snapshot} = AgentSession.snapshot_with_sequence(id)
+        %{sequence: sequence, view: snapshot} = Sessions.snapshot_with_sequence(id)
 
         {:noreply,
          socket
@@ -190,7 +181,7 @@ defmodule WebAppWeb.AgentLive do
     do: {:noreply, assign(socket, mobile_sidebar_open: false)}
 
   def handle_event("delete_session", %{"id" => id}, socket) do
-    case RemoteRegistry.delete(id) do
+    case Sessions.delete(id) do
       :ok when id == socket.assigns.session_id ->
         {:noreply, push_navigate(socket, to: "/")}
 
@@ -232,7 +223,7 @@ defmodule WebAppWeb.AgentLive do
   end
 
   def handle_event("stop", _params, socket) do
-    :ok = RemoteRegistry.stop(socket.assigns.session_id)
+    :ok = Sessions.stop(socket.assigns.session_id)
 
     {:noreply, assign(socket, session: %{socket.assigns.session | status: :stopped})}
   end
@@ -261,7 +252,7 @@ defmodule WebAppWeb.AgentLive do
   def handle_event("resume", _params, socket) do
     id = socket.assigns.session_id
 
-    case RemoteRegistry.open(id) do
+    case Sessions.open(id) do
       :ok -> {:noreply, resync_session(socket |> assign(error: nil), id)}
       {:error, error} -> {:noreply, assign(socket, error: error)}
     end
@@ -272,8 +263,8 @@ defmodule WebAppWeb.AgentLive do
   def handle_event("dialog", params, socket) do
     response = dialog_response(socket.assigns.session.dialog, params)
 
-    case AgentSession.respond(socket.assigns.session_id, response) do
-      :ok -> {:noreply, assign(socket, session: AgentState.clear_dialog(socket.assigns.session))}
+    case Sessions.respond(socket.assigns.session_id, response) do
+      :ok -> {:noreply, assign(socket, session: Sessions.clear_dialog(socket.assigns.session))}
       {:error, error} -> {:noreply, assign(socket, error: error)}
     end
   end
@@ -307,7 +298,7 @@ defmodule WebAppWeb.AgentLive do
           |> apply_hint(update)
           |> apply_dialog_form(update)
           |> assign(
-            session: AgentState.apply(socket.assigns.session, update),
+            session: Sessions.apply(socket.assigns.session, update),
             last_sequence: sequence
           )
 
@@ -364,7 +355,7 @@ defmodule WebAppWeb.AgentLive do
   end
 
   defp command(socket, command) do
-    AgentSession.command(socket.assigns.session_id, command)
+    Sessions.command(socket.assigns.session_id, command)
   catch
     :exit, _reason -> {:error, "Agent process is unavailable. Resume the session to reconnect."}
   end
@@ -374,12 +365,12 @@ defmodule WebAppWeb.AgentLive do
   end
 
   defp assign_sessions(socket) do
-    sessions = RemoteRegistry.list()
+    sessions = Sessions.list()
 
     assign(socket,
       sessions: sessions,
-      workspace_groups: ProjectSessionCatalog.workspace_groups(sessions),
-      automation_groups: ProjectSessionCatalog.automation_groups(sessions),
+      workspace_groups: Sessions.workspace_groups(sessions),
+      automation_groups: Sessions.automation_groups(sessions),
       bots: Bots.list()
     )
   end
@@ -398,7 +389,7 @@ defmodule WebAppWeb.AgentLive do
   end
 
   defp session_name(id) do
-    case RemoteSessions.get(id) do
+    case Sessions.get(id) do
       %{"name" => name} -> name
       nil -> nil
     end
@@ -471,7 +462,7 @@ defmodule WebAppWeb.AgentLive do
   end
 
   defp resync_session(socket, id) do
-    %{sequence: sequence, view: snapshot} = AgentSession.snapshot_with_sequence(id)
+    %{sequence: sequence, view: snapshot} = Sessions.snapshot_with_sequence(id)
 
     socket
     |> assign(last_sequence: sequence, error: nil)
@@ -527,7 +518,7 @@ defmodule WebAppWeb.AgentLive do
 
   defp unsubscribe_session(socket) do
     if connected?(socket) and socket.assigns.session_id,
-      do: AgentFanout.unsubscribe(socket.assigns.session_id)
+      do: Sessions.unsubscribe_agent(socket.assigns.session_id)
 
     if connected?(socket) and socket.assigns.bot, do: Messages.unsubscribe(socket.assigns.bot.id)
     socket
@@ -535,9 +526,9 @@ defmodule WebAppWeb.AgentLive do
 
   defp open_bot_chat(socket, bot) do
     id = bot.chat_remote_session_id
-    if connected?(socket), do: AgentFanout.subscribe(id)
+    if connected?(socket), do: Sessions.subscribe_agent(id)
 
-    case RemoteRegistry.open(id, Bots.identity_for(bot)) do
+    case Sessions.open(id, Bots.identity_for(bot)) do
       :ok ->
         {:noreply,
          socket

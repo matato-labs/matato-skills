@@ -1,4 +1,4 @@
-defmodule WebApp.AutomationScheduler do
+defmodule WebApp.Automations.Scheduler do
   use Quantum, otp_app: :web_app
 
   alias Crontab.CronExpression.Parser
@@ -40,7 +40,7 @@ defmodule WebApp.AutomationScheduler do
         {:ok,
          new_job()
          |> Job.set_schedule(schedule)
-         |> Job.set_task({WebApp.AutomationRunner, :run, [automation]})
+         |> Job.set_task({WebApp.Automations.Runner, :run, [automation]})
          |> Job.set_overlap(automation.can_overlap)}
 
       {:error, reason} ->

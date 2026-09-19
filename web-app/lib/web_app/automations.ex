@@ -1,8 +1,16 @@
-defmodule WebApp.Automation do
+defmodule WebApp.Automations do
+  use Boundary,
+    top_level?: true,
+    deps: [WebApp.Bots, WebApp.Data, WebApp.Messages, WebApp.Sessions],
+    exports: []
+
   import Ecto.Query
 
-  alias WebApp.{Bots, Repo}
-  alias WebApp.Automations.AutomationRecord
+  alias WebApp.Bots
+  alias WebApp.Automations.Record
+  alias WebApp.Data.Repo
+
+  def child_specs, do: [WebApp.Automations.Scheduler, WebApp.Automations.Subscription]
 
   @enforce_keys [
     :job_name,
@@ -33,22 +41,22 @@ defmodule WebApp.Automation do
 
   def list,
     do:
-      Repo.all(from(record in AutomationRecord, order_by: [asc: record.id]))
+      Repo.all(from(record in Record, order_by: [asc: record.id]))
       |> Enum.map(&to_domain/1)
 
-  def get(id), do: Repo.get(AutomationRecord, id) |> to_domain()
+  def get(id), do: Repo.get(Record, id) |> to_domain()
 
-  def create(attributes), do: persist(%AutomationRecord{}, attributes, &Repo.insert/1)
+  def create(attributes), do: persist(%Record{}, attributes, &Repo.insert/1)
 
   def update(id, attributes) do
-    case Repo.get(AutomationRecord, id) do
+    case Repo.get(Record, id) do
       nil -> {:error, :not_found}
       record -> persist(record, attributes, &Repo.update/1)
     end
   end
 
   def delete(id) do
-    case Repo.get(AutomationRecord, id) do
+    case Repo.get(Record, id) do
       nil -> {:error, :not_found}
       record -> Repo.delete(record) |> result() |> notify_result()
     end
@@ -59,7 +67,7 @@ defmodule WebApp.Automation do
          :ok <- validate_job_names(automations),
          {:ok, _} <-
            Repo.transaction(fn ->
-             Repo.delete_all(AutomationRecord)
+             Repo.delete_all(Record)
              Enum.each(automations, &insert/1)
            end) do
       notify()
@@ -70,7 +78,7 @@ defmodule WebApp.Automation do
   end
 
   defp insert(automation) do
-    changeset = AutomationRecord.changeset(%AutomationRecord{}, Map.from_struct(automation))
+    changeset = Record.changeset(%Record{}, Map.from_struct(automation))
 
     with :ok <- validate_bot(changeset),
          {:ok, _record} <- Repo.insert(changeset) do
@@ -81,7 +89,7 @@ defmodule WebApp.Automation do
   end
 
   defp persist(record, attributes, operation) do
-    changeset = AutomationRecord.changeset(record, attributes)
+    changeset = Record.changeset(record, attributes)
 
     with :ok <- validate_bot(changeset) do
       changeset |> operation.() |> result() |> notify_result()

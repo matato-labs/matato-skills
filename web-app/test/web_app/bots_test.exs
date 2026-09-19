@@ -1,7 +1,9 @@
 defmodule WebApp.BotsTest do
   use ExUnit.Case, async: false
 
-  alias WebApp.{Bots, RemoteSessions, Repo, Workspace}
+  alias WebApp.Bots
+  alias WebApp.Data.Repo
+  alias WebApp.Sessions.{Store, Workspace}
   alias WebApp.Bots.Bot
   alias WebApp.Messages.Message
 
@@ -63,13 +65,13 @@ defmodule WebApp.BotsTest do
   end
 
   test "rejects an incomplete profile before creating remote sessions", %{pi_marker: pi_marker} do
-    session_count = length(RemoteSessions.list())
+    session_count = length(Store.list())
 
     assert {:error, changeset} = Bots.create(%{"name" => "Research"})
 
     assert [role: {"can't be blank", _}, description: {"can't be blank", _}] = changeset.errors
 
-    assert session_count == length(RemoteSessions.list())
+    assert session_count == length(Store.list())
     refute File.exists?(pi_marker)
   end
 
@@ -85,12 +87,12 @@ defmodule WebApp.BotsTest do
     assert id == bot.id
 
     assert %{"source" => "bot_chat", "project" => project, "relative_project" => "."} =
-             RemoteSessions.get(bot.chat_remote_session_id)
+             Store.get(bot.chat_remote_session_id)
 
     assert project == Workspace.root()
 
     assert %{"source" => "bot_background", "project" => ^project, "relative_project" => "."} =
-             RemoteSessions.get(bot.background_remote_session_id)
+             Store.get(bot.background_remote_session_id)
 
     :ok = Bots.delete(bot.id)
   end

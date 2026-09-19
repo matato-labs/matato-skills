@@ -1,9 +1,10 @@
-defmodule WebApp.AutomationSubscription do
+defmodule WebApp.Automations.Subscription do
   use GenServer
 
   require Logger
 
-  alias WebApp.{Automation, AutomationScheduler}
+  alias WebApp.Automations
+  alias WebApp.Automations.Scheduler
 
   @poll_interval 1_000
 
@@ -12,7 +13,7 @@ defmodule WebApp.AutomationSubscription do
   @impl true
   def init(:ok) do
     :ok = Phoenix.PubSub.subscribe(WebApp.PubSub, "automations")
-    automations = Automation.list()
+    automations = Automations.list()
     apply(automations)
     schedule_poll()
     {:ok, fingerprint(automations)}
@@ -20,13 +21,13 @@ defmodule WebApp.AutomationSubscription do
 
   @impl true
   def handle_info(:changed, _fingerprint) do
-    automations = Automation.list()
+    automations = Automations.list()
     apply(automations)
     {:noreply, fingerprint(automations)}
   end
 
   def handle_info(:poll, previous_fingerprint) do
-    automations = Automation.list()
+    automations = Automations.list()
     current_fingerprint = fingerprint(automations)
     if current_fingerprint != previous_fingerprint, do: apply(automations)
     schedule_poll()
@@ -34,7 +35,7 @@ defmodule WebApp.AutomationSubscription do
   end
 
   defp apply(automations) do
-    case AutomationScheduler.replace(automations) do
+    case Scheduler.replace(automations) do
       :ok -> :ok
       {:error, reason} -> Logger.error("Could not refresh automations", reason: reason)
     end

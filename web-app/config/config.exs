@@ -8,12 +8,12 @@
 import Config
 
 config :web_app,
-  ecto_repos: [WebApp.Repo],
+  ecto_repos: [WebApp.Data.Repo],
   generators: [timestamp_type: :utc_datetime]
 
-config :web_app, WebApp.MessageDeliveryScheduler,
+config :web_app, WebApp.Messages.Scheduler,
   jobs: [
-    {"*/3 * * * * *", {WebApp.MessageWorker, :deliver_pending, []}}
+    {"*/3 * * * * *", {WebApp.Messages.Worker, :deliver_pending, []}}
   ]
 
 # Configure the endpoint

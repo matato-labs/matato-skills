@@ -1,7 +1,7 @@
 defmodule WebAppWeb.SessionControllerTest do
   use WebAppWeb.ConnCase, async: false
 
-  alias WebApp.{AgentSession, RemoteRegistry, RemoteSessions, Workspace}
+  alias WebApp.Sessions.{Agent, Registry, Store, Workspace}
 
   setup do
     session_dir =
@@ -10,14 +10,14 @@ defmodule WebAppWeb.SessionControllerTest do
     File.mkdir_p!(session_dir)
     previous = Application.fetch_env!(:web_app, :session_dir)
     Application.put_env(:web_app, :session_dir, session_dir)
-    RemoteRegistry.subscribe()
+    Registry.subscribe()
 
     on_exit(fn ->
       Application.put_env(:web_app, :session_dir, previous)
 
-      RemoteSessions.list()
+      Store.list()
       |> Enum.filter(&String.starts_with?(&1["project"], System.tmp_dir!()))
-      |> Enum.each(&RemoteSessions.delete(&1["id"]))
+      |> Enum.each(&Store.delete(&1["id"]))
     end)
 
     {:ok, session_dir: session_dir}
@@ -48,7 +48,7 @@ defmodule WebAppWeb.SessionControllerTest do
     assert session["status"] == "stopped"
 
     assert_received :changed
-    refute AgentSession.whereis(session["id"])
+    refute Agent.whereis(session["id"])
   end
 
   test "defaults the session name to the project directory name", %{conn: conn, session_dir: dir} do
@@ -90,7 +90,7 @@ defmodule WebAppWeb.SessionControllerTest do
     assert session["name"] == "Renamed"
     assert session["source"] == "extension"
     assert session["status"] == "stopped"
-    assert length(RemoteSessions.list()) == 1
+    assert length(Store.list()) == 1
   end
 
   test "deduplicates simultaneous registrations by session file", %{session_dir: session_dir} do
@@ -105,14 +105,14 @@ defmodule WebAppWeb.SessionControllerTest do
 
     ids =
       1..2
-      |> Task.async_stream(fn _ -> RemoteSessions.register(attributes) end,
+      |> Task.async_stream(fn _ -> Store.register(attributes) end,
         max_concurrency: 2,
         ordered: false
       )
       |> Enum.map(fn {:ok, {:ok, session}} -> session["id"] end)
 
     assert [_id] = Enum.uniq(ids)
-    assert length(RemoteSessions.list()) == 1
+    assert length(Store.list()) == 1
   end
 
   test "rejects a session file outside the session directory", %{conn: conn} do
@@ -176,5 +176,5 @@ defmodule WebAppWeb.SessionControllerTest do
   end
 
   defp refute_registered(session_file),
-    do: refute(Enum.find(RemoteSessions.list(), &(&1["session_file"] == session_file)))
+    do: refute(Enum.find(Store.list(), &(&1["session_file"] == session_file)))
 end

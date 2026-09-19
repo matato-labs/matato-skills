@@ -1,4 +1,4 @@
-defmodule WebApp.AgentState do
+defmodule WebApp.Sessions.State do
   @moduledoc "Semantic browser snapshot assembled from Pi RPC events."
 
   import Kernel, except: [apply: 2]

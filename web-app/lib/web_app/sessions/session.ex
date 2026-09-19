@@ -1,4 +1,4 @@
-defmodule WebApp.RemoteSessions.RemoteSession do
+defmodule WebApp.Sessions.Session do
   use Ecto.Schema
   import Ecto.Changeset
 

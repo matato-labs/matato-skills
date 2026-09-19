@@ -10,7 +10,7 @@ defmodule WebApp.Messages.Message do
     field(:kind, :string)
     field(:content, :string)
     field(:sent_status, :string, default: "pending")
-    belongs_to(:receiver_bot, WebApp.Bots.Bot, type: :binary_id)
+    field(:receiver_bot_id, :binary_id)
     timestamps(type: :utc_datetime)
   end
 

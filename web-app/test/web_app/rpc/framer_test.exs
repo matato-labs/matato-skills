@@ -1,7 +1,7 @@
-defmodule WebApp.Rpc.FramerTest do
+defmodule WebApp.Sessions.FramerTest do
   use ExUnit.Case, async: true
 
-  alias WebApp.Rpc.Framer
+  alias WebApp.Sessions.Framer
 
   test "frames fragmented and combined LF records without splitting unicode separators" do
     {lines, buffer} = Framer.push("", "{\"text\":\"a\u2028b\"}\r\n{\"x\":")

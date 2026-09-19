@@ -1,13 +1,13 @@
-defmodule WebApp.RemoteRegistryTest do
+defmodule WebApp.Sessions.RegistryTest do
   use ExUnit.Case, async: false
 
-  alias WebApp.{RemoteRegistry, RemoteSessions}
+  alias WebApp.Sessions.{Registry, Store}
 
   setup do
     on_exit(fn ->
-      RemoteSessions.list()
+      Store.list()
       |> Enum.filter(&String.starts_with?(&1["project"], System.tmp_dir!()))
-      |> Enum.each(&RemoteSessions.delete(&1["id"]))
+      |> Enum.each(&Store.delete(&1["id"]))
     end)
 
     :ok
@@ -16,37 +16,37 @@ defmodule WebApp.RemoteRegistryTest do
   test "derives the session name from the first prompt of a web session" do
     id = create_session("alpha", "alpha")
 
-    GenServer.cast(RemoteRegistry, {:prompt, id, "  fix   the login\nbug please right now"})
-    _ = :sys.get_state(RemoteRegistry)
+    GenServer.cast(Registry, {:prompt, id, "  fix   the login\nbug please right now"})
+    _ = :sys.get_state(Registry)
 
-    assert RemoteSessions.get(id)["name"] == "fix the login bug please right"
+    assert Store.get(id)["name"] == "fix the login bug please right"
   end
 
   test "keeps custom web session names" do
     id = create_session("alpha", "My session")
 
-    GenServer.cast(RemoteRegistry, {:prompt, id, "fix the login bug"})
-    _ = :sys.get_state(RemoteRegistry)
+    GenServer.cast(Registry, {:prompt, id, "fix the login bug"})
+    _ = :sys.get_state(Registry)
 
-    assert RemoteSessions.get(id)["name"] == "My session"
+    assert Store.get(id)["name"] == "My session"
   end
 
   test "keeps bot session names" do
     id = create_session("alpha", "alpha", "bot_chat")
 
-    GenServer.cast(RemoteRegistry, {:prompt, id, "fix the login bug"})
-    _ = :sys.get_state(RemoteRegistry)
+    GenServer.cast(Registry, {:prompt, id, "fix the login bug"})
+    _ = :sys.get_state(Registry)
 
-    assert RemoteSessions.get(id)["name"] == "alpha"
+    assert Store.get(id)["name"] == "alpha"
   end
 
   test "ignores blank prompts" do
     id = create_session("alpha", "alpha")
 
-    GenServer.cast(RemoteRegistry, {:prompt, id, "   \n  "})
-    _ = :sys.get_state(RemoteRegistry)
+    GenServer.cast(Registry, {:prompt, id, "   \n  "})
+    _ = :sys.get_state(Registry)
 
-    assert RemoteSessions.get(id)["name"] == "alpha"
+    assert Store.get(id)["name"] == "alpha"
   end
 
   defp create_session(project_name, name, source \\ "web") do
@@ -54,7 +54,7 @@ defmodule WebApp.RemoteRegistryTest do
     project = Path.join(System.tmp_dir!(), project_name)
 
     {:ok, _session} =
-      RemoteSessions.create(%{
+      Store.create(%{
         id: id,
         name: name,
         project_path: project,

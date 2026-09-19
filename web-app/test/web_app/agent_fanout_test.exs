@@ -1,14 +1,14 @@
-defmodule WebApp.AgentFanoutTest do
+defmodule WebApp.Sessions.FanoutTest do
   use ExUnit.Case, async: false
 
-  alias WebApp.AgentFanout
+  alias WebApp.Sessions.Fanout
 
   test "does not deliver after a subscriber unsubscribes" do
     session_id = "fanout-#{System.unique_integer([:positive])}"
-    assert :ok = AgentFanout.subscribe(session_id)
-    assert :ok = AgentFanout.unsubscribe(session_id)
+    assert :ok = Fanout.subscribe(session_id)
+    assert :ok = Fanout.unsubscribe(session_id)
 
-    AgentFanout.broadcast(session_id, {:agent_update, session_id, 1, {:hint, %{}}})
+    Fanout.broadcast(session_id, {:agent_update, session_id, 1, {:hint, %{}}})
 
     refute_receive {:agent_update, ^session_id, 1, _update}
   end
@@ -19,7 +19,7 @@ defmodule WebApp.AgentFanoutTest do
 
     pid =
       spawn(fn ->
-        AgentFanout.subscribe(session_id)
+        Fanout.subscribe(session_id)
         send(parent, :subscribed)
 
         receive do
@@ -30,7 +30,7 @@ defmodule WebApp.AgentFanoutTest do
     assert_receive :subscribed
 
     Enum.each(1..200, fn sequence ->
-      AgentFanout.broadcast(session_id, {:agent_update, session_id, sequence, {:hint, %{}}})
+      Fanout.broadcast(session_id, {:agent_update, session_id, sequence, {:hint, %{}}})
     end)
 
     send(pid, :drain)

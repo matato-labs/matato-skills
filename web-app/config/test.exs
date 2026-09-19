@@ -10,7 +10,7 @@ config :web_app,
   database_path: database_path,
   automation_storage_path: test_storage
 
-config :web_app, WebApp.Repo,
+config :web_app, WebApp.Data.Repo,
   database: database_path,
   pool_size: 1,
   busy_timeout: 5_000

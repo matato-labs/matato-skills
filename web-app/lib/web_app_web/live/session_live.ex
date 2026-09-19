@@ -1,25 +1,25 @@
 defmodule WebAppWeb.SessionLive do
   use WebAppWeb, :live_view
 
-  alias WebApp.{Bots, ProjectSessionCatalog, RemoteRegistry, Workspace}
+  alias WebApp.{Bots, Sessions}
   alias WebAppWeb.SessionComponents
 
   @impl true
   def mount(_params, _session, socket) do
     if connected?(socket) do
-      RemoteRegistry.subscribe()
+      Sessions.subscribe()
       Bots.subscribe()
     end
 
-    sessions = RemoteRegistry.list()
+    sessions = Sessions.list()
 
     {:ok,
      assign(socket,
        page_title: "New Matato session",
-       projects: Workspace.directories(),
+       projects: Sessions.workspace_directories(),
        sessions: sessions,
-       workspace_groups: ProjectSessionCatalog.workspace_groups(sessions),
-       automation_groups: ProjectSessionCatalog.automation_groups(sessions),
+       workspace_groups: Sessions.workspace_groups(sessions),
+       automation_groups: Sessions.automation_groups(sessions),
        bots: Bots.list(),
        session_id: nil,
        show_bot_form: false,
@@ -70,15 +70,15 @@ defmodule WebAppWeb.SessionLive do
     do: {:noreply, assign(socket, mobile_sidebar_open: false)}
 
   def handle_event("delete_session", %{"id" => id}, socket) do
-    case RemoteRegistry.delete(id) do
+    case Sessions.delete(id) do
       :ok ->
-        sessions = RemoteRegistry.list()
+        sessions = Sessions.list()
 
         {:noreply,
          assign(socket,
            sessions: sessions,
-           workspace_groups: ProjectSessionCatalog.workspace_groups(sessions),
-           automation_groups: ProjectSessionCatalog.automation_groups(sessions),
+           workspace_groups: Sessions.workspace_groups(sessions),
+           automation_groups: Sessions.automation_groups(sessions),
            bots: Bots.list(),
            delete_session_id: nil,
            error: nil
@@ -97,7 +97,7 @@ defmodule WebAppWeb.SessionLive do
         {:noreply, assign(socket, error: "Project path is too long")}
 
       true ->
-        case RemoteRegistry.create(relative) do
+        case Sessions.create(relative) do
           {:ok, id} -> {:noreply, push_navigate(socket, to: "/sessions/#{id}")}
           {:error, error} -> {:noreply, assign(socket, error: error)}
         end
@@ -106,24 +106,24 @@ defmodule WebAppWeb.SessionLive do
 
   @impl true
   def handle_info(:changed, socket) do
-    sessions = RemoteRegistry.list()
+    sessions = Sessions.list()
 
     {:noreply,
      assign(socket,
        sessions: sessions,
-       workspace_groups: ProjectSessionCatalog.workspace_groups(sessions),
-       automation_groups: ProjectSessionCatalog.automation_groups(sessions),
+       workspace_groups: Sessions.workspace_groups(sessions),
+       automation_groups: Sessions.automation_groups(sessions),
        bots: Bots.list()
      )}
   end
 
   defp assign_sessions(socket) do
-    sessions = RemoteRegistry.list()
+    sessions = Sessions.list()
 
     assign(socket,
       sessions: sessions,
-      workspace_groups: ProjectSessionCatalog.workspace_groups(sessions),
-      automation_groups: ProjectSessionCatalog.automation_groups(sessions),
+      workspace_groups: Sessions.workspace_groups(sessions),
+      automation_groups: Sessions.automation_groups(sessions),
       bots: Bots.list()
     )
   end

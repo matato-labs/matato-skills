@@ -1,13 +1,13 @@
-defmodule WebApp.RemoteRegistry do
+defmodule WebApp.Sessions.Registry do
   use GenServer
 
-  alias WebApp.{AgentSession, RemoteSessions, Workspace}
+  alias WebApp.Sessions.{Agent, Store, Workspace}
 
   @creation_limit 10
   @creation_window_ms 60_000
 
   def start_link(_options), do: GenServer.start_link(__MODULE__, :ok, name: __MODULE__)
-  def list, do: RemoteSessions.list()
+  def list, do: Store.list()
   def subscribe, do: Phoenix.PubSub.subscribe(WebApp.PubSub, "remote_sessions")
 
   def create(relative, options \\ %{}) do
@@ -21,7 +21,7 @@ defmodule WebApp.RemoteRegistry do
     do:
       with(
         :ok <- GenServer.call(__MODULE__, {:open, id, identity}),
-        :ok <- AgentSession.await_ready(id),
+        :ok <- Agent.await_ready(id),
         do: :ok
       )
 
@@ -34,7 +34,7 @@ defmodule WebApp.RemoteRegistry do
 
   @impl true
   def init(:ok) do
-    RemoteSessions.mark_interrupted()
+    Store.mark_interrupted()
     {:ok, %{creation_times: []}}
   end
 
@@ -53,7 +53,7 @@ defmodule WebApp.RemoteRegistry do
     id = Base.url_encode64(:crypto.strong_rand_bytes(9), padding: false)
     project = Workspace.root()
 
-    case RemoteSessions.create(%{
+    case Store.create(%{
            id: id,
            name: name,
            project_path: project,
@@ -71,8 +71,8 @@ defmodule WebApp.RemoteRegistry do
   end
 
   def handle_call({:open, id, identity}, _from, state) do
-    with metadata when not is_nil(metadata) <- RemoteSessions.get(id),
-         {:ok, metadata} <- RemoteSessions.validate_metadata(metadata),
+    with metadata when not is_nil(metadata) <- Store.get(id),
+         {:ok, metadata} <- Store.validate_metadata(metadata),
          :ok <- ensure_unique_writer(metadata),
          :ok <- start_or_reuse(metadata, identity) do
       {:reply, :ok, state}
@@ -83,13 +83,13 @@ defmodule WebApp.RemoteRegistry do
   end
 
   def handle_call({:stop, id}, _from, state) do
-    if AgentSession.whereis(id) do
-      snapshot = AgentSession.snapshot(id)
+    if Agent.whereis(id) do
+      snapshot = Agent.snapshot(id)
 
       if snapshot.status in [:working, :waiting_for_input, :retrying, :compacting],
-        do: AgentSession.command(id, %{"type" => "abort"})
+        do: Agent.command(id, %{"type" => "abort"})
 
-      AgentSession.stop(id)
+      Agent.stop(id)
     end
 
     put_status(id, :stopped)
@@ -101,10 +101,10 @@ defmodule WebApp.RemoteRegistry do
   end
 
   def handle_call({:delete, id}, _from, state) do
-    with metadata when not is_nil(metadata) <- RemoteSessions.get(id),
-         {:ok, _session_file} <- RemoteSessions.validate_session_file(metadata["session_file"]),
-         :ok <- RemoteSessions.delete(id) do
-      if AgentSession.whereis(id), do: AgentSession.stop(id)
+    with metadata when not is_nil(metadata) <- Store.get(id),
+         {:ok, _session_file} <- Store.validate_session_file(metadata["session_file"]),
+         :ok <- Store.delete(id) do
+      if Agent.whereis(id), do: Agent.stop(id)
       notify_sessions_changed()
       {:reply, :ok, state}
     else
@@ -123,8 +123,8 @@ defmodule WebApp.RemoteRegistry do
   end
 
   def handle_cast({:discard_failed, id}, state) when is_binary(id) do
-    if AgentSession.whereis(id), do: AgentSession.stop(id)
-    RemoteSessions.delete(id)
+    if Agent.whereis(id), do: Agent.stop(id)
+    Store.delete(id)
     notify_sessions_changed()
     {:noreply, state}
   end
@@ -132,7 +132,7 @@ defmodule WebApp.RemoteRegistry do
   def handle_cast({:discard_failed, _error}, state), do: {:noreply, state}
 
   def handle_cast({:identity, id, file, pi_id}, state) do
-    RemoteSessions.update(id, %{session_file: file, pi_session_id: pi_id})
+    Store.update(id, %{session_file: file, pi_session_id: pi_id})
     {:noreply, state}
   end
 
@@ -164,7 +164,7 @@ defmodule WebApp.RemoteRegistry do
 
     case start(metadata) do
       {:ok, _pid} ->
-        case RemoteSessions.create(%{
+        case Store.create(%{
                id: id,
                name: metadata["name"],
                project_path: project,
@@ -177,7 +177,7 @@ defmodule WebApp.RemoteRegistry do
             {:reply, {:ok, id}, state}
 
           {:error, reason} ->
-            AgentSession.stop(id)
+            Agent.stop(id)
             {:reply, {:error, reason}, state}
         end
 
@@ -191,8 +191,8 @@ defmodule WebApp.RemoteRegistry do
   defp start(metadata, identity \\ nil),
     do:
       DynamicSupervisor.start_child(
-        WebApp.AgentSupervisor,
-        {AgentSession,
+        WebApp.Sessions.AgentSupervisor,
+        {Agent,
          [
            id: metadata["id"],
            name: metadata["name"],
@@ -223,17 +223,17 @@ defmodule WebApp.RemoteRegistry do
 
   defp ensure_unique_writer(metadata) do
     duplicate =
-      Enum.find(RemoteSessions.list(), fn candidate ->
+      Enum.find(Store.list(), fn candidate ->
         candidate["id"] != metadata["id"] and
           candidate["session_file"] == metadata["session_file"] and
-          AgentSession.whereis(candidate["id"])
+          Agent.whereis(candidate["id"])
       end)
 
     if duplicate, do: {:error, "Session file is already open"}, else: :ok
   end
 
   defp await_created(id) do
-    case AgentSession.await_ready(id) do
+    case Agent.await_ready(id) do
       :ok ->
         {:ok, id}
 
@@ -244,7 +244,7 @@ defmodule WebApp.RemoteRegistry do
   end
 
   defp derive_session_name(id, message) when is_binary(message) do
-    case RemoteSessions.get(id) do
+    case Store.get(id) do
       %{"source" => "web", "name" => name, "project" => project} ->
         if name == Path.basename(project), do: rename_session(id, message)
 
@@ -268,12 +268,12 @@ defmodule WebApp.RemoteRegistry do
   end
 
   defp store_session_name(id, name) do
-    {:ok, _session} = RemoteSessions.update(id, %{name: name})
+    {:ok, _session} = Store.update(id, %{name: name})
     notify_sessions_changed()
   end
 
   defp put_status(id, status) do
-    RemoteSessions.update(id, %{status: to_string(status)})
+    Store.update(id, %{status: to_string(status)})
     notify_sessions_changed()
   end
 

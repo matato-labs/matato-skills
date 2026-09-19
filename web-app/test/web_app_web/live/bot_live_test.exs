@@ -3,7 +3,7 @@ defmodule WebAppWeb.BotLiveTest do
 
   import Phoenix.LiveViewTest
 
-  alias WebApp.Repo
+  alias WebApp.Data.Repo
   alias WebApp.Bots.Bot
 
   setup do

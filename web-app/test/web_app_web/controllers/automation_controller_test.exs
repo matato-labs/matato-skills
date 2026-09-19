@@ -1,11 +1,12 @@
 defmodule WebAppWeb.AutomationControllerTest do
   use WebAppWeb.ConnCase, async: false
 
-  alias WebApp.{Automation, Repo}
+  alias WebApp.Automations
+  alias WebApp.Data.Repo
   alias WebApp.Bots.Bot
 
   setup do
-    :ok = Automation.replace([])
+    :ok = Automations.replace([])
   end
 
   test "defaults monitoring to disabled", %{conn: conn} do
@@ -29,7 +30,7 @@ defmodule WebAppWeb.AutomationControllerTest do
   test "accepts nullable bot ids", %{conn: conn} do
     bot =
       Repo.insert!(%Bot{
-        name: "Automation",
+        name: "Automations",
         role: "operator",
         description: "Runs jobs",
         chat_remote_session_id: "chat-controller",
@@ -105,7 +106,7 @@ defmodule WebAppWeb.AutomationControllerTest do
 
     conn = get(build_conn(), "/api/automations")
     assert [%{"id" => ^id}] = json_response(conn, 200)["automations"]
-    assert %Automation{id: ^id} = Automation.get(id)
+    assert %Automations{id: ^id} = Automations.get(id)
 
     conn = get(build_conn(), "/api/automations/#{id}")
     assert %{"id" => ^id} = json_response(conn, 200)["automation"]

@@ -1,9 +1,9 @@
-defmodule WebApp.MessageWorker do
+defmodule WebApp.Messages.Worker do
   use GenServer
 
   require Logger
 
-  alias WebApp.{AgentSession, Bots, Messages, RemoteRegistry}
+  alias WebApp.{Bots, Messages, Sessions}
   alias WebApp.Messages.Message
 
   @busy_statuses [:working, :waiting_for_input, :retrying, :compacting]
@@ -50,7 +50,7 @@ defmodule WebApp.MessageWorker do
   defp delivery_status(message) do
     with bot when not is_nil(bot) <- Bots.get(message.receiver_bot_id),
          session_id <- session_id_for(bot, message),
-         :ok <- RemoteRegistry.open(session_id, Bots.identity_for(bot)) do
+         :ok <- Sessions.open(session_id, Bots.identity_for(bot)) do
       deliver_to_bot(session_id, message)
     else
       _ -> :failed
@@ -64,19 +64,19 @@ defmodule WebApp.MessageWorker do
 
   defp deliver_to_bot(session_id, message) do
     cond do
-      AgentSession.snapshot(session_id).status in @busy_statuses ->
+      Sessions.snapshot(session_id).status in @busy_statuses ->
         :pending
 
-      AgentSession.claim(session_id, self()) != :owner ->
+      Sessions.claim(session_id, self()) != :owner ->
         :pending
 
       true ->
         try do
-          if AgentSession.owner_command(session_id, self(), command(message)) == :ok,
+          if Sessions.owner_command(session_id, self(), command(message)) == :ok,
             do: :sent,
             else: :failed
         after
-          AgentSession.release(session_id, self())
+          Sessions.release(session_id, self())
         end
     end
   catch

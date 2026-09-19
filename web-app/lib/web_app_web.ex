@@ -1,4 +1,8 @@
 defmodule WebAppWeb do
+  use Boundary,
+    deps: [WebApp.Automations, WebApp.Bots, WebApp.Data, WebApp.Messages, WebApp.Sessions],
+    exports: [Endpoint]
+
   @moduledoc """
   The entrypoint for defining your web interface, such
   as controllers, components, channels, and so on.
@@ -17,6 +21,7 @@ defmodule WebAppWeb do
   those modules here.
   """
 
+  def child_specs, do: [WebAppWeb.Telemetry, WebAppWeb.Endpoint]
   def static_paths, do: ~w(assets fonts images favicon.ico robots.txt)
 
   def router do

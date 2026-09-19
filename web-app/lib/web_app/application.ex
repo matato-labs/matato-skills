@@ -3,37 +3,14 @@ defmodule WebApp.Application do
   # for more information on OTP Applications
   @moduledoc false
 
+  use Boundary, top_level?: true, deps: [WebApp, WebAppWeb], exports: []
   use Application
 
   @impl true
   def start(_type, _args) do
-    Calendar.put_time_zone_database(Tzdata.TimeZoneDatabase)
-    WebApp.Workspace.validate!()
-    Logger.add_handlers(:web_app)
-    OpentelemetryBandit.setup()
-    OpentelemetryPhoenix.setup(adapter: :bandit, liveview: true)
-
+    WebApp.prepare()
     endpoint = Application.get_env(:web_app, :otel_endpoint)
-
-    log_exporter = if endpoint, do: [{WebApp.OtelLogExporter, endpoint}], else: []
-
-    children =
-      log_exporter ++
-        [
-          WebAppWeb.Telemetry,
-          {DNSCluster, query: Application.get_env(:web_app, :dns_cluster_query) || :ignore},
-          {Phoenix.PubSub, name: WebApp.PubSub},
-          {Registry, keys: :unique, name: WebApp.ProcessRegistry},
-          {Registry, keys: :duplicate, name: WebApp.SubscriberRegistry},
-          {DynamicSupervisor, strategy: :one_for_one, name: WebApp.AgentSupervisor},
-          WebApp.Repo,
-          WebApp.RemoteRegistry,
-          WebApp.MessageWorker,
-          WebApp.MessageDeliveryScheduler,
-          WebApp.AutomationScheduler,
-          WebApp.AutomationSubscription,
-          WebAppWeb.Endpoint
-        ]
+    children = WebApp.child_specs(endpoint) ++ WebAppWeb.child_specs()
 
     # See https://elixir.hexdocs.pm/Supervisor.html
     # for other strategies and supported options
@@ -41,7 +18,7 @@ defmodule WebApp.Application do
 
     case Supervisor.start_link(children, opts) do
       {:ok, pid} ->
-        if endpoint, do: LoggerBackends.add(WebApp.OtelLoggerBackend)
+        WebApp.enable_log_exporter(endpoint)
         {:ok, pid}
 
       error ->

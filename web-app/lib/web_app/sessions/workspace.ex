@@ -1,4 +1,4 @@
-defmodule WebApp.Workspace do
+defmodule WebApp.Sessions.Workspace do
   @moduledoc "Canonical, read-only navigation within the configured workspace."
 
   def root do

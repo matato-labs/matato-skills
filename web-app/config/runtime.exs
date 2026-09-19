@@ -6,7 +6,7 @@ time_zone = WebApp.TimeZone.configured()
 config :web_app,
   time_zone: time_zone
 
-config :web_app, WebApp.AutomationScheduler, timezone: time_zone
+config :web_app, WebApp.Automations.Scheduler, timezone: time_zone
 
 if config_env() != :test and (is_nil(workspace) or String.trim(workspace) == "") do
   raise "WORKSPACE is required and must point to an accessible directory"
@@ -40,7 +40,7 @@ if config_env() != :test do
     automation_storage_path: matato_pi_config,
     database_path: database_path
 
-  config :web_app, WebApp.Repo,
+  config :web_app, WebApp.Data.Repo,
     database: database_path,
     pool_size: 5,
     busy_timeout: 5_000,

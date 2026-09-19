@@ -1,9 +1,9 @@
-defmodule WebApp.Automations.AutomationRecord do
+defmodule WebApp.Automations.Record do
   use Ecto.Schema
   import Ecto.Changeset
 
   schema "automations" do
-    belongs_to(:bot, WebApp.Bots.Bot, type: :binary_id)
+    field(:bot_id, :binary_id)
     field(:job_name, :string)
     field(:enabled, :boolean, default: true)
     field(:schedule, :string)
