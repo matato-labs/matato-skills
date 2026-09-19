@@ -61,8 +61,20 @@ describe("Telegram API", () => {
   test("refuses sensitive public-channel content before making an HTTP request", async () => {
     const sensitiveMessages = [
       "API_TOKEN=real-token-value",
+      "API_TOKEN=your-real-token",
+      "export DATABASE_PASSWORD='correct horse battery staple'",
       "-----BEGIN PRIVATE KEY-----",
+      "-----BEGIN PGP PRIVATE KEY BLOCK-----",
       "ghp_abcdefghijklmnopqrstuvwxyz1234567890",
+      "github_pat_abcdefghijklmnopqrstuvwxyz1234567890",
+      "glpat-abcdefghijklmnopqrstuvwxyz1234567890",
+      "sk-proj-abcdefghijklmnopqrstuvwxyz",
+      "xoxb-abcdefghijklmnopqrstuvwxyz",
+      "AKIA1234567890ABCDEF",
+      "ASIA1234567890ABCDEF",
+      "123456:abcdefghijklmnopqrstuvwxyz123456",
+      "eyJabcdefghijk.eyJabcdefghijk.abcdefghijk",
+      "Cookie: key=real-session-token",
     ];
 
     for (const text of sensitiveMessages)
