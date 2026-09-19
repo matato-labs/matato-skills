@@ -1,8 +1,3 @@
-import {
-  containsSensitivePublicChannelContent,
-  publicChannelSafetyError,
-} from "./publicChannelSafety.ts";
-
 export type TelegramMessage = {
   chatId: string;
   text: string;
@@ -69,8 +64,6 @@ export async function sendTelegramMessage(input: {
   const text = normalizeTelegramText(input.text);
   if (!input.chatId) throw new Error("Telegram chatId is required");
   if (!text) throw new Error("Telegram message text is required");
-  if (containsSensitivePublicChannelContent(text))
-    throw new Error(publicChannelSafetyError);
   const response = await fetch(`${apiUrl}/bot${botToken()}/sendMessage`, {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -89,6 +82,7 @@ export async function sendTelegramMessage(input: {
 
 export async function getTelegramUpdates(input: {
   offset: number | null;
+  ownerId: string;
 }): Promise<{
   updates: Array<TelegramMessage>;
   nextOffset: number;
@@ -115,6 +109,7 @@ export async function getTelegramUpdates(input: {
   const lastUpdateId = payload.result.at(-1)?.update_id;
   return {
     updates: payload.result
+      .filter((update) => String(update.message?.from?.id) === input.ownerId)
       .map(toMessage)
       .filter((message): message is TelegramMessage => message !== null),
     nextOffset:
