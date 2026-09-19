@@ -60,6 +60,30 @@ Delete:
 curl -sS -X DELETE "$api/$botId"
 ```
 
+## Messages
+
+Send a bot-to-bot message through the local web API. Set `api=http://localhost:4000/api/messages`. Discover bots and their IDs with `GET /api/bots` first (see Bots). The sender is always a bot; the API forces `sender_type` to `bot`.
+
+| Field | Required | Purpose |
+| --- | --- | --- |
+| `receiver_bot_id` | Yes | Existing bot ID that receives the message. |
+| `sender_id` | Yes | Your bot ID; must be an existing bot. |
+| `kind` | Yes | Message kind, for example `request`, `result`, or `note`. |
+| `content` | Yes | Message body delivered to the receiver. |
+
+Delivery is asynchronous: a successful create returns `201` with a pending message, and a background worker injects it as a normal prompt (`Internal <kind> from <sender>:`) into the receiver's chat session once that session is free. The receiver answers by sending a message back with the roles reversed. Unknown receiver or sender IDs return `422`. Automation results use the same pipeline internally but are delivered to the bot's background session instead.
+
+Send:
+
+```sh
+curl -sS -X POST "$api" -H 'content-type: application/json' -d '{
+  "receiver_bot_id": "receiver-bot-uuid",
+  "sender_id": "your-bot-uuid",
+  "kind": "request",
+  "content": "Summarize the open issues and send me the result."
+}'
+```
+
 ## Automations
 
 Manage automations through the local web API. Set `api=http://localhost:4000/api/automations` unless `MATATO_PI_WEB_URL` points to another server. An automation without `bot_id`, including one with `bot_id: null`, is a workspace automation. A bot automation has that bot's `bot_id` and runs with its identity. Every create and update sends all fields below.
