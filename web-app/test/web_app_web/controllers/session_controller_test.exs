@@ -88,6 +88,30 @@ defmodule WebAppWeb.SessionControllerTest do
 
     assert session["id"] == id
     assert session["name"] == "Renamed"
+    assert session["source"] == "extension"
+    assert session["status"] == "stopped"
+    assert length(RemoteSessions.list()) == 1
+  end
+
+  test "deduplicates simultaneous registrations by session file", %{session_dir: session_dir} do
+    create_project("alpha")
+
+    attributes = %{
+      "name" => "Concurrent",
+      "relative_project" => "alpha",
+      "session_file" => create_session_file(session_dir),
+      "pi_session_id" => "pi-123"
+    }
+
+    ids =
+      1..2
+      |> Task.async_stream(fn _ -> RemoteSessions.register(attributes) end,
+        max_concurrency: 2,
+        ordered: false
+      )
+      |> Enum.map(fn {:ok, {:ok, session}} -> session["id"] end)
+
+    assert [_id] = Enum.uniq(ids)
     assert length(RemoteSessions.list()) == 1
   end
 

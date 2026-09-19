@@ -123,16 +123,34 @@ defmodule WebApp.RemoteSessions do
   defp registration_name(_name, project), do: Path.basename(project)
 
   defp upsert_registered(attributes) do
-    attributes = Map.put(attributes, :status, "stopped")
+    attributes =
+      attributes
+      |> Map.put(:id, registration_id())
+      |> Map.put(:source, "extension")
+      |> Map.put(:status, "stopped")
 
-    case Repo.get_by(RemoteSession, session_file: attributes.session_file) do
-      nil ->
-        attributes
-        |> Map.merge(%{id: registration_id(), source: "extension"})
-        |> create()
+    %RemoteSession{}
+    |> RemoteSession.changeset(attributes)
+    |> Repo.insert(
+      on_conflict:
+        {:replace,
+         [
+           :name,
+           :project_path,
+           :relative_project,
+           :pi_session_id,
+           :source,
+           :status,
+           :updated_at
+         ]},
+      conflict_target: :session_file
+    )
+    |> case do
+      {:ok, _session} ->
+        {:ok, Repo.get_by!(RemoteSession, session_file: attributes.session_file) |> to_metadata()}
 
-      %RemoteSession{} = session ->
-        session |> RemoteSession.changeset(attributes) |> Repo.update() |> result()
+      {:error, changeset} ->
+        {:error, changeset}
     end
     |> tap(fn
       {:ok, _session} -> notify_sessions_changed()
