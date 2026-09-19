@@ -8,7 +8,8 @@ defmodule WebApp.Messages do
     attributes = Map.put_new(attributes, :timestamp, DateTime.utc_now())
     changeset = Message.changeset(%Message{}, attributes)
 
-    with :ok <- validate_receiver(changeset) do
+    with :ok <- validate_receiver(changeset),
+         :ok <- validate_sender(changeset) do
       changeset |> Repo.insert() |> notify_result()
     end
   end
@@ -28,6 +29,16 @@ defmodule WebApp.Messages do
     Repo.all(
       from(message in Message,
         where: message.receiver_bot_id == ^bot_id,
+        order_by: [asc: message.timestamp, asc: message.id]
+      )
+    )
+  end
+
+  def list_notifications_for_bot(bot_id) do
+    Repo.all(
+      from(message in Message,
+        where: message.receiver_bot_id == ^bot_id,
+        where: not (message.sender_type == "bot" and message.sent_status == "sent"),
         order_by: [asc: message.timestamp, asc: message.id]
       )
     )
@@ -91,6 +102,20 @@ defmodule WebApp.Messages do
   def subscribe(bot_id), do: Phoenix.PubSub.subscribe(WebApp.PubSub, topic(bot_id))
   def unsubscribe(bot_id), do: Phoenix.PubSub.unsubscribe(WebApp.PubSub, topic(bot_id))
   def subscribe_all, do: Phoenix.PubSub.subscribe(WebApp.PubSub, "messages")
+
+  defp validate_sender(changeset) do
+    if Ecto.Changeset.get_field(changeset, :sender_type) != "bot" do
+      :ok
+    else
+      validate_sender_exists(changeset)
+    end
+  end
+
+  defp validate_sender_exists(changeset) do
+    if Bots.get(Ecto.Changeset.get_field(changeset, :sender_id)),
+      do: :ok,
+      else: {:error, Ecto.Changeset.add_error(changeset, :sender_id, "does not exist")}
+  end
 
   defp validate_receiver(changeset) do
     if Bots.get(Ecto.Changeset.get_field(changeset, :receiver_bot_id)),

@@ -501,7 +501,10 @@ defmodule WebAppWeb.AgentLive do
   end
 
   defp timeline_for(socket, session) do
-    messages = if socket.assigns.bot, do: Messages.list_for_bot(socket.assigns.bot.id), else: []
+    messages =
+      if socket.assigns.bot,
+        do: Messages.list_notifications_for_bot(socket.assigns.bot.id),
+        else: []
 
     session
     |> AgentTranscript.transcript_items()

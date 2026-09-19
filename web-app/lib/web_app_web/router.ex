@@ -31,6 +31,7 @@ defmodule WebAppWeb.Router do
       only: [:index, :show, :create, :update, :delete]
 
     resources "/bots", BotController, only: [:index, :show, :create, :update, :delete]
+    resources "/messages", MessageController, only: [:create]
 
     post "/sessions", SessionController, :create
   end
