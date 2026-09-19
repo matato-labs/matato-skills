@@ -1,3 +1,8 @@
+import {
+  containsSensitivePublicChannelContent,
+  publicChannelSafetyError,
+} from "./publicChannelSafety.ts";
+
 export type TelegramMessage = {
   chatId: string;
   text: string;
@@ -64,6 +69,8 @@ export async function sendTelegramMessage(input: {
   const text = normalizeTelegramText(input.text);
   if (!input.chatId) throw new Error("Telegram chatId is required");
   if (!text) throw new Error("Telegram message text is required");
+  if (containsSensitivePublicChannelContent(text))
+    throw new Error(publicChannelSafetyError);
   const response = await fetch(`${apiUrl}/bot${botToken()}/sendMessage`, {
     method: "POST",
     headers: { "content-type": "application/json" },

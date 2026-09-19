@@ -7,7 +7,7 @@ export default function (pi: ExtensionAPI): void {
     name: "telegram_send_message",
     label: "Telegram send message",
     description:
-      "Send a concise text message to the Telegram owner (TELEGRAM_OWNER_ID).",
+      "Send a concise, non-sensitive text message to the Telegram owner (TELEGRAM_OWNER_ID). Telegram is a public channel.",
     parameters: Type.Object({
       text: Type.String({ minLength: 1, description: "Message text" }),
     }),

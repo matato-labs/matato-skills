@@ -40,6 +40,41 @@ describe("Telegram API", () => {
     );
   });
 
+  test("delivers ordinary non-sensitive text unchanged", async () => {
+    fetchSpy.mockResolvedValue(new Response(JSON.stringify({ ok: true })));
+
+    await sendTelegramMessage({ chatId: "123", text: "Deployment completed." });
+
+    expect(fetchSpy).toHaveBeenCalledWith(
+      "https://api.telegram.org/bottoken/sendMessage",
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          chat_id: "123",
+          text: "Deployment completed.",
+        }),
+      },
+    );
+  });
+
+  test("refuses sensitive public-channel content before making an HTTP request", async () => {
+    const sensitiveMessages = [
+      "API_TOKEN=real-token-value",
+      "-----BEGIN PRIVATE KEY-----",
+      "ghp_abcdefghijklmnopqrstuvwxyz1234567890",
+    ];
+
+    for (const text of sensitiveMessages)
+      await expect(
+        sendTelegramMessage({ chatId: "123", text }),
+      ).rejects.toThrow(
+        "Refusing to send sensitive data over a public channel. Remove credentials or secrets and send a safe summary instead.",
+      );
+
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
   test("maps user text updates and advances past ignored updates", async () => {
     fetchSpy.mockResolvedValue(
       new Response(
