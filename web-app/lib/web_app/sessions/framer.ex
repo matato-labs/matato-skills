@@ -1,4 +1,4 @@
-defmodule WebApp.Rpc.Framer do
+defmodule WebApp.Sessions.Framer do
   @moduledoc "Strict LF-only JSONL framing for arbitrary UTF-8 byte chunks."
 
   def push(buffer, chunk) when is_binary(buffer) and is_binary(chunk) do

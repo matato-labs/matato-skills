@@ -43,7 +43,7 @@ defmodule WebAppWeb.Router do
 
     live_dashboard "/dashboard",
       metrics: WebAppWeb.Telemetry,
-      ecto_repos: [WebApp.Repo],
+      ecto_repos: [WebApp.Data.Repo],
       allow_destructive_actions: false
   end
 
@@ -54,7 +54,7 @@ defmodule WebAppWeb.Router do
 
       live_dashboard "/dashboard",
         metrics: WebAppWeb.Telemetry,
-        ecto_repos: [WebApp.Repo],
+        ecto_repos: [WebApp.Data.Repo],
         live_session_name: :dev_dashboard
 
       forward "/mailbox", Plug.Swoosh.MailboxPreview

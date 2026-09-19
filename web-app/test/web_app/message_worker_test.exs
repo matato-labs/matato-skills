@@ -1,15 +1,10 @@
-defmodule WebApp.MessageWorkerTest do
+defmodule WebApp.Messages.WorkerTest do
   use ExUnit.Case, async: false
 
-  alias WebApp.{
-    AgentSession,
-    MessageDeliveryScheduler,
-    MessageWorker,
-    Messages,
-    RemoteSessions,
-    Repo,
-    Workspace
-  }
+  alias WebApp.Messages
+  alias WebApp.Messages.{Scheduler, Worker}
+  alias WebApp.Data.Repo
+  alias WebApp.Sessions.{Agent, Store, Workspace}
 
   alias WebApp.Bots.Bot
   alias WebApp.Messages.Message
@@ -32,14 +27,14 @@ defmodule WebApp.MessageWorkerTest do
     File.chmod!(executable, 0o700)
 
     start_supervised!(
-      {AgentSession, id: id, name: "background", project: project, executable: executable},
+      {Agent, id: id, name: "background", project: project, executable: executable},
       id: id
     )
 
-    assert :ok = AgentSession.await_ready(id)
+    assert :ok = Agent.await_ready(id)
 
     {:ok, _session} =
-      RemoteSessions.create(%{
+      Store.create(%{
         id: id,
         name: "background",
         project_path: project,
@@ -60,7 +55,7 @@ defmodule WebApp.MessageWorkerTest do
     on_exit(fn ->
       Repo.delete_all(Message)
       Repo.delete(bot)
-      RemoteSessions.delete(id)
+      Store.delete(id)
       File.rm_rf!(root)
       File.rm_rf!(project)
     end)
@@ -69,8 +64,8 @@ defmodule WebApp.MessageWorkerTest do
   end
 
   test "polls pending deliveries every three seconds" do
-    assert [{_, job}] = MessageDeliveryScheduler.jobs()
-    assert {MessageWorker, :deliver_pending, []} = job.task
+    assert [{_, job}] = Scheduler.jobs()
+    assert {Worker, :deliver_pending, []} = job.task
     assert inspect(job.schedule) == "~e[*/3 * * * * *]"
   end
 
@@ -90,7 +85,7 @@ defmodule WebApp.MessageWorkerTest do
       })
 
     assert_receive {:message_changed, ^bot_id}
-    :ok = MessageWorker.deliver_pending()
+    :ok = Worker.deliver_pending()
     assert_receive {:message_changed, ^bot_id}
     assert [%Message{id: message_id, sent_status: "sent"}] = Messages.list_for_bot(bot.id)
     assert message_id == message.id
@@ -109,14 +104,14 @@ defmodule WebApp.MessageWorkerTest do
     File.mkdir_p!(chat_project)
 
     start_supervised!(
-      {AgentSession, id: chat_id, name: "chat", project: chat_project, executable: executable},
+      {Agent, id: chat_id, name: "chat", project: chat_project, executable: executable},
       id: chat_id
     )
 
-    assert :ok = AgentSession.await_ready(chat_id)
+    assert :ok = Agent.await_ready(chat_id)
 
     {:ok, _session} =
-      RemoteSessions.create(%{
+      Store.create(%{
         id: chat_id,
         name: "chat",
         project_path: chat_project,
@@ -136,7 +131,7 @@ defmodule WebApp.MessageWorkerTest do
 
     on_exit(fn ->
       Repo.delete(chat_bot)
-      RemoteSessions.delete(chat_id)
+      Store.delete(chat_id)
       File.rm_rf!(chat_project)
     end)
 
@@ -149,7 +144,7 @@ defmodule WebApp.MessageWorkerTest do
         content: "Hello from Worker"
       })
 
-    :ok = MessageWorker.deliver_pending()
+    :ok = Worker.deliver_pending()
 
     assert [%Message{id: message_id, sent_status: "sent"}] = Messages.list_for_bot(chat_bot.id)
     assert message_id == message.id
@@ -178,7 +173,7 @@ defmodule WebApp.MessageWorkerTest do
         content: "Delivery fails"
       })
 
-    :ok = MessageWorker.deliver_pending()
+    :ok = Worker.deliver_pending()
 
     assert [%Message{id: message_id, sent_status: "failed"}] = Messages.list_for_bot(bot.id)
     assert message_id == message.id
@@ -212,7 +207,7 @@ defmodule WebApp.MessageWorkerTest do
         timestamp: DateTime.from_unix!(2, :second)
       })
 
-    :ok = MessageWorker.deliver_pending()
+    :ok = Worker.deliver_pending()
 
     assert [%Message{id: message_id, sent_status: "failed"}] =
              Messages.list_for_bot(unavailable.id)
@@ -242,7 +237,7 @@ defmodule WebApp.MessageWorkerTest do
         timestamp: DateTime.from_unix!(2, :second)
       })
 
-    :ok = MessageWorker.deliver_pending()
+    :ok = Worker.deliver_pending()
 
     assert [%Message{sent_status: "sent"}, %Message{sent_status: "sent"}] =
              Messages.list_for_bot(bot.id)
@@ -254,7 +249,7 @@ defmodule WebApp.MessageWorkerTest do
   end
 
   test "defers a message when the background bot is busy", %{bot: bot} do
-    :owner = AgentSession.claim(bot.background_remote_session_id, self())
+    :owner = Agent.claim(bot.background_remote_session_id, self())
 
     {:ok, message} =
       Messages.create(%{
@@ -264,11 +259,11 @@ defmodule WebApp.MessageWorkerTest do
         content: "Wait for me"
       })
 
-    :ok = MessageWorker.deliver_pending()
+    :ok = Worker.deliver_pending()
 
     assert [%Message{id: message_id, sent_status: "pending"}] = Messages.list_for_bot(bot.id)
     assert message_id == message.id
-    AgentSession.release(bot.background_remote_session_id, self())
+    Agent.release(bot.background_remote_session_id, self())
   end
 
   defp prompts(project) do

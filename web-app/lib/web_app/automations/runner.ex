@@ -1,14 +1,14 @@
-defmodule WebApp.AutomationRunner do
+defmodule WebApp.Automations.Runner do
   require Logger
 
-  alias WebApp.{Automation, Bots, Messages}
+  alias WebApp.{Automations, Bots, Messages, Sessions}
 
-  def run(%Automation{use_skill: false} = automation) do
+  def run(%Automations{use_skill: false} = automation) do
     Logger.debug("Automation started: #{automation.job_name}")
     run_automation(automation, nil, nil)
   end
 
-  def run(%Automation{} = automation) do
+  def run(%Automations{} = automation) do
     Logger.debug("Automation started: #{automation.job_name}")
 
     with {:ok, skill_path} <- skill_path(automation.job_name),
@@ -51,7 +51,7 @@ defmodule WebApp.AutomationRunner do
   defp register_automation(%{monitor: false}), do: nil
 
   defp register_automation(automation) do
-    case WebApp.RemoteRegistry.register_automation(automation.job_name) do
+    case Sessions.register_automation(automation.job_name) do
       {:ok, id} ->
         id
 
@@ -64,10 +64,10 @@ defmodule WebApp.AutomationRunner do
   defp finish_automation_monitor(nil, _result), do: :ok
 
   defp finish_automation_monitor(id, {:ok, _response}),
-    do: WebApp.RemoteRegistry.complete_automation(id, :settled)
+    do: Sessions.complete_automation(id, :settled)
 
   defp finish_automation_monitor(id, {:error, _reason}),
-    do: WebApp.RemoteRegistry.complete_automation(id, :failed)
+    do: Sessions.complete_automation(id, :failed)
 
   defp post_script(%{use_skill: false}, _skill_path), do: {:ok, nil}
   defp post_script(_automation, skill_path), do: script(skill_path, "postScript.ts")

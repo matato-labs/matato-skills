@@ -39,7 +39,7 @@ defmodule WebApp.TimeZoneTest do
     web_app_config = Keyword.fetch!(config, :web_app)
 
     assert web_app_config[:time_zone] ==
-             Keyword.fetch!(web_app_config, WebApp.AutomationScheduler)[:timezone]
+             Keyword.fetch!(web_app_config, WebApp.Automations.Scheduler)[:timezone]
 
     web_app_config[:time_zone]
   end

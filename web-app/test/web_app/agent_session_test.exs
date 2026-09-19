@@ -1,9 +1,9 @@
-defmodule WebApp.AgentSessionTest do
+defmodule WebApp.Sessions.AgentTest do
   use ExUnit.Case, async: false
 
   import ExUnit.CaptureLog
 
-  alias WebApp.{AgentFanout, AgentSession}
+  alias WebApp.Sessions.{Agent, Fanout}
 
   setup do
     root = Path.join(System.tmp_dir!(), "agent-session-#{System.unique_integer([:positive])}")
@@ -62,7 +62,7 @@ defmodule WebApp.AgentSessionTest do
     id = "test-#{System.unique_integer([:positive])}"
 
     start_supervised!(
-      {AgentSession,
+      {Agent,
        id: id,
        name: "test",
        project: context.root,
@@ -72,7 +72,7 @@ defmodule WebApp.AgentSessionTest do
       id: id
     )
 
-    assert :ok = AgentSession.await_ready(id)
+    assert :ok = Agent.await_ready(id)
     arguments = context.root |> Path.join("arguments.json") |> File.read!() |> Jason.decode!()
     assert "--approve" in arguments
     assert "--extension" in arguments
@@ -92,10 +92,10 @@ defmodule WebApp.AgentSessionTest do
   test "discovers in order, keeps rejection nonfatal, and allows browser dialog responses",
        context do
     id = "test-#{System.unique_integer([:positive])}"
-    AgentFanout.subscribe(id)
+    Fanout.subscribe(id)
 
     start_supervised!(
-      {AgentSession,
+      {Agent,
        id: id,
        name: "test",
        project: context.root,
@@ -103,24 +103,24 @@ defmodule WebApp.AgentSessionTest do
        interrupted: false}
     )
 
-    assert :ok = AgentSession.await_ready(id)
+    assert :ok = Agent.await_ready(id)
     assert_receive {:agent_update, ^id, sequence, {:commands_ready, commands}}, 2_000
     assert sequence > 0
     assert Enum.map(commands, & &1["name"]) == ["plan", "skill:review"]
-    assert {:error, "rejected"} = AgentSession.command(id, %{"type" => "reject"})
-    assert AgentSession.snapshot(id).status == :settled
+    assert {:error, "rejected"} = Agent.command(id, %{"type" => "reject"})
+    assert Agent.snapshot(id).status == :settled
 
-    assert :owner = AgentSession.claim(id, self())
+    assert :owner = Agent.claim(id, self())
     parent = self()
-    observer = spawn(fn -> send(parent, {:observer, AgentSession.claim(id, self())}) end)
+    observer = spawn(fn -> send(parent, {:observer, Agent.claim(id, self())}) end)
     assert_receive {:observer, :observer}
     assert is_pid(observer)
 
     assert {:error, "Only the interaction owner can control this session"} =
-             AgentSession.owner_command(id, observer, %{"type" => "prompt", "message" => "no"})
+             Agent.owner_command(id, observer, %{"type" => "prompt", "message" => "no"})
 
-    assert :ok = AgentSession.command(id, %{"type" => "prompt", "message" => "from chat"})
-    assert :ok = AgentSession.command(id, %{"type" => "dialog"})
+    assert :ok = Agent.command(id, %{"type" => "prompt", "message" => "from chat"})
+    assert :ok = Agent.command(id, %{"type" => "dialog"})
 
     assert_receive {:agent_update, ^id, _sequence,
                     {:event,
@@ -128,10 +128,10 @@ defmodule WebApp.AgentSessionTest do
                    2_000
 
     assert dialog_event["id"] == "dialog-1"
-    dialog = AgentSession.snapshot(id).dialog
+    dialog = Agent.snapshot(id).dialog
 
     assert {:error, "Only the interaction owner can answer"} =
-             AgentSession.respond(id, observer, %{
+             Agent.respond(id, observer, %{
                "type" => "extension_ui_response",
                "id" => dialog["id"],
                "confirmed" => true
@@ -144,7 +144,7 @@ defmodule WebApp.AgentSessionTest do
       send(
         caller,
         {ref,
-         AgentSession.respond(id, %{
+         Agent.respond(id, %{
            "type" => "extension_ui_response",
            "id" => dialog["id"],
            "confirmed" => true
@@ -157,12 +157,12 @@ defmodule WebApp.AgentSessionTest do
 
   test "keeps a session usable when command discovery fails", context do
     id = "test-#{System.unique_integer([:positive])}"
-    AgentFanout.subscribe(id)
+    Fanout.subscribe(id)
     System.put_env("REJECT_COMMANDS", "1")
     on_exit(fn -> System.delete_env("REJECT_COMMANDS") end)
 
     start_supervised!(
-      {AgentSession,
+      {Agent,
        id: id,
        name: "test",
        project: context.root,
@@ -170,21 +170,21 @@ defmodule WebApp.AgentSessionTest do
        interrupted: false}
     )
 
-    assert :ok = AgentSession.await_ready(id)
+    assert :ok = Agent.await_ready(id)
 
     assert_receive {:agent_update, ^id, _sequence,
                     {:commands_failed, "Command discovery failed: unavailable"}}
 
-    assert AgentSession.snapshot(id).commands == []
-    assert :ok = AgentSession.command(id, %{"type" => "prompt", "message" => "still works"})
+    assert Agent.snapshot(id).commands == []
+    assert :ok = Agent.command(id, %{"type" => "prompt", "message" => "still works"})
   end
 
   test "caps event payloads before broadcasting", context do
     id = "test-#{System.unique_integer([:positive])}"
-    AgentFanout.subscribe(id)
+    Fanout.subscribe(id)
 
     start_supervised!(
-      {AgentSession,
+      {Agent,
        id: id,
        name: "test",
        project: context.root,
@@ -192,8 +192,8 @@ defmodule WebApp.AgentSessionTest do
        interrupted: false}
     )
 
-    assert :ok = AgentSession.await_ready(id)
-    assert :ok = AgentSession.command(id, %{"type" => "large_event"})
+    assert :ok = Agent.await_ready(id)
+    assert :ok = Agent.command(id, %{"type" => "large_event"})
 
     assert_receive {:agent_update, ^id, _sequence,
                     {:event, %{"assistantMessageEvent" => %{"delta" => delta}}}},
@@ -206,7 +206,7 @@ defmodule WebApp.AgentSessionTest do
     id = "test-#{System.unique_integer([:positive])}"
 
     start_supervised!(
-      {AgentSession,
+      {Agent,
        id: id,
        name: "test",
        project: context.root,
@@ -214,10 +214,10 @@ defmodule WebApp.AgentSessionTest do
        interrupted: false}
     )
 
-    assert :ok = AgentSession.await_ready(id)
+    assert :ok = Agent.await_ready(id)
 
     assert %{sequence: sequence, view: %{status: :settled}} =
-             AgentSession.snapshot_with_sequence(id)
+             Agent.snapshot_with_sequence(id)
 
     assert is_integer(sequence)
   end
@@ -226,7 +226,7 @@ defmodule WebApp.AgentSessionTest do
     id = "test-#{System.unique_integer([:positive])}"
 
     start_supervised!(
-      {AgentSession,
+      {Agent,
        id: id,
        name: "test",
        project: context.root,
@@ -234,14 +234,14 @@ defmodule WebApp.AgentSessionTest do
        interrupted: false}
     )
 
-    assert :ok = AgentSession.await_ready(id)
-    assert :ok = AgentSession.command(id, %{"type" => "prompt", "message" => "/plan API work"})
+    assert :ok = Agent.await_ready(id)
+    assert :ok = Agent.command(id, %{"type" => "prompt", "message" => "/plan API work"})
 
     assert :ok =
-             AgentSession.command(id, %{"type" => "steer", "message" => "/skill:review API work"})
+             Agent.command(id, %{"type" => "steer", "message" => "/skill:review API work"})
 
     assert :ok =
-             AgentSession.command(id, %{"type" => "follow_up", "message" => "/plan API work"})
+             Agent.command(id, %{"type" => "follow_up", "message" => "/plan API work"})
 
     commands =
       context.root
@@ -266,14 +266,14 @@ defmodule WebApp.AgentSessionTest do
     log =
       capture_log(fn ->
         start_supervised!(
-          {AgentSession,
+          {Agent,
            id: id, name: "test", project: context.root, executable: executable, interrupted: false}
         )
 
-        assert {:error, _reason} = AgentSession.await_ready(id)
+        assert {:error, _reason} = Agent.await_ready(id)
       end)
 
-    refute log =~ "GenServer {WebApp.ProcessRegistry"
+    refute log =~ "GenServer {WebApp.Sessions.ProcessRegistry"
   end
 
   test "quarantines a child after an invalid protocol record", context do
@@ -281,7 +281,7 @@ defmodule WebApp.AgentSessionTest do
 
     pid =
       start_supervised!(
-        {AgentSession,
+        {Agent,
          id: id,
          name: "test",
          project: context.root,
@@ -289,13 +289,13 @@ defmodule WebApp.AgentSessionTest do
          interrupted: false}
       )
 
-    assert :ok = AgentSession.await_ready(id)
+    assert :ok = Agent.await_ready(id)
     monitor = Process.monitor(pid)
 
     log =
       capture_log(fn ->
         assert {:error, "Pi emitted a non-object protocol record"} =
-                 AgentSession.command(id, %{"type" => "bad_record"})
+                 Agent.command(id, %{"type" => "bad_record"})
 
         assert_receive {:DOWN, ^monitor, :process, ^pid, :normal}, 2_000
       end)

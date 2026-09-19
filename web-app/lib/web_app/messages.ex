@@ -1,8 +1,16 @@
 defmodule WebApp.Messages do
+  use Boundary,
+    top_level?: true,
+    deps: [WebApp.Bots, WebApp.Data, WebApp.Sessions],
+    exports: []
+
   import Ecto.Query
 
-  alias WebApp.{Bots, Repo}
+  alias WebApp.Bots
+  alias WebApp.Data.Repo
   alias WebApp.Messages.Message
+
+  def child_specs, do: [WebApp.Messages.Worker, WebApp.Messages.Scheduler]
 
   def create(attributes) do
     attributes = Map.put_new(attributes, :timestamp, DateTime.utc_now())

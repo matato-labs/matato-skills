@@ -3,7 +3,9 @@ defmodule WebAppWeb.AgentLiveTest do
 
   import Phoenix.LiveViewTest
 
-  alias WebApp.{AgentFanout, AgentSession, AgentState, Messages, RemoteSessions, Repo, Workspace}
+  alias WebApp.Messages
+  alias WebApp.Data.Repo
+  alias WebApp.Sessions.{Agent, Fanout, State, Store, Workspace}
   alias WebApp.Bots.Bot
   alias WebApp.Messages.Message
 
@@ -51,19 +53,18 @@ defmodule WebAppWeb.AgentLiveTest do
     id = Base.url_encode64(:crypto.strong_rand_bytes(9), padding: false)
     project = Path.join(Workspace.root(), "agent-live-#{id}")
     File.mkdir_p!(project)
-    AgentFanout.subscribe(id)
+    Fanout.subscribe(id)
 
     start_supervised!(
-      {AgentSession,
-       id: id, name: "test", project: project, executable: executable, interrupted: false},
+      {Agent, id: id, name: "test", project: project, executable: executable, interrupted: false},
       id: id
     )
 
-    assert :ok = AgentSession.await_ready(id)
+    assert :ok = Agent.await_ready(id)
     assert_receive {:agent_update, ^id, _sequence, {:commands_ready, [_command]}}, 2_000
 
     {:ok, _session} =
-      RemoteSessions.create(%{
+      Store.create(%{
         id: id,
         name: "test",
         project_path: project,
@@ -84,7 +85,7 @@ defmodule WebAppWeb.AgentLiveTest do
     on_exit(fn ->
       Repo.delete_all(Message)
       Repo.delete(bot)
-      :ok = RemoteSessions.delete(id)
+      :ok = Store.delete(id)
 
       File.rm_rf!(root)
       File.rm_rf!(project)
@@ -119,8 +120,8 @@ defmodule WebAppWeb.AgentLiveTest do
   end
 
   test "hides delivered bot messages from the activity timeline", %{conn: conn, bot: bot} do
-    :ok = :sys.suspend(WebApp.MessageWorker)
-    on_exit(fn -> :ok = :sys.resume(WebApp.MessageWorker) end)
+    :ok = :sys.suspend(WebApp.Messages.Worker)
+    on_exit(fn -> :ok = :sys.resume(WebApp.Messages.Worker) end)
 
     {:ok, _delivered} =
       Messages.create(%{
@@ -202,7 +203,7 @@ defmodule WebAppWeb.AgentLiveTest do
 
   test "omits tool activity missing from incomplete persisted and live transcript data" do
     session = %{
-      WebApp.AgentState.new()
+      WebApp.Sessions.State.new()
       | messages: [
           %{
             "role" => "assistant",
@@ -321,8 +322,8 @@ defmodule WebAppWeb.AgentLiveTest do
 
   test "constructs a durable transcript item for a failed assistant turn" do
     snapshot =
-      AgentState.new()
-      |> AgentState.apply(%{
+      State.new()
+      |> State.apply(%{
         "type" => "message_end",
         "message" => %{
           "role" => "assistant",
@@ -331,7 +332,7 @@ defmodule WebAppWeb.AgentLiveTest do
           "errorMessage" => "The model is unavailable"
         }
       })
-      |> AgentState.apply(%{"type" => "agent_settled"})
+      |> State.apply(%{"type" => "agent_settled"})
 
     assert [
              %{id: "message-0-error", kind: :agent_error, text: "The model is unavailable"}
@@ -340,12 +341,12 @@ defmodule WebAppWeb.AgentLiveTest do
 
   test "keeps a failed assistant turn visible after its work turn" do
     snapshot =
-      AgentState.new()
-      |> AgentState.apply(%{
+      State.new()
+      |> State.apply(%{
         "type" => "message_end",
         "message" => %{"role" => "user", "content" => "Do the thing"}
       })
-      |> AgentState.apply(%{
+      |> State.apply(%{
         "type" => "message_end",
         "message" => %{
           "role" => "assistant",
@@ -354,7 +355,7 @@ defmodule WebAppWeb.AgentLiveTest do
           "errorMessage" => "The model is unavailable"
         }
       })
-      |> AgentState.apply(%{"type" => "agent_settled"})
+      |> State.apply(%{"type" => "agent_settled"})
 
     assert [
              %{kind: :message, role: :user},
@@ -384,7 +385,7 @@ defmodule WebAppWeb.AgentLiveTest do
     id: id,
     root: root
   } do
-    :owner = AgentSession.claim(id, self())
+    :owner = Agent.claim(id, self())
     {:ok, view, _html} = live(conn, ~p"/sessions/#{id}")
 
     refute has_element?(view, "button[value='send']")
@@ -404,11 +405,11 @@ defmodule WebAppWeb.AgentLiveTest do
     root: root
   } do
     {:ok, view, _html} = live(conn, ~p"/sessions/#{id}")
-    assert :ok = AgentSession.command(id, %{"type" => "trigger_active"})
+    assert :ok = Agent.command(id, %{"type" => "trigger_active"})
     sync_snapshot(view, id)
     assert has_element?(view, "button[value='steer']")
 
-    assert :ok = AgentSession.command(id, %{"type" => "queue_steering"})
+    assert :ok = Agent.command(id, %{"type" => "queue_steering"})
     sync_snapshot(view, id)
     assert has_element?(view, "#queued-steering", "Work on the design")
 
@@ -417,7 +418,7 @@ defmodule WebAppWeb.AgentLiveTest do
     |> render_submit()
 
     assert List.last(command_types(root)) == "follow_up"
-    assert :ok = AgentSession.command(id, %{"type" => "queue_follow_up"})
+    assert :ok = Agent.command(id, %{"type" => "queue_follow_up"})
     sync_snapshot(view, id)
     assert has_element?(view, "#queued-follow-up")
     assert has_element?(view, "#queued-follow-up", "Run the tests")
@@ -429,14 +430,14 @@ defmodule WebAppWeb.AgentLiveTest do
 
     assert List.last(command_types(root)) == "steer"
 
-    assert :ok = AgentSession.command(id, %{"type" => "clear_follow_up"})
+    assert :ok = Agent.command(id, %{"type" => "clear_follow_up"})
     sync_snapshot(view, id)
     refute has_element?(view, "#queued-follow-up")
   end
 
   test "applies the next delta and resynchronizes after a sequence gap", %{conn: conn, id: id} do
     {:ok, view, _html} = live(conn, ~p"/sessions/#{id}")
-    %{sequence: sequence} = AgentSession.snapshot_with_sequence(id)
+    %{sequence: sequence} = Agent.snapshot_with_sequence(id)
 
     send(view.pid, {
       :agent_update,
@@ -516,7 +517,7 @@ defmodule WebAppWeb.AgentLiveTest do
 
     render_patch(view, "/sessions/missing")
 
-    refute Enum.any?(Registry.lookup(WebApp.SubscriberRegistry, id), fn {pid, _value} ->
+    refute Enum.any?(Registry.lookup(WebApp.Sessions.SubscriberRegistry, id), fn {pid, _value} ->
              pid == view.pid
            end)
 
@@ -536,8 +537,8 @@ defmodule WebAppWeb.AgentLiveTest do
 
   test "aborts and restores queued messages to the composer", %{conn: conn, id: id} do
     {:ok, view, _html} = live(conn, ~p"/sessions/#{id}")
-    assert :ok = AgentSession.command(id, %{"type" => "trigger_active"})
-    assert :ok = AgentSession.command(id, %{"type" => "queue_steering"})
+    assert :ok = Agent.command(id, %{"type" => "trigger_active"})
+    assert :ok = Agent.command(id, %{"type" => "queue_steering"})
     sync_snapshot(view, id)
 
     render_hook(view, "abort_and_restore_queue")

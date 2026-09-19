@@ -1,7 +1,10 @@
 defmodule WebApp.Bots do
+  use Boundary, top_level?: true, deps: [WebApp.Data, WebApp.Sessions], exports: []
+
   import Ecto.Query
 
-  alias WebApp.{RemoteRegistry, Repo}
+  alias WebApp.Data.Repo
+  alias WebApp.Sessions
   alias WebApp.Bots.Bot
 
   def list, do: Repo.all(from(bot in Bot, order_by: [asc: bot.inserted_at]))
@@ -73,7 +76,7 @@ defmodule WebApp.Bots do
   end
 
   defp create_chat(profile) do
-    RemoteRegistry.create(".", %{
+    Sessions.create(".", %{
       name: profile.name,
       source: "bot_chat",
       identity: identity_for(profile)
@@ -81,7 +84,7 @@ defmodule WebApp.Bots do
   end
 
   defp create_background(profile, chat_id) do
-    case RemoteRegistry.create(".", %{
+    case Sessions.create(".", %{
            name: "#{profile.name} background",
            source: "bot_background",
            identity: identity_for(profile)
@@ -123,7 +126,7 @@ defmodule WebApp.Bots do
   end
 
   defp delete_existing_remote_session(id) do
-    case RemoteRegistry.delete(id) do
+    case Sessions.delete(id) do
       :ok -> :ok
       {:error, "Session not found"} -> :ok
       {:error, reason} -> {:error, reason}
@@ -131,7 +134,7 @@ defmodule WebApp.Bots do
   end
 
   defp delete_remote_session(id) do
-    case RemoteRegistry.delete(id) do
+    case Sessions.delete(id) do
       :ok -> :ok
       {:error, _reason} -> :ok
     end

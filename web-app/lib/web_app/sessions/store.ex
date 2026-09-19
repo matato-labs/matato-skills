@@ -1,16 +1,16 @@
-defmodule WebApp.RemoteSessions do
+defmodule WebApp.Sessions.Store do
   import Ecto.Query
 
-  alias WebApp.{Repo, Workspace}
-  alias WebApp.RemoteSessions.RemoteSession
+  alias WebApp.Data.Repo
+  alias WebApp.Sessions.{Session, Workspace}
 
   def list,
     do:
-      Repo.all(from(session in RemoteSession, order_by: [desc: session.updated_at]))
+      Repo.all(from(session in Session, order_by: [desc: session.updated_at]))
       |> Enum.map(&to_metadata/1)
 
-  def get(id), do: Repo.get(RemoteSession, id) |> to_metadata()
-  def exists?, do: Repo.exists?(RemoteSession)
+  def get(id), do: Repo.get(Session, id) |> to_metadata()
+  def exists?, do: Repo.exists?(Session)
 
   def validate_metadata(metadata) do
     with true <- valid_id?(metadata["id"]),
@@ -30,8 +30,8 @@ defmodule WebApp.RemoteSessions do
   end
 
   def create(attributes) do
-    %RemoteSession{}
-    |> RemoteSession.changeset(attributes)
+    %Session{}
+    |> Session.changeset(attributes)
     |> Repo.insert()
     |> result()
   end
@@ -50,8 +50,8 @@ defmodule WebApp.RemoteSessions do
   end
 
   def update(id, attributes) do
-    with %RemoteSession{} = session <- Repo.get(RemoteSession, id),
-         {:ok, session} <- session |> RemoteSession.changeset(attributes) |> Repo.update() do
+    with %Session{} = session <- Repo.get(Session, id),
+         {:ok, session} <- session |> Session.changeset(attributes) |> Repo.update() do
       {:ok, to_metadata(session)}
     else
       nil -> {:error, :not_found}
@@ -60,7 +60,7 @@ defmodule WebApp.RemoteSessions do
   end
 
   def delete(id) do
-    case Repo.get(RemoteSession, id) do
+    case Repo.get(Session, id) do
       nil ->
         {:error, :not_found}
 
@@ -74,7 +74,7 @@ defmodule WebApp.RemoteSessions do
   end
 
   def mark_interrupted do
-    from(session in RemoteSession,
+    from(session in Session,
       where:
         session.status in ["starting", "working", "waiting_for_input", "retrying", "compacting"]
     )
@@ -129,8 +129,8 @@ defmodule WebApp.RemoteSessions do
       |> Map.put(:source, "extension")
       |> Map.put(:status, "stopped")
 
-    %RemoteSession{}
-    |> RemoteSession.changeset(attributes)
+    %Session{}
+    |> Session.changeset(attributes)
     |> Repo.insert(
       on_conflict:
         {:replace,
@@ -147,7 +147,7 @@ defmodule WebApp.RemoteSessions do
     )
     |> case do
       {:ok, _session} ->
-        {:ok, Repo.get_by!(RemoteSession, session_file: attributes.session_file) |> to_metadata()}
+        {:ok, Repo.get_by!(Session, session_file: attributes.session_file) |> to_metadata()}
 
       {:error, changeset} ->
         {:error, changeset}

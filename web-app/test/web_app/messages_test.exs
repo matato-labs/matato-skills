@@ -1,13 +1,14 @@
 defmodule WebApp.MessagesTest do
   use ExUnit.Case, async: false
 
-  alias WebApp.{Messages, Repo}
+  alias WebApp.Messages
+  alias WebApp.Data.Repo
   alias WebApp.Bots.Bot
   alias WebApp.Messages.Message
 
   setup do
-    :ok = :sys.suspend(WebApp.MessageWorker)
-    on_exit(fn -> :ok = :sys.resume(WebApp.MessageWorker) end)
+    :ok = :sys.suspend(WebApp.Messages.Worker)
+    on_exit(fn -> :ok = :sys.resume(WebApp.Messages.Worker) end)
     Repo.delete_all(Message)
     Repo.delete_all(Bot)
 
@@ -101,7 +102,7 @@ defmodule WebApp.MessagesTest do
         receiver_bot_id: bot.id,
         sender_type: "automation",
         kind: "result",
-        content: "Automation done"
+        content: "Automations done"
       })
 
     :ok = Messages.finish(delivered, "sent")

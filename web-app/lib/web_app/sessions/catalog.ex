@@ -1,5 +1,5 @@
-defmodule WebApp.ProjectSessionCatalog do
-  alias WebApp.Workspace
+defmodule WebApp.Sessions.Catalog do
+  alias WebApp.Sessions.Workspace
 
   def workspace_groups(records), do: groups(Enum.reject(records, &(&1["source"] == "automation")))
 

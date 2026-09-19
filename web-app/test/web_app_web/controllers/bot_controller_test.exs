@@ -1,7 +1,7 @@
 defmodule WebAppWeb.BotControllerTest do
   use WebAppWeb.ConnCase, async: false
 
-  alias WebApp.Repo
+  alias WebApp.Data.Repo
   alias WebApp.Bots.Bot
 
   setup do

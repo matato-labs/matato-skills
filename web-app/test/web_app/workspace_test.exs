@@ -1,7 +1,7 @@
-defmodule WebApp.WorkspaceTest do
+defmodule WebApp.Sessions.WorkspaceTest do
   use ExUnit.Case, async: false
 
-  alias WebApp.Workspace
+  alias WebApp.Sessions.Workspace
 
   setup do
     previous = Application.fetch_env!(:web_app, :workspace)

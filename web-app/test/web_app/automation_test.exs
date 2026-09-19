@@ -1,25 +1,19 @@
-defmodule WebApp.AutomationTest do
+defmodule WebApp.AutomationsTest do
   use ExUnit.Case, async: false
 
   import ExUnit.CaptureLog
 
-  alias WebApp.{
-    Automation,
-    AutomationRunner,
-    AutomationScheduler,
-    ProjectSessionCatalog,
-    RemoteRegistry,
-    RemoteSessions,
-    Repo,
-    Messages
-  }
+  alias WebApp.{Automations, Messages}
+  alias WebApp.Automations.{Runner, Scheduler}
+  alias WebApp.Data.Repo
+  alias WebApp.Sessions.{Catalog, Registry, Store}
 
   alias WebApp.Bots.Bot
   alias WebApp.Messages.Message
 
   setup do
-    :ok = Automation.replace([])
-    _ = :sys.get_state(WebApp.AutomationSubscription)
+    :ok = Automations.replace([])
+    _ = :sys.get_state(WebApp.Automations.Subscription)
     :ok
   end
 
@@ -30,20 +24,20 @@ defmodule WebApp.AutomationTest do
         can_overlap: true
     }
 
-    assert :ok = Automation.replace([automation])
+    assert :ok = Automations.replace([automation])
 
     assert [
-             %Automation{
+             %Automations{
                job_name: "stored",
                can_launch_sub_agents: true,
                can_overlap: true
              }
-           ] = Automation.list()
+           ] = Automations.list()
   end
 
   test "rejects replacement automations with duplicate job names" do
     assert {:error, "Automation job names must be unique"} =
-             Automation.replace([
+             Automations.replace([
                automation("duplicate", "* * * * *"),
                automation("duplicate", "*/5 * * * *")
              ])
@@ -75,7 +69,7 @@ defmodule WebApp.AutomationTest do
       File.rm_rf!(pi_dir)
     end)
 
-    AutomationRunner.run(%{automation(job_name, "* * * * *") | use_skill: false})
+    Runner.run(%{automation(job_name, "* * * * *") | use_skill: false})
 
     prompt = File.read!(prompt_path)
     assert File.read!(mix_env_path) == "unset"
@@ -114,7 +108,7 @@ defmodule WebApp.AutomationTest do
       File.rm_rf!(pi_dir)
     end)
 
-    AutomationRunner.run(%{automation(job_name, "* * * * *") | use_skill: false, bot_id: bot.id})
+    Runner.run(%{automation(job_name, "* * * * *") | use_skill: false, bot_id: bot.id})
 
     assert [result] = Messages.list_for_bot(bot.id)
     assert result.kind == "result"
@@ -136,7 +130,7 @@ defmodule WebApp.AutomationTest do
     File.chmod!(pi_path, 0o755)
     original_path = System.get_env("PATH")
     System.put_env("PATH", "#{pi_dir}:#{original_path}")
-    RemoteRegistry.subscribe()
+    Registry.subscribe()
 
     on_exit(fn ->
       File.write!(gate_path, "")
@@ -144,14 +138,14 @@ defmodule WebApp.AutomationTest do
       File.rm(gate_path)
       File.rm_rf!(pi_dir)
 
-      RemoteSessions.list()
+      Store.list()
       |> Enum.filter(&(&1["name"] == job_name and &1["source"] == "automation"))
-      |> Enum.each(&RemoteSessions.delete(&1["id"]))
+      |> Enum.each(&Store.delete(&1["id"]))
     end)
 
     task =
       Task.async(fn ->
-        AutomationRunner.run(%{
+        Runner.run(%{
           automation(job_name, "* * * * *")
           | use_skill: false,
             monitor: true
@@ -161,13 +155,13 @@ defmodule WebApp.AutomationTest do
     assert_receive :changed
 
     assert [%{sessions: [%{id: id, status: "working", title: ^job_name}]}] =
-             ProjectSessionCatalog.automation_groups(RemoteRegistry.list())
+             Catalog.automation_groups(Registry.list())
 
     File.write!(gate_path, "")
     Task.await(task)
-    _ = :sys.get_state(RemoteRegistry)
+    _ = :sys.get_state(Registry)
     assert_receive :changed
-    assert %{"status" => "settled"} = RemoteSessions.get(id)
+    assert %{"status" => "settled"} = Store.get(id)
   end
 
   test "marks monitored automations as failed when Pi returns an error" do
@@ -189,23 +183,23 @@ defmodule WebApp.AutomationTest do
       System.put_env("PATH", original_path)
       File.rm_rf!(pi_dir)
 
-      RemoteSessions.list()
+      Store.list()
       |> Enum.filter(&(&1["name"] == job_name and &1["source"] == "automation"))
-      |> Enum.each(&RemoteSessions.delete(&1["id"]))
+      |> Enum.each(&Store.delete(&1["id"]))
     end)
 
-    AutomationRunner.run(%{automation(job_name, "* * * * *") | use_skill: false, monitor: true})
-    _ = :sys.get_state(RemoteRegistry)
+    Runner.run(%{automation(job_name, "* * * * *") | use_skill: false, monitor: true})
+    _ = :sys.get_state(Registry)
 
     assert %{"status" => "failed"} =
-             RemoteSessions.list()
+             Store.list()
              |> Enum.find(&(&1["name"] == job_name and &1["source"] == "automation"))
   end
 
   test "logs the failed automation and reason" do
     job_name = "missing-#{System.unique_integer([:positive])}"
 
-    log = capture_log(fn -> AutomationRunner.run(automation(job_name, "* * * * *")) end)
+    log = capture_log(fn -> Runner.run(automation(job_name, "* * * * *")) end)
 
     assert log =~ "Automation failed: #{job_name}. Reason: Skill not found: #{job_name}"
   end
@@ -214,30 +208,30 @@ defmodule WebApp.AutomationTest do
     previous = automation("previous", "*/5 * * * * *")
     invalid_disabled = %{automation("disabled", "not a cron expression") | enabled: false}
 
-    assert :ok = Automation.replace([previous])
+    assert :ok = Automations.replace([previous])
     sync_subscription()
 
     assert {:error, "Invalid schedule for disabled: " <> _reason} =
-             AutomationScheduler.replace([automation("next", "* * * * * *"), invalid_disabled])
+             Scheduler.replace([automation("next", "* * * * * *"), invalid_disabled])
 
-    assert [{_, job}] = AutomationScheduler.jobs()
-    assert {AutomationRunner, :run, [%{job_name: "previous"}]} = job.task
+    assert [{_, job}] = Scheduler.jobs()
+    assert {Runner, :run, [%{job_name: "previous"}]} = job.task
   end
 
   test "replaces schedules with enabled automations only" do
     disabled = %{automation("disabled", "* * * * *") | enabled: false}
 
-    assert :ok = AutomationScheduler.replace([automation("enabled", "* * * * *"), disabled])
+    assert :ok = Scheduler.replace([automation("enabled", "* * * * *"), disabled])
 
-    assert [{_, %{task: {AutomationRunner, :run, [%{job_name: "enabled"}]}}}] =
-             AutomationScheduler.jobs()
+    assert [{_, %{task: {Runner, :run, [%{job_name: "enabled"}]}}}] =
+             Scheduler.jobs()
   end
 
   test "uses the seconds parser and overlap setting" do
     automation = %{automation("seconds", "*/5 * * * * *") | can_overlap: true}
-    assert :ok = AutomationScheduler.replace([automation])
+    assert :ok = Scheduler.replace([automation])
 
-    assert [{_, job}] = AutomationScheduler.jobs()
+    assert [{_, job}] = Scheduler.jobs()
     assert inspect(job.schedule) == "~e[*/5 * * * * * *]e"
     assert job.overlap
   end
@@ -286,7 +280,7 @@ defmodule WebApp.AutomationTest do
       Repo.delete(bot)
     end)
 
-    AutomationRunner.run(%{automation(job_name, "* * * * *") | bot_id: bot.id})
+    Runner.run(%{automation(job_name, "* * * * *") | bot_id: bot.id})
     assert [] = Messages.list_for_bot(bot.id)
     refute File.exists?(pi_marker)
     refute File.exists?(post_marker)
@@ -331,7 +325,7 @@ defmodule WebApp.AutomationTest do
       File.rm_rf!(pi_dir)
     end)
 
-    AutomationRunner.run(automation(job_name, "* * * * *"))
+    Runner.run(automation(job_name, "* * * * *"))
 
     assert File.read!(pre_mix_env_path) == "unset"
     assert File.read!(post_mix_env_path) == "unset"
@@ -363,21 +357,21 @@ defmodule WebApp.AutomationTest do
       File.rm_rf!(pi_dir)
     end)
 
-    AutomationRunner.run(automation(job_name, "* * * * *"))
+    Runner.run(automation(job_name, "* * * * *"))
     assert File.exists?(pi_marker)
   end
 
   defp sync_subscription do
-    {WebApp.AutomationSubscription, pid, _, _} =
+    {WebApp.Automations.Subscription, pid, _, _} =
       Enum.find(Supervisor.which_children(WebApp.Supervisor), fn {id, _, _, _} ->
-        id == WebApp.AutomationSubscription
+        id == WebApp.Automations.Subscription
       end)
 
     _ = :sys.get_state(pid)
   end
 
   defp automation(job_name, schedule) do
-    %Automation{
+    %Automations{
       job_name: job_name,
       enabled: true,
       schedule: schedule,

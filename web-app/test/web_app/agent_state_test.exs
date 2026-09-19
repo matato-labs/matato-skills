@@ -1,20 +1,20 @@
-defmodule WebApp.AgentStateTest do
+defmodule WebApp.Sessions.StateTest do
   use ExUnit.Case, async: true
 
-  alias WebApp.AgentState
+  alias WebApp.Sessions.State
 
   test "assembles indexed text and thinking, and settles only on agent_settled" do
-    state = AgentState.new()
-    state = AgentState.apply(state, %{"type" => "agent_start"})
+    state = State.new()
+    state = State.apply(state, %{"type" => "agent_start"})
 
     state =
-      AgentState.apply(state, %{
+      State.apply(state, %{
         "type" => "message_start",
         "message" => %{"role" => "assistant"}
       })
 
     state =
-      AgentState.apply(state, %{
+      State.apply(state, %{
         "type" => "message_update",
         "assistantMessageEvent" => %{
           "type" => "text_delta",
@@ -24,7 +24,7 @@ defmodule WebApp.AgentStateTest do
       })
 
     state =
-      AgentState.apply(state, %{
+      State.apply(state, %{
         "type" => "message_update",
         "assistantMessageEvent" => %{
           "type" => "text_delta",
@@ -34,7 +34,7 @@ defmodule WebApp.AgentStateTest do
       })
 
     state =
-      AgentState.apply(state, %{
+      State.apply(state, %{
         "type" => "message_update",
         "assistantMessageEvent" => %{
           "type" => "thinking_delta",
@@ -43,22 +43,22 @@ defmodule WebApp.AgentStateTest do
         }
       })
 
-    assert AgentState.partial_text(state) == "Hello world"
-    assert AgentState.partial_thinking(state) == "private"
+    assert State.partial_text(state) == "Hello world"
+    assert State.partial_thinking(state) == "private"
     assert state.status == :working
 
-    state = AgentState.apply(state, %{"type" => "agent_end", "willRetry" => false})
+    state = State.apply(state, %{"type" => "agent_end", "willRetry" => false})
     assert state.status == :working
 
-    state = AgentState.apply(state, %{"type" => "agent_settled"})
+    state = State.apply(state, %{"type" => "agent_settled"})
     assert state.status == :settled
   end
 
   test "buffers tool-call arguments and replaces accumulated tool progress" do
-    state = AgentState.new()
+    state = State.new()
 
     state =
-      AgentState.apply(state, %{
+      State.apply(state, %{
         "type" => "message_update",
         "assistantMessageEvent" => %{
           "type" => "toolcall_start",
@@ -69,7 +69,7 @@ defmodule WebApp.AgentStateTest do
       })
 
     state =
-      AgentState.apply(state, %{
+      State.apply(state, %{
         "type" => "message_update",
         "assistantMessageEvent" => %{
           "type" => "toolcall_delta",
@@ -79,7 +79,7 @@ defmodule WebApp.AgentStateTest do
       })
 
     state =
-      AgentState.apply(state, %{
+      State.apply(state, %{
         "type" => "tool_execution_update",
         "toolCallId" => "call-1",
         "partialResult" => %{"content" => [%{"type" => "text", "text" => "new"}]}
@@ -89,7 +89,7 @@ defmodule WebApp.AgentStateTest do
     assert state.tools["call-1"].result["content"] |> hd() |> Map.fetch!("text") == "new"
 
     state =
-      AgentState.apply(state, %{
+      State.apply(state, %{
         "type" => "tool_execution_update",
         "toolCallId" => "call-1",
         "partialResult" => %{"content" => [%{"type" => "text", "text" => "latest"}]}
@@ -101,7 +101,7 @@ defmodule WebApp.AgentStateTest do
 
   test "keeps Pi queue updates for reconnecting clients and clears processed messages" do
     state =
-      AgentState.apply(AgentState.new(), %{
+      State.apply(State.new(), %{
         "type" => "queue_update",
         "steering" => ["Change the approach"],
         "followUp" => ["Run the tests"]
@@ -112,21 +112,21 @@ defmodule WebApp.AgentStateTest do
              "followUp" => ["Run the tests"]
            }
 
-    state = AgentState.apply(state, %{"type" => "queue_update", "followUp" => []})
+    state = State.apply(state, %{"type" => "queue_update", "followUp" => []})
 
     assert state.queue == %{"steering" => ["Change the approach"], "followUp" => []}
   end
 
   test "uses message_end as the authoritative completed message" do
     message = %{"role" => "assistant", "content" => [%{"type" => "text", "text" => "Done"}]}
-    state = AgentState.apply(AgentState.new(), %{"type" => "message_end", "message" => message})
+    state = State.apply(State.new(), %{"type" => "message_end", "message" => message})
     assert state.messages == [message]
     assert state.partial == %{blocks: %{}}
   end
 
   test "discovers the current thinking level" do
     state =
-      AgentState.discover(AgentState.new(), %{
+      State.discover(State.new(), %{
         "isStreaming" => false,
         "isCompacting" => false,
         "thinkingLevel" => "high"
@@ -144,49 +144,49 @@ defmodule WebApp.AgentStateTest do
     }
 
     state =
-      AgentState.new()
-      |> AgentState.apply(%{"type" => "message_end", "message" => message})
-      |> AgentState.apply(%{"type" => "agent_settled"})
+      State.new()
+      |> State.apply(%{"type" => "message_end", "message" => message})
+      |> State.apply(%{"type" => "agent_settled"})
 
     assert state.status == :settled
     assert state.messages == [message]
 
-    assert AgentState.hydrate(AgentState.new(), %{"messages" => state.messages}).messages == [
+    assert State.hydrate(State.new(), %{"messages" => state.messages}).messages == [
              message
            ]
   end
 
   test "hydrates the discovered active status with compaction taking precedence" do
     state =
-      AgentState.discover(AgentState.new(), %{"isStreaming" => true, "isCompacting" => true})
+      State.discover(State.new(), %{"isStreaming" => true, "isCompacting" => true})
 
-    assert AgentState.hydrate(state, %{"messages" => []}).status == :compacting
+    assert State.hydrate(state, %{"messages" => []}).status == :compacting
 
     state =
-      AgentState.discover(AgentState.new(), %{"isStreaming" => true, "isCompacting" => false})
+      State.discover(State.new(), %{"isStreaming" => true, "isCompacting" => false})
 
-    assert AgentState.hydrate(state, %{"messages" => []}).status == :working
+    assert State.hydrate(state, %{"messages" => []}).status == :working
   end
 
   test "hydrates an interrupted restart without pretending it settled" do
-    state = AgentState.new(interrupted: true)
-    state = AgentState.discover(state, %{"isStreaming" => false})
-    state = AgentState.hydrate(state, %{"messages" => []})
+    state = State.new(interrupted: true)
+    state = State.discover(state, %{"isStreaming" => false})
+    state = State.hydrate(state, %{"messages" => []})
     assert state.status == :interrupted
   end
 
   test "command rejection does not change run state" do
-    state = AgentState.new() |> Map.put(:status, :working)
-    assert AgentState.command_error(state, "rejected").status == :working
+    state = State.new() |> Map.put(:status, :working)
+    assert State.command_error(state, "rejected").status == :working
   end
 
   test "keeps command discovery failures separate from session errors" do
-    state = AgentState.new() |> AgentState.commands_failed("Command discovery failed")
+    state = State.new() |> State.commands_failed("Command discovery failed")
     assert state.commands == []
     assert state.commands_error == "Command discovery failed"
     assert state.error == nil
 
-    state = AgentState.commands_ready(state, [%{"name" => "plan"}])
+    state = State.commands_ready(state, [%{"name" => "plan"}])
     assert state.commands == [%{"name" => "plan"}]
     assert state.commands_error == nil
   end
@@ -195,7 +195,7 @@ defmodule WebApp.AgentStateTest do
     payload = String.duplicate("😀", 30_000)
 
     event =
-      AgentState.cap_event(%{
+      State.cap_event(%{
         "type" => "tool_execution_update",
         "partialResult" => %{"content" => [%{"type" => "text", "text" => payload}]},
         "assistantMessageEvent" => %{"type" => "text_delta", "delta" => payload}
@@ -209,8 +209,8 @@ defmodule WebApp.AgentStateTest do
     long_text = String.duplicate("x", 30_000)
 
     state =
-      Enum.reduce(1..210, AgentState.new(), fn index, result ->
-        AgentState.apply(result, %{
+      Enum.reduce(1..210, State.new(), fn index, result ->
+        State.apply(result, %{
           "type" => "message_end",
           "message" => %{"role" => "assistant", "content" => long_text <> to_string(index)}
         })
@@ -236,7 +236,7 @@ defmodule WebApp.AgentStateTest do
         }
       end)
 
-    state = AgentState.hydrate(AgentState.new(), %{"messages" => messages})
+    state = State.hydrate(State.new(), %{"messages" => messages})
 
     assert length(state.messages) == 210
     assert length(state.tool_order) == 210
@@ -246,8 +246,8 @@ defmodule WebApp.AgentStateTest do
 
   test "retains every tool record from a long live session" do
     state =
-      Enum.reduce(1..102, AgentState.new(), fn index, state ->
-        AgentState.apply(state, %{
+      Enum.reduce(1..102, State.new(), fn index, state ->
+        State.apply(state, %{
           "type" => "tool_execution_start",
           "toolCallId" => "call-#{index}",
           "toolName" => "bash",

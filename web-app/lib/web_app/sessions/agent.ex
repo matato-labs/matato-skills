@@ -1,9 +1,9 @@
-defmodule WebApp.AgentSession do
+defmodule WebApp.Sessions.Agent do
   use GenServer
 
   require Logger
 
-  alias WebApp.{AgentFanout, AgentState, Rpc.Framer}
+  alias WebApp.Sessions.{Fanout, Framer, State}
 
   @command_timeout 15_000
   @max_record 16_777_216
@@ -36,7 +36,7 @@ defmodule WebApp.AgentSession do
   def stop(id), do: GenServer.stop(via(id), :normal)
   def whereis(id), do: GenServer.whereis(via(id))
 
-  defp via(id), do: {:via, Registry, {WebApp.ProcessRegistry, id}}
+  defp via(id), do: {:via, Registry, {WebApp.Sessions.ProcessRegistry, id}}
 
   @impl true
   def init(options) do
@@ -70,7 +70,7 @@ defmodule WebApp.AgentSession do
       prompt_times: [],
       closing: false,
       notifier: options[:notifier] || fn _event -> :ok end,
-      view: AgentState.new(interrupted: options[:interrupted] || false)
+      view: State.new(interrupted: options[:interrupted] || false)
     }
 
     {:ok, state, {:continue, :discover}}
@@ -148,8 +148,7 @@ defmodule WebApp.AgentSession do
       true = Port.command(state.port, Jason.encode!(response) <> "\n")
       state = cancel_dialog_timer(state)
 
-      {:reply, :ok,
-       publish(%{state | view: AgentState.clear_dialog(state.view)}, :dialog_cleared)}
+      {:reply, :ok, publish(%{state | view: State.clear_dialog(state.view)}, :dialog_cleared)}
     end
   end
 
@@ -184,7 +183,7 @@ defmodule WebApp.AgentSession do
 
     fail_pending(state.pending, error)
     reply_waiters(state.startup_waiters, {:error, error})
-    view = if state.closing, do: state.view, else: AgentState.exit(state.view, error)
+    view = if state.closing, do: state.view, else: State.exit(state.view, error)
     publish(%{state | view: view, pending: %{}}, {:exit, error})
     {:stop, :normal, %{state | pending: %{}}}
   end
@@ -203,13 +202,13 @@ defmodule WebApp.AgentSession do
 
       {%{kind: :commands}, rest} ->
         error = "Command discovery failed: Pi did not respond"
-        view = AgentState.commands_failed(state.view, error)
+        view = State.commands_failed(state.view, error)
         {:noreply, publish(%{state | pending: rest, view: view}, {:commands_failed, error})}
 
       {pending, rest} ->
         error = "Pi command timed out; delivery is uncertain and was not retried"
         reply(pending.from, {:error, error})
-        view = AgentState.command_error(state.view, error)
+        view = State.command_error(state.view, error)
         {:noreply, publish(%{state | pending: rest, view: view}, {:command_error, error})}
     end
   end
@@ -218,7 +217,7 @@ defmodule WebApp.AgentSession do
     do:
       {:noreply,
        publish(
-         %{state | dialog_timer: nil, view: AgentState.clear_dialog(state.view)},
+         %{state | dialog_timer: nil, view: State.clear_dialog(state.view)},
          :dialog_cleared
        )}
 
@@ -344,7 +343,7 @@ defmodule WebApp.AgentSession do
     error = "Command discovery failed: #{response["error"] || "Pi rejected the request"}"
 
     publish(
-      %{state | view: AgentState.commands_failed(state.view, error)},
+      %{state | view: State.commands_failed(state.view, error)},
       {:commands_failed, error}
     )
   end
@@ -358,14 +357,14 @@ defmodule WebApp.AgentSession do
       protocol_failure(state, error)
     else
       publish(
-        %{state | view: AgentState.command_error(state.view, error)},
+        %{state | view: State.command_error(state.view, error)},
         {:command_error, error}
       )
     end
   end
 
   defp apply_response(%{"data" => data}, %{kind: :state}, state) do
-    view = AgentState.discover(state.view, data)
+    view = State.discover(state.view, data)
     state.notifier.({:identity, state.id, data["sessionFile"], data["sessionId"]})
 
     state
@@ -376,12 +375,12 @@ defmodule WebApp.AgentSession do
 
   defp apply_response(%{"data" => data}, %{kind: :messages}, state) do
     reply_waiters(state.startup_waiters, :ok)
-    %{state | startup_waiters: [], view: AgentState.hydrate(state.view, data)}
+    %{state | startup_waiters: [], view: State.hydrate(state.view, data)}
   end
 
   defp apply_response(%{"data" => %{"commands" => commands}}, %{kind: :commands}, state) do
     publish(
-      %{state | view: AgentState.commands_ready(state.view, commands)},
+      %{state | view: State.commands_ready(state.view, commands)},
       {:commands_ready, commands}
     )
   end
@@ -393,7 +392,7 @@ defmodule WebApp.AgentSession do
   end
 
   defp publish_event(event, state) do
-    event = AgentState.cap_event(event)
+    event = State.cap_event(event)
     publish_capped_event(event, state)
   end
 
@@ -410,16 +409,16 @@ defmodule WebApp.AgentSession do
        )
        when method in ["select", "confirm", "input", "editor"] do
     state = state |> cancel_dialog_timer() |> schedule_dialog_timer(event)
-    publish(%{state | view: AgentState.apply(state.view, event)}, {:event, event})
+    publish(%{state | view: State.apply(state.view, event)}, {:event, event})
   end
 
   defp publish_capped_event(event, state),
-    do: publish(%{state | view: AgentState.apply(state.view, event)}, {:event, event})
+    do: publish(%{state | view: State.apply(state.view, event)}, {:event, event})
 
   defp publish(state, update) do
     state = %{state | update_sequence: state.update_sequence + 1}
     state.notifier.({:status, state.id, state.view.status})
-    AgentFanout.broadcast(state.id, {:agent_update, state.id, state.update_sequence, update})
+    Fanout.broadcast(state.id, {:agent_update, state.id, state.update_sequence, update})
     state
   end
 
@@ -435,7 +434,7 @@ defmodule WebApp.AgentSession do
         | closing: true,
           pending: %{},
           startup_waiters: [],
-          view: AgentState.exit(state.view, error)
+          view: State.exit(state.view, error)
       },
       {:exit, error}
     )

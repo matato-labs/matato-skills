@@ -1,7 +1,7 @@
 defmodule WebAppWeb.AgentTranscript do
   use WebAppWeb, :html
 
-  alias WebApp.AgentState
+  alias WebApp.Sessions
 
   attr(:id, :string, required: true)
   attr(:item, :map, required: true)
@@ -206,8 +206,8 @@ defmodule WebAppWeb.AgentTranscript do
 
   def visible_message?(_message), do: false
 
-  def partial_text(session), do: AgentState.partial_text(session)
-  def partial_thinking(session), do: AgentState.partial_thinking(session)
+  def partial_text(session), do: Sessions.partial_text(session)
+  def partial_thinking(session), do: Sessions.partial_thinking(session)
 
   def partial_items(session) do
     session.partial.blocks

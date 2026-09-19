@@ -10,7 +10,8 @@ defmodule WebApp.MixProject do
       start_permanent: Mix.env() == :prod,
       aliases: aliases(),
       deps: deps(),
-      compilers: [:phoenix_live_view] ++ Mix.compilers(),
+      compilers: [:boundary, :phoenix_live_view] ++ Mix.compilers(),
+      boundary: [default: [check: [aliases: true]]],
       listeners: [Phoenix.CodeReloader]
     ]
   end
@@ -40,6 +41,7 @@ defmodule WebApp.MixProject do
   # Type `mix help deps` for examples and options.
   defp deps do
     [
+      {:boundary, "~> 0.11", runtime: false},
       {:phoenix, "~> 1.8.13"},
       {:cors_plug, "~> 3.0"},
       {:phoenix_html, "~> 4.1"},

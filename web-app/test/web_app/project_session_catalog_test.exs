@@ -1,7 +1,7 @@
-defmodule WebApp.ProjectSessionCatalogTest do
+defmodule WebApp.Sessions.CatalogTest do
   use ExUnit.Case, async: false
 
-  alias WebApp.ProjectSessionCatalog
+  alias WebApp.Sessions.Catalog
 
   setup do
     workspace = Path.join(System.tmp_dir!(), "workspace-#{System.unique_integer([:positive])}")
@@ -26,7 +26,7 @@ defmodule WebApp.ProjectSessionCatalogTest do
     beta = Path.join(context.workspace, "team/beta")
 
     groups =
-      ProjectSessionCatalog.groups([
+      Catalog.groups([
         session("alpha", alpha, "2026-01-01T00:00:00Z"),
         session("beta", beta, "2026-01-03T00:00:00Z"),
         session("outside", context.outside, "2026-01-02T00:00:00Z", "terminal"),
@@ -45,7 +45,7 @@ defmodule WebApp.ProjectSessionCatalogTest do
     File.ln_s!(project, alias_path)
 
     [group] =
-      ProjectSessionCatalog.groups([
+      Catalog.groups([
         session("one", project, "2026-01-01T00:00:00Z"),
         session("two", alias_path, "2026-01-02T00:00:00Z")
       ])
@@ -63,8 +63,8 @@ defmodule WebApp.ProjectSessionCatalogTest do
       session("finished", context.workspace, "2026-01-03T00:00:00Z", "automation")
     ]
 
-    assert [%{sessions: [%{id: "workspace"}]}] = ProjectSessionCatalog.workspace_groups(sessions)
-    assert [%{sessions: [%{id: "running"}]}] = ProjectSessionCatalog.automation_groups(sessions)
+    assert [%{sessions: [%{id: "workspace"}]}] = Catalog.workspace_groups(sessions)
+    assert [%{sessions: [%{id: "running"}]}] = Catalog.automation_groups(sessions)
   end
 
   defp session(id, project, created_at, source \\ "web") do
