@@ -192,6 +192,35 @@ defmodule WebAppWeb.AgentLiveTest do
     assert html =~ "text-error"
   end
 
+  test "keeps malformed browser controls from terminating the session", %{conn: conn, id: id} do
+    {:ok, view, _html} = live(conn, ~p"/sessions/#{id}")
+
+    render_submit(view, "compose", %{"composer" => %{"message" => %{}}})
+    assert has_element?(view, "#session-error", "Invalid composer submission")
+
+    render_change(view, "set_model", %{"model" => "invalid"})
+    assert has_element?(view, "#session-error", "Invalid model selection")
+
+    render_submit(view, "dialog", %{})
+    assert has_element?(view, "#session-error", "This interaction is no longer pending")
+  end
+
+  test "normalizes malformed transcript values at the RPC boundary" do
+    assert WebAppWeb.AgentLive.command_location(%{"sourceInfo" => []}) == "unknown"
+    assert WebAppWeb.AgentLive.command_path(%{"sourceInfo" => []}) == ""
+
+    assert WebAppWeb.AgentLive.message_text(%{
+             "content" => [
+               nil,
+               %{"type" => "text", "text" => 1},
+               %{"type" => "text", "text" => "Safe"}
+             ]
+           }) == "Safe"
+
+    assert WebAppWeb.AgentLive.message_text(%{"summary" => %{}}) == ""
+    assert WebAppWeb.AgentLive.tool_result(%{"content" => [nil]}) == ""
+  end
+
   test "hides expanded skill content in the transcript" do
     message = %{
       "content" =>

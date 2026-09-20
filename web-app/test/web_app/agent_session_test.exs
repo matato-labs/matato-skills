@@ -22,10 +22,11 @@ defmodule WebApp.Sessions.AgentTest do
       id = command.get("id")
       type = command["type"]
       if type == "get_state":
-        data = {"model": None, "isStreaming": False, "isCompacting": False, "sessionFile": "#{root}/session.jsonl", "sessionId": "pi-1"}
+        data = [] if os.environ.get("MALFORMED_STATE") else {"model": None, "isStreaming": False, "isCompacting": False, "sessionFile": "#{root}/session.jsonl", "sessionId": "pi-1"}
         print(json.dumps({"id": id, "type": "response", "command": type, "success": True, "data": data}), flush=True)
       elif type == "get_messages":
-        print(json.dumps({"id": id, "type": "response", "command": type, "success": True, "data": {"messages": []}}), flush=True)
+        messages = {} if os.environ.get("MALFORMED_MESSAGES") else []
+        print(json.dumps({"id": id, "type": "response", "command": type, "success": True, "data": {"messages": messages}}), flush=True)
       elif type == "get_commands":
         if os.environ.get("REJECT_COMMANDS"):
           print(json.dumps({"id": id, "type": "response", "command": type, "success": False, "error": "unavailable"}), flush=True)
@@ -255,6 +256,35 @@ defmodule WebApp.Sessions.AgentTest do
              %{"id" => "#{id}-5", "type" => "steer", "message" => "/skill:review API work"},
              %{"id" => "#{id}-6", "type" => "follow_up", "message" => "/plan API work"}
            ]
+  end
+
+  test "fails startup when Pi returns malformed discovery data", context do
+    on_exit(fn ->
+      System.delete_env("MALFORMED_STATE")
+      System.delete_env("MALFORMED_MESSAGES")
+    end)
+
+    for {variable, expected_kind} <- [
+          {"MALFORMED_STATE", "state"},
+          {"MALFORMED_MESSAGES", "messages"}
+        ] do
+      System.put_env(variable, "1")
+      id = "test-#{System.unique_integer([:positive])}"
+
+      start_supervised!(
+        {Agent,
+         id: id,
+         name: "test",
+         project: context.root,
+         executable: context.executable,
+         interrupted: false},
+        id: id
+      )
+
+      expected_error = "Pi returned malformed #{expected_kind} discovery data"
+      assert {:error, ^expected_error} = Agent.await_ready(id)
+      System.delete_env(variable)
+    end
   end
 
   test "handles Pi exiting before the first command", context do

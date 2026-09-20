@@ -145,10 +145,16 @@ defmodule WebApp.Sessions.Agent do
     if is_nil(state.view.dialog) or state.view.dialog["id"] != response["id"] do
       {:reply, {:error, "This interaction is no longer pending"}, state}
     else
-      true = Port.command(state.port, Jason.encode!(response) <> "\n")
-      state = cancel_dialog_timer(state)
+      try do
+        true = Port.command(state.port, Jason.encode!(response) <> "\n")
+        state = cancel_dialog_timer(state)
 
-      {:reply, :ok, publish(%{state | view: State.clear_dialog(state.view)}, :dialog_cleared)}
+        {:reply, :ok, publish(%{state | view: State.clear_dialog(state.view)}, :dialog_cleared)}
+      rescue
+        ArgumentError ->
+          error = "Pi exited before accepting a dialog response"
+          {:reply, {:error, error}, protocol_failure(state, error)}
+      end
     end
   end
 
@@ -290,12 +296,13 @@ defmodule WebApp.Sessions.Agent do
   defp send_command(state, command, kind, from) do
     id = "#{state.id}-#{state.sequence + 1}"
     payload = Map.put(command, "id", id)
+    timer = Process.send_after(self(), {:command_timeout, id}, @command_timeout)
+    pending = Map.put(state.pending, id, %{kind: kind, from: from, timer: timer})
+    state = %{state | pending: pending, sequence: state.sequence + 1}
 
     try do
       true = Port.command(state.port, Jason.encode!(payload) <> "\n")
-      timer = Process.send_after(self(), {:command_timeout, id}, @command_timeout)
-      pending = Map.put(state.pending, id, %{kind: kind, from: from, timer: timer})
-      %{state | pending: pending, sequence: state.sequence + 1}
+      state
     rescue
       ArgumentError -> protocol_failure(state, "Pi exited before accepting a command")
     end
@@ -363,7 +370,7 @@ defmodule WebApp.Sessions.Agent do
     end
   end
 
-  defp apply_response(%{"data" => data}, %{kind: :state}, state) do
+  defp apply_response(%{"data" => data}, %{kind: :state}, state) when is_map(data) do
     view = State.discover(state.view, data)
     state.notifier.({:identity, state.id, data["sessionFile"], data["sessionId"]})
 
@@ -373,9 +380,20 @@ defmodule WebApp.Sessions.Agent do
     |> send_command(%{"type" => "get_commands"}, :commands, nil)
   end
 
-  defp apply_response(%{"data" => data}, %{kind: :messages}, state) do
+  defp apply_response(
+         %{"data" => %{"messages" => messages} = data},
+         %{kind: :messages},
+         state
+       )
+       when is_list(messages) do
     reply_waiters(state.startup_waiters, :ok)
     %{state | startup_waiters: [], view: State.hydrate(state.view, data)}
+  end
+
+  defp apply_response(_response, %{kind: kind}, state) when kind in [:state, :messages] do
+    error = "Pi returned malformed #{kind} discovery data"
+    if Port.info(state.port), do: Port.close(state.port)
+    protocol_failure(state, error)
   end
 
   defp apply_response(%{"data" => %{"commands" => commands}}, %{kind: :commands}, state) do

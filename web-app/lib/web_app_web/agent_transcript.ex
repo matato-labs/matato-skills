@@ -175,18 +175,24 @@ defmodule WebAppWeb.AgentTranscript do
     do: "#{div(duration, 60_000)}m #{rem(div(duration, 1_000), 60)}s"
 
   def markdown(text), do: {:safe, MDEx.to_html!(text)}
-  def command_location(command), do: get_in(command, ["sourceInfo", "scope"]) || "unknown"
-  def command_path(command), do: get_in(command, ["sourceInfo", "path"]) || ""
+
+  def command_location(%{"sourceInfo" => %{"scope" => scope}}) when is_binary(scope), do: scope
+  def command_location(_command), do: "unknown"
+  def command_path(%{"sourceInfo" => %{"path" => path}}) when is_binary(path), do: path
+  def command_path(_command), do: ""
 
   def message_text(%{"content" => content}) when is_binary(content), do: content
 
   def message_text(%{"content" => content}) when is_list(content) do
     content
-    |> Enum.filter(&(&1["type"] == "text"))
-    |> Enum.map_join("\n", & &1["text"])
+    |> Enum.flat_map(fn
+      %{"type" => "text", "text" => text} when is_binary(text) -> [text]
+      _block -> []
+    end)
+    |> Enum.join("\n")
   end
 
-  def message_text(%{"summary" => summary}), do: summary
+  def message_text(%{"summary" => summary}) when is_binary(summary), do: summary
   def message_text(_message), do: ""
 
   def display_message_text(message) do
@@ -242,13 +248,17 @@ defmodule WebAppWeb.AgentTranscript do
   def tool_output(%{args: args, result: result}), do: args <> "\n\n" <> tool_result(result)
   def tool_result(nil), do: ""
 
-  def tool_result(result) do
-    result
-    |> Map.get("content", [])
-    |> Enum.filter(&(&1["type"] == "text"))
-    |> Enum.map_join("\n", & &1["text"])
+  def tool_result(%{"content" => content}) when is_list(content) do
+    content
+    |> Enum.flat_map(fn
+      %{"type" => "text", "text" => text} when is_binary(text) -> [text]
+      _block -> []
+    end)
+    |> Enum.join("\n")
     |> String.slice(0, 12_000)
   end
+
+  def tool_result(_result), do: ""
 
   def mark_expanded_work(items, expanded_work_ids) do
     Enum.map(items, fn item ->
