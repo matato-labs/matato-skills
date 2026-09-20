@@ -3,7 +3,7 @@ defmodule WebAppWeb.AgentLive do
 
   alias WebApp.{Bots, Messages, Sessions}
 
-  alias WebAppWeb.{AgentTranscript, SessionComponents}
+  alias WebAppWeb.{AgentDialog, AgentModel, AgentTranscript, SessionComponents}
 
   @max_prompt_bytes 100_000
 
@@ -197,19 +197,27 @@ defmodule WebAppWeb.AgentLive do
         "compose",
         %{"composer" => %{"message" => message}, "behavior" => "steer"},
         socket
-      ),
+      )
+      when is_binary(message),
       do: send_command(socket, "steer", message)
 
-  def handle_event("compose", %{"composer" => %{"message" => message}}, socket),
-    do:
-      send_command(
-        socket,
-        if(agent_active?(socket.assigns.session.status), do: "follow_up", else: "prompt"),
-        message
+  def handle_event(
+        "compose",
+        %{"composer" => %{"message" => message}},
+        %{assigns: %{session: %{status: status}}} = socket
       )
+      when is_binary(message),
+      do:
+        send_command(socket, if(agent_active?(status), do: "follow_up", else: "prompt"), message)
 
-  def handle_event("draft", %{"composer" => %{"message" => message}}, socket),
-    do: {:noreply, set_draft(socket, message)}
+  def handle_event("compose", _params, socket),
+    do: {:noreply, assign(socket, error: "Invalid composer submission")}
+
+  def handle_event("draft", %{"composer" => %{"message" => message}}, socket)
+      when is_binary(message),
+      do: {:noreply, set_draft(socket, message)}
+
+  def handle_event("draft", _params, socket), do: {:noreply, socket}
 
   def handle_event("abort", _params, socket), do: run_command(socket, %{"type" => "abort"})
 
@@ -228,26 +236,30 @@ defmodule WebAppWeb.AgentLive do
     {:noreply, assign(socket, session: %{socket.assigns.session | status: :stopped})}
   end
 
-  def handle_event("set_model", %{"model" => value}, socket) do
-    [provider, model_id] = String.split(value, "/", parts: 2)
+  def handle_event("set_model", %{"model" => value}, socket) when is_binary(value) do
+    case String.split(value, "/", parts: 2) do
+      [provider, model_id] when provider != "" and model_id != "" ->
+        set_model(socket, provider, model_id)
 
-    case command(socket, %{"type" => "set_model", "provider" => provider, "modelId" => model_id}) do
-      :ok -> {:noreply, apply_model(socket, %{"provider" => provider, "id" => model_id})}
-      {:ok, model} -> {:noreply, apply_model(socket, model)}
+      _parts ->
+        {:noreply, assign(socket, error: "Invalid model selection")}
+    end
+  end
+
+  def handle_event("set_model", _params, socket),
+    do: {:noreply, assign(socket, error: "Invalid model selection")}
+
+  def handle_event("set_thinking_level", %{"level" => level}, socket)
+      when is_binary(level) do
+    case command(socket, %{"type" => "set_thinking_level", "level" => level}) do
+      :ok -> apply_thinking_level(socket, level)
+      {:ok, _data} -> apply_thinking_level(socket, level)
       {:error, error} -> {:noreply, assign(socket, error: error)}
     end
   end
 
-  def handle_event("set_thinking_level", %{"level" => level}, socket) do
-    case command(socket, %{"type" => "set_thinking_level", "level" => level}) do
-      :ok ->
-        session = Map.put(socket.assigns.session, :thinking_level, level)
-        {:noreply, assign(socket, session: session, error: nil)}
-
-      {:error, error} ->
-        {:noreply, assign(socket, error: error)}
-    end
-  end
+  def handle_event("set_thinking_level", _params, socket),
+    do: {:noreply, assign(socket, error: "Invalid thinking level")}
 
   def handle_event("resume", _params, socket) do
     id = socket.assigns.session_id
@@ -260,14 +272,22 @@ defmodule WebAppWeb.AgentLive do
     :exit, _reason -> {:noreply, assign(socket, error: "Agent process could not be resumed")}
   end
 
-  def handle_event("dialog", params, socket) do
-    response = dialog_response(socket.assigns.session.dialog, params)
+  def handle_event(
+        "dialog",
+        params,
+        %{assigns: %{session: %{dialog: %{"id" => _id}}}} = socket
+      )
+      when is_map(params) do
+    response = AgentDialog.response(socket.assigns.session.dialog, params)
 
     case Sessions.respond(socket.assigns.session_id, response) do
       :ok -> {:noreply, assign(socket, session: Sessions.clear_dialog(socket.assigns.session))}
       {:error, error} -> {:noreply, assign(socket, error: error)}
     end
   end
+
+  def handle_event("dialog", _params, socket),
+    do: {:noreply, assign(socket, error: "This interaction is no longer pending")}
 
   @impl true
   def handle_info(:changed, socket), do: {:noreply, assign_sessions(socket)}
@@ -341,6 +361,7 @@ defmodule WebAppWeb.AgentLive do
       true ->
         case command(socket, %{"type" => type, "message" => message}) do
           :ok -> {:noreply, socket |> set_draft("") |> assign(error: nil)}
+          {:ok, _data} -> {:noreply, socket |> set_draft("") |> assign(error: nil)}
           {:error, error} -> {:noreply, assign(socket, error: error)}
         end
     end
@@ -422,16 +443,31 @@ defmodule WebAppWeb.AgentLive do
 
   defp sync_model_state(socket) do
     case command(socket, %{"type" => "get_state"}) do
-      {:ok, data} ->
+      {:ok, data} when is_map(data) ->
         session =
           socket.assigns.session
-          |> Map.put(:model, data["model"])
-          |> Map.put(:thinking_level, data["thinkingLevel"])
+          |> Map.put(:model, AgentModel.valid(data["model"]))
+          |> Map.put(:thinking_level, AgentModel.binary_value(data["thinkingLevel"]))
 
         assign(socket, session: session)
 
       _result ->
         socket
+    end
+  end
+
+  defp apply_thinking_level(socket, level) do
+    session = Map.put(socket.assigns.session, :thinking_level, level)
+    {:noreply, assign(socket, session: session, error: nil)}
+  end
+
+  defp set_model(socket, provider, model_id) do
+    selected = %{"provider" => provider, "id" => model_id}
+
+    case command(socket, %{"type" => "set_model", "provider" => provider, "modelId" => model_id}) do
+      :ok -> {:noreply, apply_model(socket, selected)}
+      {:ok, model} -> {:noreply, apply_model(socket, AgentModel.valid(model) || selected)}
+      {:error, error} -> {:noreply, assign(socket, error: error)}
     end
   end
 
@@ -442,21 +478,19 @@ defmodule WebAppWeb.AgentLive do
 
   defp available_models(socket) do
     case command(socket, %{"type" => "get_available_models"}) do
-      {:ok, %{"models" => models}} -> models_with_current(socket.assigns.session.model, models)
-      _result -> []
+      {:ok, %{"models" => models}} when is_list(models) ->
+        models
+        |> AgentModel.normalize()
+        |> then(&AgentModel.with_current(socket.assigns.session.model, &1))
+
+      _result ->
+        []
     end
-  end
-
-  defp models_with_current(nil, models), do: models
-
-  defp models_with_current(model, models) do
-    current? = &(&1["id"] == model["id"] and &1["provider"] == model["provider"])
-    if Enum.any?(models, current?), do: models, else: [model | models]
   end
 
   defp thinking_levels(socket) do
     case command(socket, %{"type" => "get_available_thinking_levels"}) do
-      {:ok, %{"levels" => levels}} -> levels
+      {:ok, %{"levels" => levels}} when is_list(levels) -> Enum.filter(levels, &is_binary/1)
       _result -> []
     end
   end
@@ -503,16 +537,22 @@ defmodule WebAppWeb.AgentLive do
     |> AgentTranscript.mark_expanded_work(socket.assigns.expanded_work_ids)
   end
 
-  defp apply_hint(socket, {:hint, %{"method" => "set_editor_text", "text" => text}}),
-    do: set_draft(socket, text)
+  defp apply_hint(socket, {:hint, %{"method" => "set_editor_text", "text" => text}})
+       when is_binary(text),
+       do: set_draft(socket, text)
 
-  defp apply_hint(socket, {:hint, %{"method" => "setTitle", "title" => title}}),
-    do: assign(socket, page_title: title)
+  defp apply_hint(socket, {:hint, %{"method" => "setTitle", "title" => title}})
+       when is_binary(title),
+       do: assign(socket, page_title: title)
 
   defp apply_hint(socket, _update), do: socket
 
   defp apply_dialog_form(socket, {:event, %{"type" => "extension_ui_request"} = event}),
-    do: assign(socket, dialog_form: to_form(%{"value" => event["prefill"] || ""}, as: :dialog))
+    do:
+      assign(socket,
+        dialog_form:
+          to_form(%{"value" => AgentModel.binary_value(event["prefill"]) || ""}, as: :dialog)
+      )
 
   defp apply_dialog_form(socket, _update), do: socket
 
@@ -554,17 +594,4 @@ defmodule WebAppWeb.AgentLive do
          )}
     end
   end
-
-  defp dialog_response(%{"id" => id, "method" => "confirm"}, params) do
-    %{"type" => "extension_ui_response", "id" => id, "confirmed" => params["answer"] == "true"}
-  end
-
-  defp dialog_response(%{"id" => id}, %{"cancel" => "true"}),
-    do: %{"type" => "extension_ui_response", "id" => id, "cancelled" => true}
-
-  defp dialog_response(%{"id" => id}, %{"dialog" => params}),
-    do: %{"type" => "extension_ui_response", "id" => id, "value" => params["value"]}
-
-  defp dialog_response(%{"id" => id}, params),
-    do: %{"type" => "extension_ui_response", "id" => id, "value" => params["value"]}
 end

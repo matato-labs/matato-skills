@@ -248,13 +248,16 @@ defmodule WebApp.Automations.Runner do
 
   defp log_progress(automation, line) do
     case Jason.decode(line) do
-      {:ok, %{"type" => "tool_execution_start", "toolName" => tool_name}} ->
+      {:ok, %{"type" => "tool_execution_start", "toolName" => tool_name}}
+      when is_binary(tool_name) ->
         Logger.info("Automation agent tool started: #{automation.job_name} (#{tool_name})")
 
-      {:ok, %{"type" => "tool_execution_end", "toolName" => tool_name, "isError" => true}} ->
+      {:ok, %{"type" => "tool_execution_end", "toolName" => tool_name, "isError" => true}}
+      when is_binary(tool_name) ->
         Logger.warning("Automation agent tool failed: #{automation.job_name} (#{tool_name})")
 
-      {:ok, %{"type" => "tool_execution_end", "toolName" => tool_name}} ->
+      {:ok, %{"type" => "tool_execution_end", "toolName" => tool_name}}
+      when is_binary(tool_name) ->
         Logger.info("Automation agent tool completed: #{automation.job_name} (#{tool_name})")
 
       _ ->
@@ -268,7 +271,11 @@ defmodule WebApp.Automations.Runner do
        %{"type" => "message_end", "message" => %{"role" => "assistant", "content" => content}}}
       when is_list(content) ->
         text =
-          content |> Enum.filter(&(&1["type"] == "text")) |> Enum.map_join("\n", & &1["text"])
+          Enum.flat_map(content, fn
+            %{"type" => "text", "text" => text} when is_binary(text) -> [text]
+            _block -> []
+          end)
+          |> Enum.join("\n")
 
         if text == "", do: response, else: text
 
@@ -288,9 +295,14 @@ defmodule WebApp.Automations.Runner do
 
   defp rpc_state(line) do
     case Jason.decode(line) do
-      {:ok, %{"type" => "agent_settled"}} -> :settled
-      {:ok, %{"type" => "response", "success" => false, "error" => error}} -> {:error, error}
-      _ -> nil
+      {:ok, %{"type" => "agent_settled"}} ->
+        :settled
+
+      {:ok, %{"type" => "response", "success" => false, "error" => error}} ->
+        {:error, if(is_binary(error), do: error, else: inspect(error))}
+
+      _ ->
+        nil
     end
   end
 end

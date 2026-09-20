@@ -56,16 +56,16 @@ jobs:
       - uses: oven-sh/setup-bun@v2
       - uses: erlef/setup-beam@v1
         with:
-          elixir-version: "1.19.2"
+          elixir-version: "1.20.4"
           otp-version: "28.1.1"
       - uses: actions/cache@v4
         with:
           path: web-app/deps
-          key: elixir-deps-${{ runner.os }}-${{ hashFiles('web-app/mix.lock') }}
+          key: elixir-deps-1.20.4-otp-28.1.1-${{ runner.os }}-${{ hashFiles('web-app/mix.lock') }}
       - uses: actions/cache@v4
         with:
           path: web-app/_build
-          key: elixir-build-${{ runner.os }}-${{ hashFiles('web-app/mix.lock') }}
+          key: elixir-build-1.20.4-otp-28.1.1-${{ runner.os }}-${{ hashFiles('web-app/mix.lock') }}
       - run: mix deps.get
       - run: MIX_ENV=test mix do compile --warnings-as-errors + test --warnings-as-errors
 
@@ -79,15 +79,15 @@ jobs:
       - uses: actions/checkout@v4
       - uses: erlef/setup-beam@v1
         with:
-          elixir-version: "1.19.2"
+          elixir-version: "1.20.4"
           otp-version: "28.1.1"
       - uses: actions/cache@v4
         with:
           path: web-app/deps
-          key: elixir-deps-${{ runner.os }}-${{ hashFiles('web-app/mix.lock') }}
+          key: elixir-deps-1.20.4-otp-28.1.1-${{ runner.os }}-${{ hashFiles('web-app/mix.lock') }}
       - uses: actions/cache@v4
         with:
           path: web-app/_build
-          key: elixir-build-dev-${{ runner.os }}-${{ hashFiles('web-app/mix.lock') }}
+          key: elixir-build-dev-1.20.4-otp-28.1.1-${{ runner.os }}-${{ hashFiles('web-app/mix.lock') }}
       - run: mix deps.get
       - run: mix format --check-formatted

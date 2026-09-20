@@ -145,10 +145,15 @@ defmodule WebApp.Sessions.Agent do
     if is_nil(state.view.dialog) or state.view.dialog["id"] != response["id"] do
       {:reply, {:error, "This interaction is no longer pending"}, state}
     else
-      true = Port.command(state.port, Jason.encode!(response) <> "\n")
-      state = cancel_dialog_timer(state)
+      case port_command(state.port, response) do
+        :ok ->
+          state = cancel_dialog_timer(state)
+          {:reply, :ok, publish(%{state | view: State.clear_dialog(state.view)}, :dialog_cleared)}
 
-      {:reply, :ok, publish(%{state | view: State.clear_dialog(state.view)}, :dialog_cleared)}
+        :error ->
+          error = "Pi exited before accepting a dialog response"
+          {:reply, {:error, error}, protocol_failure(state, error)}
+      end
     end
   end
 
@@ -290,15 +295,20 @@ defmodule WebApp.Sessions.Agent do
   defp send_command(state, command, kind, from) do
     id = "#{state.id}-#{state.sequence + 1}"
     payload = Map.put(command, "id", id)
+    timer = Process.send_after(self(), {:command_timeout, id}, @command_timeout)
+    pending = Map.put(state.pending, id, %{kind: kind, from: from, timer: timer})
+    state = %{state | pending: pending, sequence: state.sequence + 1}
 
-    try do
-      true = Port.command(state.port, Jason.encode!(payload) <> "\n")
-      timer = Process.send_after(self(), {:command_timeout, id}, @command_timeout)
-      pending = Map.put(state.pending, id, %{kind: kind, from: from, timer: timer})
-      %{state | pending: pending, sequence: state.sequence + 1}
-    rescue
-      ArgumentError -> protocol_failure(state, "Pi exited before accepting a command")
+    case port_command(state.port, payload) do
+      :ok -> state
+      :error -> protocol_failure(state, "Pi exited before accepting a command")
     end
+  end
+
+  defp port_command(port, message) do
+    if Port.command(port, Jason.encode!(message) <> "\n"), do: :ok, else: :error
+  rescue
+    ArgumentError -> :error
   end
 
   defp decode(_line, %{closing: true} = state), do: state
@@ -363,7 +373,7 @@ defmodule WebApp.Sessions.Agent do
     end
   end
 
-  defp apply_response(%{"data" => data}, %{kind: :state}, state) do
+  defp apply_response(%{"data" => data}, %{kind: :state}, state) when is_map(data) do
     view = State.discover(state.view, data)
     state.notifier.({:identity, state.id, data["sessionFile"], data["sessionId"]})
 
@@ -373,16 +383,36 @@ defmodule WebApp.Sessions.Agent do
     |> send_command(%{"type" => "get_commands"}, :commands, nil)
   end
 
-  defp apply_response(%{"data" => data}, %{kind: :messages}, state) do
+  defp apply_response(
+         %{"data" => %{"messages" => messages} = data},
+         %{kind: :messages},
+         state
+       )
+       when is_list(messages) do
     reply_waiters(state.startup_waiters, :ok)
     %{state | startup_waiters: [], view: State.hydrate(state.view, data)}
   end
 
-  defp apply_response(%{"data" => %{"commands" => commands}}, %{kind: :commands}, state) do
+  defp apply_response(_response, %{kind: kind}, state) when kind in [:state, :messages] do
+    error = "Pi returned malformed #{kind} discovery data"
+    if Port.info(state.port), do: Port.close(state.port)
+    protocol_failure(state, error)
+  end
+
+  defp apply_response(%{"data" => %{"commands" => commands}}, %{kind: :commands}, state)
+       when is_list(commands) do
+    commands = Enum.flat_map(commands, &normalize_command/1)
+
     publish(
       %{state | view: State.commands_ready(state.view, commands)},
       {:commands_ready, commands}
     )
+  end
+
+  defp apply_response(_response, %{kind: :commands}, state) do
+    error = "Command discovery failed: Pi returned malformed data"
+    view = State.commands_failed(state.view, error)
+    publish(%{state | view: view}, {:commands_failed, error})
   end
 
   defp apply_response(response, pending, state) do
@@ -390,6 +420,22 @@ defmodule WebApp.Sessions.Agent do
     reply(pending.from, result)
     state
   end
+
+  defp normalize_command(%{"name" => name} = command) when is_binary(name) and name != "" do
+    [
+      %{
+        "name" => name,
+        "description" => binary_value(command["description"]),
+        "source" => binary_value(command["source"]),
+        "sourceInfo" => command["sourceInfo"]
+      }
+    ]
+  end
+
+  defp normalize_command(_command), do: []
+
+  defp binary_value(value) when is_binary(value), do: value
+  defp binary_value(_value), do: ""
 
   defp publish_event(event, state) do
     event = State.cap_event(event)
@@ -404,10 +450,10 @@ defmodule WebApp.Sessions.Agent do
        do: publish(state, {:hint, event})
 
   defp publish_capped_event(
-         %{"type" => "extension_ui_request", "method" => method} = event,
+         %{"type" => "extension_ui_request", "method" => method, "id" => id} = event,
          state
        )
-       when method in ["select", "confirm", "input", "editor"] do
+       when method in ["select", "confirm", "input", "editor"] and is_binary(id) do
     state = state |> cancel_dialog_timer() |> schedule_dialog_timer(event)
     publish(%{state | view: State.apply(state.view, event)}, {:event, event})
   end

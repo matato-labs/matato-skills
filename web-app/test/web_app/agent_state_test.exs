@@ -117,6 +117,49 @@ defmodule WebApp.Sessions.StateTest do
     assert state.queue == %{"steering" => ["Change the approach"], "followUp" => []}
   end
 
+  test "drops malformed live event values without corrupting the session snapshot" do
+    state =
+      State.new()
+      |> State.apply(%{"type" => "queue_update", "steering" => %{}, "followUp" => ["Safe", 1]})
+      |> State.apply(%{
+        "type" => "message_update",
+        "assistantMessageEvent" => %{
+          "type" => "text_delta",
+          "contentIndex" => %{},
+          "delta" => %{}
+        }
+      })
+      |> State.apply(%{
+        "type" => "tool_execution_update",
+        "toolCallId" => %{},
+        "partialResult" => %{"content" => [nil]}
+      })
+      |> State.apply(%{"type" => "extension_ui_request", "method" => "input", "id" => %{}})
+      |> State.apply(%{"type" => "extension_error", "error" => %{}})
+
+    assert state.queue == %{"steering" => [], "followUp" => ["Safe"]}
+    assert state.partial == %{blocks: %{}}
+    assert state.tools == %{}
+    assert state.dialog == nil
+    assert state.error == nil
+  end
+
+  test "does not store a tool with a malformed identifier" do
+    state =
+      State.apply(State.new(), %{
+        "type" => "message_update",
+        "assistantMessageEvent" => %{
+          "type" => "toolcall_start",
+          "contentIndex" => 0,
+          "id" => %{},
+          "toolName" => "bash"
+        }
+      })
+
+    assert state.tools == %{}
+    assert state.tool_order == []
+  end
+
   test "uses message_end as the authoritative completed message" do
     message = %{"role" => "assistant", "content" => [%{"type" => "text", "text" => "Done"}]}
     state = State.apply(State.new(), %{"type" => "message_end", "message" => message})
