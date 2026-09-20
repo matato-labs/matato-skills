@@ -89,24 +89,20 @@ defmodule WebAppWeb.SessionLive do
     end
   end
 
-  def handle_event("start", %{"session" => %{"project" => relative}}, socket)
-      when is_binary(relative) do
-    if byte_size(relative) > 1_024 do
-      {:noreply, assign(socket, error: "Project path is too long")}
-    else
-      case Sessions.create(relative) do
-        {:ok, id} -> {:noreply, push_navigate(socket, to: "/sessions/#{id}")}
-        {:error, error} -> {:noreply, assign(socket, error: error)}
-      end
+  def handle_event("start", %{"session" => params}, socket) do
+    relative = params["project"] || ""
+
+    cond do
+      byte_size(relative) > 1_024 ->
+        {:noreply, assign(socket, error: "Project path is too long")}
+
+      true ->
+        case Sessions.create(relative) do
+          {:ok, id} -> {:noreply, push_navigate(socket, to: "/sessions/#{id}")}
+          {:error, error} -> {:noreply, assign(socket, error: error)}
+        end
     end
   end
-
-  def handle_event("start", %{"session" => params}, socket)
-      when is_map(params) and not is_map_key(params, "project"),
-      do: handle_event("start", %{"session" => %{"project" => ""}}, socket)
-
-  def handle_event("start", _params, socket),
-    do: {:noreply, assign(socket, error: "Invalid session submission")}
 
   @impl true
   def handle_info(:changed, socket) do

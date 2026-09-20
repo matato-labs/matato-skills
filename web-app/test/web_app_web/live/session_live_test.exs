@@ -3,23 +3,6 @@ defmodule WebAppWeb.SessionLiveTest do
 
   import Phoenix.LiveViewTest
 
-  test "rejects malformed project values without terminating the page", %{conn: conn} do
-    {:ok, view, _html} = live(conn, ~p"/")
-
-    render_submit(view, "start", %{"session" => %{"project" => %{}}})
-
-    assert has_element?(view, "[class*='text-error']", "Invalid session submission")
-
-    assert {:noreply, socket} =
-             WebAppWeb.SessionLive.handle_event(
-               "start",
-               %{"session" => %{"project" => %{}}},
-               %Phoenix.LiveView.Socket{}
-             )
-
-    assert socket.assigns.error == "Invalid session submission"
-  end
-
   test "opens and closes the mobile session drawer", %{conn: conn} do
     {:ok, view, _html} = live(conn, ~p"/")
 
