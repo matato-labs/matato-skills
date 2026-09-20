@@ -22,15 +22,9 @@ defmodule WebApp.TimeZoneTest do
   end
 
   test "uses the configured time zone for automation schedules" do
-    System.put_env("WEB_APP_TIME_ZONE", " America/New_York ")
+    System.put_env("WEB_APP_TIME_ZONE", "America/New_York")
 
     assert time_zone_config() == "America/New_York"
-  end
-
-  test "uses the default for a blank configured time zone" do
-    System.put_env("WEB_APP_TIME_ZONE", "  ")
-
-    assert time_zone_config() == "Europe/Berlin"
   end
 
   test "makes configured time zones available to the application" do

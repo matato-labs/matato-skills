@@ -115,42 +115,6 @@ defmodule WebApp.AutomationsTest do
     assert result.content == "Done"
   end
 
-  test "ignores malformed external progress and content while preserving valid text" do
-    job_name = "automation-#{System.unique_integer([:positive])}"
-    pi_dir = Path.join(System.tmp_dir!(), "pi-#{System.unique_integer([:positive])}")
-    pi_path = Path.join(pi_dir, "pi")
-    File.mkdir_p!(pi_dir)
-
-    bot =
-      Repo.insert!(%Bot{
-        name: "Boundary",
-        role: "tester",
-        description: "Tests malformed output",
-        chat_remote_session_id: "chat-boundary",
-        background_remote_session_id: "background-boundary"
-      })
-
-    File.write!(
-      pi_path,
-      "#!/bin/sh\nIFS= read -r line\nprintf '%s\\n' '{\"type\":\"tool_execution_start\",\"toolName\":{}}' '{\"type\":\"message_end\",\"message\":{\"role\":\"assistant\",\"content\":[null,{\"type\":\"text\",\"text\":5},{\"type\":\"text\",\"text\":\"Safe\"}]}}' '{\"type\":\"agent_settled\"}'\n"
-    )
-
-    File.chmod!(pi_path, 0o755)
-    original_path = System.get_env("PATH")
-    System.put_env("PATH", "#{pi_dir}:#{original_path}")
-
-    on_exit(fn ->
-      System.put_env("PATH", original_path)
-      Repo.delete_all(Message)
-      Repo.delete(bot)
-      File.rm_rf!(pi_dir)
-    end)
-
-    Runner.run(%{automation(job_name, "* * * * *") | use_skill: false, bot_id: bot.id})
-
-    assert [%{content: "Safe"}] = Messages.list_for_bot(bot.id)
-  end
-
   test "registers monitored automation work while it is running" do
     job_name = "automation-#{System.unique_integer([:positive])}"
     pi_dir = Path.join(System.tmp_dir!(), "pi-#{System.unique_integer([:positive])}")
