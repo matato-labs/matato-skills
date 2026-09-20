@@ -9,6 +9,15 @@ defmodule WebAppWeb.SessionLiveTest do
     render_submit(view, "start", %{"session" => %{"project" => %{}}})
 
     assert has_element?(view, "[class*='text-error']", "Invalid session submission")
+
+    assert {:noreply, socket} =
+             WebAppWeb.SessionLive.handle_event(
+               "start",
+               %{"session" => %{"project" => %{}}},
+               %Phoenix.LiveView.Socket{}
+             )
+
+    assert socket.assigns.error == "Invalid session submission"
   end
 
   test "opens and closes the mobile session drawer", %{conn: conn} do
