@@ -1,15 +1,20 @@
-import { isAbsolute, basename, relative, resolve, sep } from "node:path";
+import { spawn } from "node:child_process";
+import { isAbsolute, basename, join, relative, resolve, sep } from "node:path";
 import type {
   ExtensionAPI,
   ExtensionCommandContext,
 } from "@earendil-works/pi-coding-agent";
 
 const webUrl = process.env.MATATO_PI_WEB_URL ?? "http://localhost:4000";
+const remoteSessionDirectory = ".pi/agent/sessions";
+const sshHostPattern = /^[A-Za-z0-9][A-Za-z0-9.-]*$/;
 
 type SessionInfo = {
   getSessionFile(): string | undefined;
   getSessionId(): string;
 };
+
+type CommandResult = { stdout: string; stderr: string };
 
 export type RemoteSessionContext = {
   cwd: string;
@@ -18,9 +23,20 @@ export type RemoteSessionContext = {
 };
 
 export type FetchLike = (url: string, init?: RequestInit) => Promise<Response>;
+export type CommandRunner = (
+  command: string,
+  args: Array<string>,
+) => Promise<CommandResult>;
 
 type RegistrationResponse = { session: { id: string } };
 type ErrorResponse = { error?: string; errors?: Record<string, Array<string>> };
+type RemoteCommand = { name: string; host?: string };
+type SessionRegistration = {
+  name: string;
+  project: string;
+  sessionFile: string;
+  sessionId: string;
+};
 
 export function relativeProject(cwd: string, workspace: string): string {
   const relativePath = relative(resolve(workspace), cwd);
@@ -42,11 +58,118 @@ export function registrationError(status: number, body: ErrorResponse): string {
     : `Registration failed with status ${status}.`;
 }
 
+export function remoteCommand(args: string): RemoteCommand {
+  const hostOption = /(?:^|\s)--host(?:\s+(\S+))?\s*$/.exec(args);
+  if (!hostOption && /(?:^|\s)--host(?:\s|$)/.test(args))
+    throw new Error(
+      "Invalid --host syntax. Use /remote [name] --host <sshHost>.",
+    );
+  if (!hostOption) return { name: args.trim() };
+
+  const host = hostOption[1];
+  if (!host || !sshHostPattern.test(host))
+    throw new Error(
+      "Invalid SSH host. Use an SSH config host name, for example: --host piServer.",
+    );
+
+  return { name: args.slice(0, hostOption.index).trim(), host };
+}
+
+export function runCommand(
+  command: string,
+  args: Array<string>,
+): Promise<CommandResult> {
+  return new Promise((resolvePromise, reject) => {
+    const child = spawn(command, args, { shell: false });
+    let stdout = "";
+    let stderr = "";
+
+    child.stdout.on("data", (chunk: Buffer) => (stdout += chunk.toString()));
+    child.stderr.on("data", (chunk: Buffer) => (stderr += chunk.toString()));
+    child.once("error", reject);
+    child.once("close", (code) => {
+      if (code === 0) return resolvePromise({ stdout, stderr });
+      reject(
+        new Error(stderr.trim() || `${command} exited with status ${code}.`),
+      );
+    });
+  });
+}
+
+async function copySessionFile(
+  host: string,
+  sessionFile: string,
+  commandRunner: CommandRunner,
+): Promise<string> {
+  let homeDirectory: string;
+  try {
+    const result = await commandRunner("ssh", [
+      host,
+      `mkdir -p ${remoteSessionDirectory} && pwd`,
+    ]);
+    homeDirectory = result.stdout.trim();
+  } catch {
+    throw new Error(`Could not prepare Pi session storage on ${host} via SSH.`);
+  }
+
+  const remoteFile = join(
+    homeDirectory,
+    remoteSessionDirectory,
+    basename(sessionFile),
+  );
+  try {
+    await commandRunner("scp", [
+      sessionFile,
+      `${host}:${remoteSessionDirectory}/${basename(sessionFile)}`,
+    ]);
+  } catch {
+    throw new Error(`Could not copy the session file to ${host} via SCP.`);
+  }
+
+  return remoteFile;
+}
+
+async function registerSession(
+  registration: SessionRegistration,
+  targetWebUrl: string,
+  fetchImpl: FetchLike,
+): Promise<RegistrationResponse> {
+  const response = await fetchImpl(`${targetWebUrl}/api/sessions`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      name: registration.name,
+      relative_project: registration.project,
+      session_file: registration.sessionFile,
+      pi_session_id: registration.sessionId,
+    }),
+  });
+
+  if (!response.ok) {
+    const body = (await response.json().catch(() => ({}))) as ErrorResponse;
+    throw new Error(registrationError(response.status, body));
+  }
+
+  return (await response.json()) as RegistrationResponse;
+}
+
 export async function registerRemoteSession(
   args: string,
   ctx: RemoteSessionContext,
   fetchImpl: FetchLike = fetch,
+  commandRunner: CommandRunner = runCommand,
 ): Promise<void> {
+  let command: RemoteCommand;
+  try {
+    command = remoteCommand(args);
+  } catch (error) {
+    ctx.ui.notify(
+      error instanceof Error ? error.message : "Invalid command.",
+      "error",
+    );
+    return;
+  }
+
   const sessionFile = ctx.sessionManager.getSessionFile();
   if (!sessionFile) {
     ctx.ui.notify(
@@ -76,37 +199,55 @@ export async function registerRemoteSession(
     return;
   }
 
-  const name = args.trim() || basename(ctx.cwd);
+  const name = command.name || basename(ctx.cwd);
+  let registeredSessionFile = sessionFile;
+  let targetWebUrl = webUrl;
+  if (command.host) {
+    try {
+      registeredSessionFile = await copySessionFile(
+        command.host,
+        sessionFile,
+        commandRunner,
+      );
+    } catch (error) {
+      ctx.ui.notify(
+        error instanceof Error ? error.message : "Could not copy session file.",
+        "error",
+      );
+      return;
+    }
+    targetWebUrl = `http://${command.host}:4000`;
+  }
 
-  let response: Response;
+  let body: RegistrationResponse;
   try {
-    response = await fetchImpl(`${webUrl}/api/sessions`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
+    body = await registerSession(
+      {
         name,
-        relative_project: project,
-        session_file: sessionFile,
-        pi_session_id: ctx.sessionManager.getSessionId(),
-      }),
-    });
-  } catch {
+        project,
+        sessionFile: registeredSessionFile,
+        sessionId: ctx.sessionManager.getSessionId(),
+      },
+      targetWebUrl,
+      fetchImpl,
+    );
+  } catch (error) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : `Could not reach the Matato web app at ${targetWebUrl}. Is it running?`;
     ctx.ui.notify(
-      `Could not reach the Matato web app at ${webUrl}. Is it running?`,
+      message.startsWith("Registration failed:") ||
+        message.startsWith("Registration failed with status")
+        ? message
+        : `Could not reach the Matato web app at ${targetWebUrl}. Is it running?`,
       "error",
     );
     return;
   }
 
-  if (!response.ok) {
-    const body = (await response.json().catch(() => ({}))) as ErrorResponse;
-    ctx.ui.notify(registrationError(response.status, body), "error");
-    return;
-  }
-
-  const body = (await response.json()) as RegistrationResponse;
   ctx.ui.notify(
-    `Registered remote session "${name}". Open it at ${webUrl}/sessions/${body.session.id}`,
+    `Registered remote session "${name}". Open it at ${targetWebUrl}/sessions/${body.session.id}`,
     "info",
   );
 }
@@ -114,7 +255,7 @@ export async function registerRemoteSession(
 export default function (pi: ExtensionAPI): void {
   pi.registerCommand("remote", {
     description:
-      "Register this session in the Matato web app to open it from another device. Usage: /remote [name]",
+      "Register this session in the Matato web app. Usage: /remote [name] [--host <sshHost>]",
     handler: async (args, ctx: ExtensionCommandContext) =>
       registerRemoteSession(args, ctx),
   });
