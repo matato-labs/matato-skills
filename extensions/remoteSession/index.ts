@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { isAbsolute, basename, join, relative, resolve, sep } from "node:path";
+import { isAbsolute, basename, posix, relative, resolve, sep } from "node:path";
 import type {
   ExtensionAPI,
   ExtensionCommandContext,
@@ -60,11 +60,18 @@ export function registrationError(status: number, body: ErrorResponse): string {
 
 export function remoteCommand(args: string): RemoteCommand {
   const hostOption = /(?:^|\s)--host(?:\s+(\S+))?\s*$/.exec(args);
-  if (!hostOption && /(?:^|\s)--host(?:\s|$)/.test(args))
+  const hasHostOption = /(?:^|\s)--host(?:\s|$)/.test(args);
+  if (!hostOption) {
+    if (hasHostOption)
+      throw new Error(
+        "Invalid --host syntax. Use /remote [name] --host <sshHost>.",
+      );
+    return { name: args.trim() };
+  }
+  if (/(?:^|\s)--host(?:\s|$)/.test(args.slice(0, hostOption.index)))
     throw new Error(
       "Invalid --host syntax. Use /remote [name] --host <sshHost>.",
     );
-  if (!hostOption) return { name: args.trim() };
 
   const host = hostOption[1];
   if (!host || !sshHostPattern.test(host))
@@ -80,7 +87,10 @@ export function runCommand(
   args: Array<string>,
 ): Promise<CommandResult> {
   return new Promise((resolvePromise, reject) => {
-    const child = spawn(command, args, { shell: false });
+    const child = spawn(command, args, {
+      shell: false,
+      stdio: ["ignore", "pipe", "pipe"],
+    });
     let stdout = "";
     let stderr = "";
 
@@ -108,11 +118,15 @@ async function copySessionFile(
       `mkdir -p ${remoteSessionDirectory} && pwd`,
     ]);
     homeDirectory = result.stdout.trim();
-  } catch {
-    throw new Error(`Could not prepare Pi session storage on ${host} via SSH.`);
+  } catch (error) {
+    const detail = error instanceof Error ? `: ${error.message}` : "";
+    throw new Error(
+      `Could not prepare Pi session storage on ${host} via SSH${detail}`,
+      { cause: error },
+    );
   }
 
-  const remoteFile = join(
+  const remoteFile = posix.join(
     homeDirectory,
     remoteSessionDirectory,
     basename(sessionFile),
@@ -122,8 +136,12 @@ async function copySessionFile(
       sessionFile,
       `${host}:${remoteSessionDirectory}/${basename(sessionFile)}`,
     ]);
-  } catch {
-    throw new Error(`Could not copy the session file to ${host} via SCP.`);
+  } catch (error) {
+    const detail = error instanceof Error ? `: ${error.message}` : "";
+    throw new Error(
+      `Could not copy the session file to ${host} via SCP${detail}`,
+      { cause: error },
+    );
   }
 
   return remoteFile;

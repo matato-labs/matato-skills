@@ -180,7 +180,8 @@ describe("registerRemoteSession", () => {
     expect(fetchImpl).not.toHaveBeenCalled();
     expect(notifications).toEqual([
       {
-        message: "Could not prepare Pi session storage on piServer via SSH.",
+        message:
+          "Could not prepare Pi session storage on piServer via SSH: connection refused",
         type: "error",
       },
     ]);
@@ -206,7 +207,8 @@ describe("registerRemoteSession", () => {
     expect(fetchImpl).not.toHaveBeenCalled();
     expect(notifications).toEqual([
       {
-        message: "Could not copy the session file to piServer via SCP.",
+        message:
+          "Could not copy the session file to piServer via SCP: disk full",
         type: "error",
       },
     ]);
@@ -257,6 +259,31 @@ describe("registerRemoteSession", () => {
     expect(commandRunner).not.toHaveBeenCalled();
     expect(notifications).toEqual([
       { message: expect.stringContaining("Invalid SSH host"), type: "error" },
+    ]);
+  });
+
+  test("rejects repeated SSH host options without transferring or registering", async () => {
+    process.env.WORKSPACE = "/workspace";
+    const fetchImpl = okFetch();
+    const commandRunner: CommandRunner = mock(() =>
+      Promise.resolve({ stdout: "", stderr: "" }),
+    );
+    const { ctx, notifications } = context();
+
+    await registerRemoteSession(
+      "My session --host piServer --host anotherServer",
+      ctx,
+      fetchImpl,
+      commandRunner,
+    );
+
+    expect(fetchImpl).not.toHaveBeenCalled();
+    expect(commandRunner).not.toHaveBeenCalled();
+    expect(notifications).toEqual([
+      {
+        message: expect.stringContaining("Invalid --host syntax"),
+        type: "error",
+      },
     ]);
   });
 
