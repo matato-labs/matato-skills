@@ -4,6 +4,7 @@ import {
   registerRemoteSession,
   registrationError,
   relativeProject,
+  type CommandRunner,
   type FetchLike,
   type RemoteSessionContext,
 } from "./index.ts";
@@ -113,6 +114,175 @@ describe("registerRemoteSession", () => {
         message:
           'Registered remote session "My session". Open it at http://localhost:4000/sessions/remote-id-1',
         type: "info",
+      },
+    ]);
+  });
+
+  test("copies and registers the session through an SSH-config host", async () => {
+    process.env.WORKSPACE = "/workspace";
+    const fetchImpl = okFetch();
+    const commandRunner: CommandRunner = mock((command: string) =>
+      Promise.resolve(
+        command === "ssh"
+          ? { stdout: "/home/pi\n", stderr: "" }
+          : { stdout: "", stderr: "" },
+      ),
+    );
+    const { ctx, notifications } = context({ cwd: "/workspace/alpha" });
+
+    await registerRemoteSession(
+      "My session --host piServer",
+      ctx,
+      fetchImpl,
+      commandRunner,
+    );
+
+    expect(commandRunner).toHaveBeenNthCalledWith(1, "ssh", [
+      "piServer",
+      "mkdir -p .pi/agent/sessions && pwd",
+    ]);
+    expect(commandRunner).toHaveBeenNthCalledWith(2, "scp", [
+      "/sessions/abc.jsonl",
+      "piServer:.pi/agent/sessions/abc.jsonl",
+    ]);
+    const [url, init] = (fetchImpl as ReturnType<typeof mock>).mock.calls[0];
+    expect(url).toBe("http://piServer:4000/api/sessions");
+    expect(JSON.parse(String(init?.body))).toEqual({
+      name: "My session",
+      relative_project: "alpha",
+      session_file: "/home/pi/.pi/agent/sessions/abc.jsonl",
+      pi_session_id: "pi-123",
+    });
+    expect(notifications).toEqual([
+      {
+        message:
+          'Registered remote session "My session". Open it at http://piServer:4000/sessions/remote-id-1',
+        type: "info",
+      },
+    ]);
+  });
+
+  test("shows an error without registering when SSH storage preparation fails", async () => {
+    process.env.WORKSPACE = "/workspace";
+    const fetchImpl = okFetch();
+    const commandRunner: CommandRunner = mock(() =>
+      Promise.reject(new Error("connection refused")),
+    );
+    const { ctx, notifications } = context();
+
+    await registerRemoteSession(
+      "--host piServer",
+      ctx,
+      fetchImpl,
+      commandRunner,
+    );
+
+    expect(fetchImpl).not.toHaveBeenCalled();
+    expect(notifications).toEqual([
+      {
+        message:
+          "Could not prepare Pi session storage on piServer via SSH: connection refused",
+        type: "error",
+      },
+    ]);
+  });
+
+  test("shows an error without registering when SCP fails", async () => {
+    process.env.WORKSPACE = "/workspace";
+    const fetchImpl = okFetch();
+    const commandRunner: CommandRunner = mock((command: string) =>
+      command === "ssh"
+        ? Promise.resolve({ stdout: "/home/pi\n", stderr: "" })
+        : Promise.reject(new Error("disk full")),
+    );
+    const { ctx, notifications } = context();
+
+    await registerRemoteSession(
+      "--host piServer",
+      ctx,
+      fetchImpl,
+      commandRunner,
+    );
+
+    expect(fetchImpl).not.toHaveBeenCalled();
+    expect(notifications).toEqual([
+      {
+        message:
+          "Could not copy the session file to piServer via SCP: disk full",
+        type: "error",
+      },
+    ]);
+  });
+
+  test("shows the remote API error without a success notification", async () => {
+    process.env.WORKSPACE = "/workspace";
+    const fetchImpl: FetchLike = mock(() =>
+      Promise.resolve(
+        new Response(JSON.stringify({ error: "Invalid session path" }), {
+          status: 422,
+        }),
+      ),
+    );
+    const commandRunner: CommandRunner = mock(() =>
+      Promise.resolve({ stdout: "/home/pi\n", stderr: "" }),
+    );
+    const { ctx, notifications } = context();
+
+    await registerRemoteSession(
+      "--host piServer",
+      ctx,
+      fetchImpl,
+      commandRunner,
+    );
+
+    expect(notifications).toEqual([
+      { message: "Registration failed: Invalid session path", type: "error" },
+    ]);
+  });
+
+  test("rejects invalid SSH host syntax without transferring or registering", async () => {
+    process.env.WORKSPACE = "/workspace";
+    const fetchImpl = okFetch();
+    const commandRunner: CommandRunner = mock(() =>
+      Promise.resolve({ stdout: "", stderr: "" }),
+    );
+    const { ctx, notifications } = context();
+
+    await registerRemoteSession(
+      "My session --host -oProxyCommand",
+      ctx,
+      fetchImpl,
+      commandRunner,
+    );
+
+    expect(fetchImpl).not.toHaveBeenCalled();
+    expect(commandRunner).not.toHaveBeenCalled();
+    expect(notifications).toEqual([
+      { message: expect.stringContaining("Invalid SSH host"), type: "error" },
+    ]);
+  });
+
+  test("rejects repeated SSH host options without transferring or registering", async () => {
+    process.env.WORKSPACE = "/workspace";
+    const fetchImpl = okFetch();
+    const commandRunner: CommandRunner = mock(() =>
+      Promise.resolve({ stdout: "", stderr: "" }),
+    );
+    const { ctx, notifications } = context();
+
+    await registerRemoteSession(
+      "My session --host piServer --host anotherServer",
+      ctx,
+      fetchImpl,
+      commandRunner,
+    );
+
+    expect(fetchImpl).not.toHaveBeenCalled();
+    expect(commandRunner).not.toHaveBeenCalled();
+    expect(notifications).toEqual([
+      {
+        message: expect.stringContaining("Invalid --host syntax"),
+        type: "error",
       },
     ]);
   });
