@@ -58,6 +58,13 @@ defmodule WebApp.BotsTest do
         ] do
       assert identity =~ "You are Research, researcher. Find facts"
       assert identity =~ "POST /api/messages"
+      assert identity =~ "Watch for repeated tasks or recurring problems"
+      assert identity =~ "suggest an automation for a repeated task"
+      assert identity =~ "durable solution for a recurring problem"
+      assert identity =~ "After completing the user's immediate request"
+
+      assert identity =~
+               "If the user declines a suggestion, do not raise that same suggestion again"
     end
 
     assert Bots.identity("missing") == nil

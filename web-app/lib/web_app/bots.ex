@@ -20,8 +20,13 @@ defmodule WebApp.Bots do
   You can collaborate with other bots through the web API. List bots with `GET /api/bots` to discover their names and IDs (find your own ID by matching your name), then send a message with `POST /api/messages` using `receiver_bot_id`, `sender_id` (your bot ID), `kind`, and `content`. Delivery is asynchronous: your message is queued and appears as a normal prompt in the receiver's chat session once that session is free. Messages from other bots arrive as `Internal <kind> from <sender>:` prompts.
   """
 
+  @proactive_support_instructions """
+  Watch for repeated tasks or recurring problems in the conversation. After completing the user's immediate request, you may briefly and optionally suggest an automation for a repeated task, or a durable solution for a recurring problem. Keep the suggestion contextual, concise, and non-prescriptive; never assume consent or let it interrupt the current request. If the user declines a suggestion, do not raise that same suggestion again unless they bring up the need again.
+  """
+
   def identity_for(%Bot{} = bot),
-    do: "You are #{bot.name}, #{bot.role}. #{bot.description}\n\n#{@collaboration_instructions}"
+    do:
+      "You are #{bot.name}, #{bot.role}. #{bot.description}\n\n#{@collaboration_instructions}\n#{@proactive_support_instructions}"
 
   def identity_for_session(session_id) do
     with %Bot{} = bot <-
