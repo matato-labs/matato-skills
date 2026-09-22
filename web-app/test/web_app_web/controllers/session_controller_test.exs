@@ -7,7 +7,11 @@ defmodule WebAppWeb.SessionControllerTest do
     session_dir =
       Path.join(System.tmp_dir!(), "matato-sessions-#{System.unique_integer([:positive])}")
 
+    project_dir =
+      Path.join(Workspace.root(), "session-controller-#{System.unique_integer([:positive])}")
+
     File.mkdir_p!(session_dir)
+    File.mkdir_p!(project_dir)
     previous = Application.fetch_env!(:web_app, :session_dir)
     Application.put_env(:web_app, :session_dir, session_dir)
     Registry.subscribe()
@@ -16,24 +20,29 @@ defmodule WebAppWeb.SessionControllerTest do
       Application.put_env(:web_app, :session_dir, previous)
 
       Store.list()
-      |> Enum.filter(&String.starts_with?(&1["project"], System.tmp_dir!()))
+      |> Enum.filter(&String.starts_with?(&1["project"], project_dir <> "/"))
       |> Enum.each(&Store.delete(&1["id"]))
+
+      File.rm_rf!(session_dir)
+      File.rm_rf!(project_dir)
     end)
 
-    {:ok, session_dir: session_dir}
+    %{session_dir: session_dir, project_dir: project_dir}
   end
 
   test "registers a terminal session as a stopped extension session", %{
     conn: conn,
-    session_dir: session_dir
+    session_dir: session_dir,
+    project_dir: project_dir
   } do
-    project = create_project("alpha")
+    project = create_project(project_dir, "alpha")
+    relative_project = Path.relative_to(project, Workspace.root())
     session_file = create_session_file(session_dir)
 
     conn =
       post(conn, "/api/sessions", %{
         "name" => "My session",
-        "relative_project" => "alpha",
+        "relative_project" => relative_project,
         "session_file" => session_file,
         "pi_session_id" => "pi-123"
       })
@@ -41,7 +50,7 @@ defmodule WebAppWeb.SessionControllerTest do
     assert %{"session" => session} = json_response(conn, 201)
     assert session["name"] == "My session"
     assert session["project"] == project
-    assert session["relative_project"] == "alpha"
+    assert session["relative_project"] == relative_project
     assert session["session_file"] == session_file
     assert session["pi_session_id"] == "pi-123"
     assert session["source"] == "extension"
@@ -51,13 +60,17 @@ defmodule WebAppWeb.SessionControllerTest do
     refute Agent.whereis(session["id"])
   end
 
-  test "defaults the session name to the project directory name", %{conn: conn, session_dir: dir} do
-    create_project("beta")
+  test "defaults the session name to the project directory name", %{
+    conn: conn,
+    session_dir: session_dir,
+    project_dir: project_dir
+  } do
+    project = create_project(project_dir, "beta")
 
     conn =
       post(conn, "/api/sessions", %{
-        "relative_project" => "beta",
-        "session_file" => create_session_file(dir),
+        "relative_project" => Path.relative_to(project, Workspace.root()),
+        "session_file" => create_session_file(session_dir),
         "pi_session_id" => "pi-123"
       })
 
@@ -66,14 +79,15 @@ defmodule WebAppWeb.SessionControllerTest do
 
   test "updates the existing record when the session file is already registered", %{
     conn: conn,
-    session_dir: session_dir
+    session_dir: session_dir,
+    project_dir: project_dir
   } do
-    create_project("alpha")
+    project = create_project(project_dir, "alpha")
     session_file = create_session_file(session_dir)
 
     attributes = %{
       "name" => "First",
-      "relative_project" => "alpha",
+      "relative_project" => Path.relative_to(project, Workspace.root()),
       "session_file" => session_file,
       "pi_session_id" => "pi-123"
     }
@@ -93,12 +107,15 @@ defmodule WebAppWeb.SessionControllerTest do
     assert length(Store.list()) == 1
   end
 
-  test "deduplicates simultaneous registrations by session file", %{session_dir: session_dir} do
-    create_project("alpha")
+  test "deduplicates simultaneous registrations by session file", %{
+    session_dir: session_dir,
+    project_dir: project_dir
+  } do
+    project = create_project(project_dir, "alpha")
 
     attributes = %{
       "name" => "Concurrent",
-      "relative_project" => "alpha",
+      "relative_project" => Path.relative_to(project, Workspace.root()),
       "session_file" => create_session_file(session_dir),
       "pi_session_id" => "pi-123"
     }
@@ -115,28 +132,36 @@ defmodule WebAppWeb.SessionControllerTest do
     assert length(Store.list()) == 1
   end
 
-  test "rejects a session file outside the session directory", %{conn: conn} do
-    create_project("alpha")
+  test "rejects a session file outside the session directory", %{
+    conn: conn,
+    project_dir: project_dir
+  } do
+    project = create_project(project_dir, "alpha")
     outside = Path.join(System.tmp_dir!(), "outside-#{System.unique_integer([:positive])}.jsonl")
     File.write!(outside, "{}")
 
     conn =
       post(conn, "/api/sessions", %{
-        "relative_project" => "alpha",
+        "relative_project" => Path.relative_to(project, Workspace.root()),
         "session_file" => outside,
         "pi_session_id" => "pi-123"
       })
 
     assert %{"error" => "Invalid session path"} = json_response(conn, 422)
     refute_registered(outside)
+    File.rm!(outside)
   end
 
-  test "rejects a session file that does not exist", %{conn: conn, session_dir: session_dir} do
-    create_project("alpha")
+  test "rejects a session file that does not exist", %{
+    conn: conn,
+    session_dir: session_dir,
+    project_dir: project_dir
+  } do
+    project = create_project(project_dir, "alpha")
 
     conn =
       post(conn, "/api/sessions", %{
-        "relative_project" => "alpha",
+        "relative_project" => Path.relative_to(project, Workspace.root()),
         "session_file" => Path.join(session_dir, "missing.jsonl"),
         "pi_session_id" => "pi-123"
       })
@@ -159,8 +184,8 @@ defmodule WebAppWeb.SessionControllerTest do
     refute_registered(session_file)
   end
 
-  defp create_project(name) do
-    path = Path.join(System.tmp_dir!(), name)
+  defp create_project(project_dir, name) do
+    path = Path.join(project_dir, name)
     File.mkdir_p!(path)
 
     case Workspace.canonical(path) do
