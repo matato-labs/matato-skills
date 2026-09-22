@@ -179,6 +179,29 @@ describe("Discord REST helpers", () => {
     });
   });
 
+  test("rejects blank messages before writing", async () => {
+    configureDiscord();
+    let requestCount = 0;
+    setFetch(async () => {
+      requestCount += 1;
+      return new Response(
+        JSON.stringify({ id: "channel-1", guild_id: "guild-1", type: 0 }),
+      );
+    });
+
+    await expect(
+      sendMessage({ channelId: "channel-1", content: "   " }),
+    ).rejects.toThrow("content is required");
+    await expect(
+      replyToMessage({
+        channelId: "channel-1",
+        messageId: "message-1",
+        content: "   ",
+      }),
+    ).rejects.toThrow("content is required");
+    expect(requestCount).toBe(2);
+  });
+
   test("requires configuration without revealing its token", async () => {
     delete process.env.DISCORD_BOT_TOKEN;
     process.env.DISCORD_GUILD_ID = "guild-1";

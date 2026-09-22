@@ -56,9 +56,14 @@ const readLimit = (options: CliOptions): number => {
   return limit;
 };
 
-const printConfirmation = (channelId: string, content: string): void => {
+const printConfirmation = (
+  channelId: string,
+  content: string,
+  messageId?: string,
+): void => {
   console.log("Write not sent: confirmation is required.");
   console.log(`Destination: Discord channel ${channelId}`);
+  if (messageId) console.log(`Replying to: Discord message ${messageId}`);
   console.log(`Content:\n${content}`);
   console.log("After the user confirms, rerun this command with --confirm.");
 };
@@ -102,7 +107,7 @@ const run = async (): Promise<void> => {
       const messageId = requiredValue(options, "messageId");
       const content = requiredValue(options, "content");
       if (options.values.get("confirm") !== true) {
-        printConfirmation(channelId, content);
+        printConfirmation(channelId, content, messageId);
         return;
       }
 
