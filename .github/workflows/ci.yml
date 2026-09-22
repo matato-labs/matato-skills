@@ -1,14 +1,19 @@
-name: CI
+name: Pi CI
 
 on:
   pull_request:
     branches: [main]
-  push:
-    branches: [main]
+    paths-ignore:
+      - web-app/**
+      - .github/workflows/elixir-ci.yml
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  test:
-    name: Pi Test
+  pi:
+    name: Pi
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -19,75 +24,5 @@ jobs:
       - uses: oven-sh/setup-bun@v2
       - run: npm ci
       - run: npm test
-
-  lint:
-    name: Pi Lint
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-      - run: npm ci
       - run: npm run lint
-
-  typecheck:
-    name: Pi Typecheck
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-      - run: npm ci
       - run: npm run check
-
-  elixir-test:
-    name: Elixir Test
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: web-app
-    steps:
-      - uses: actions/checkout@v4
-      - run: sudo apt-get update && sudo apt-get install --yes inotify-tools
-      - uses: oven-sh/setup-bun@v2
-      - uses: erlef/setup-beam@v1
-        with:
-          elixir-version: "1.20.4"
-          otp-version: "28.1.1"
-      - uses: actions/cache@v4
-        with:
-          path: web-app/deps
-          key: elixir-deps-1.20.4-otp-28.1.1-${{ runner.os }}-${{ hashFiles('web-app/mix.lock') }}
-      - uses: actions/cache@v4
-        with:
-          path: web-app/_build
-          key: elixir-build-1.20.4-otp-28.1.1-${{ runner.os }}-${{ hashFiles('web-app/mix.lock') }}
-      - run: mix deps.get
-      - run: MIX_ENV=test mix do compile --warnings-as-errors + test --warnings-as-errors
-
-  elixir-format:
-    name: Elixir Format
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: web-app
-    steps:
-      - uses: actions/checkout@v4
-      - uses: erlef/setup-beam@v1
-        with:
-          elixir-version: "1.20.4"
-          otp-version: "28.1.1"
-      - uses: actions/cache@v4
-        with:
-          path: web-app/deps
-          key: elixir-deps-1.20.4-otp-28.1.1-${{ runner.os }}-${{ hashFiles('web-app/mix.lock') }}
-      - uses: actions/cache@v4
-        with:
-          path: web-app/_build
-          key: elixir-build-dev-1.20.4-otp-28.1.1-${{ runner.os }}-${{ hashFiles('web-app/mix.lock') }}
-      - run: mix deps.get
-      - run: mix format --check-formatted
