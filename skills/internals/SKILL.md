@@ -1,4 +1,5 @@
 ---
+name: internals
 description: How matato pi works
 ---
 
@@ -100,7 +101,7 @@ Manage automations through the local web API. Set `api=http://localhost:4000/api
 | `model` | Yes | None | Pi model identifier. |
 | `thinking_level` | Yes | None | Pi reasoning level. |
 | `can_launch_sub_agents` | Yes | `false` | Allows Pi sub-agents. |
-| `monitor` | Yes | `false` | Registers each launched agent remotely. Active runs appear under Automations in the web UI, without a transcript. |
+| `monitor` | Yes | `false` | Persists each run remotely. Working, failed, and finished runs appear under Automations and open as read-only transcripts in the web UI. |
 | `use_skill` | Yes | `false` | Loads the skill named by `job_name` and runs its optional scripts. |
 
 Read all:

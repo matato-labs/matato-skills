@@ -1,7 +1,7 @@
 defmodule WebAppWeb.AgentLive do
   use WebAppWeb, :live_view
 
-  alias WebApp.{Bots, Messages, Sessions}
+  alias WebApp.{Automations, Bots, Messages, Sessions}
 
   alias WebAppWeb.{AgentTranscript, SessionComponents}
 
@@ -11,6 +11,7 @@ defmodule WebAppWeb.AgentLive do
   def mount(_params, _session, socket) do
     if connected?(socket) do
       Sessions.subscribe()
+      Automations.subscribe()
       Bots.subscribe()
     end
 
@@ -21,7 +22,7 @@ defmodule WebAppWeb.AgentLive do
         page_title: "Matato Agent",
         sessions: sessions,
         workspace_groups: Sessions.workspace_groups(sessions),
-        automation_groups: Sessions.automation_groups(sessions),
+        automation_groups: Sessions.automation_groups(sessions, Automations.list()),
         bots: Bots.list(),
         session_id: nil,
         bot: nil,
@@ -370,7 +371,7 @@ defmodule WebAppWeb.AgentLive do
     assign(socket,
       sessions: sessions,
       workspace_groups: Sessions.workspace_groups(sessions),
-      automation_groups: Sessions.automation_groups(sessions),
+      automation_groups: Sessions.automation_groups(sessions, Automations.list()),
       bots: Bots.list()
     )
   end

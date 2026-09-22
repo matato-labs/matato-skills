@@ -1,0 +1,105 @@
+<Layouts.app flash={@flash}>
+  <main class="min-h-screen bg-base-300 text-base-content">
+    <header class="border-b border-base-content/10 bg-base-300 px-5 py-4 lg:px-8">
+      <div class="mx-auto flex max-w-6xl items-center gap-4">
+        <.link
+          navigate={@automation_path}
+          class="grid size-9 shrink-0 place-items-center rounded-lg text-base-content/55 transition-colors hover:bg-base-content/8 hover:text-base-content focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+          aria-label="Back to automations"
+        >
+          <.icon name="hero-arrow-left" class="size-4" />
+        </.link>
+        <div class="min-w-0 flex-1">
+          <p class="text-[0.68rem] font-semibold uppercase tracking-[0.16em] text-base-content/45">
+            Automation run
+          </p>
+          <h1 class="truncate text-base font-semibold tracking-tight">
+            {if @run, do: @run["name"], else: "Run unavailable"}
+          </h1>
+        </div>
+        <div :if={@run} class="flex items-center gap-3">
+          <button
+            :if={@run["status"] == "failed"}
+            id="retry-run"
+            type="button"
+            phx-click="retry"
+            class="btn btn-sm btn-ghost"
+          >
+            <.icon name="hero-arrow-path" class="size-4" /> Retry
+          </button>
+          <span
+            id="run-status"
+            class={[
+              "rounded-full px-2.5 py-1 text-xs font-semibold",
+              status_class(@run["status"])
+            ]}
+          >
+            {status_label(@run["status"])}
+          </span>
+        </div>
+      </div>
+    </header>
+
+    <section class="px-5 py-8 lg:px-8">
+      <div class="mx-auto max-w-6xl">
+        <div
+          :if={@run}
+          id="run-metadata"
+          class="mb-8 flex flex-wrap gap-x-6 gap-y-2 border-b border-base-content/10 pb-5 text-xs text-base-content/50"
+        >
+          <span>Started {@run["created_at"]}</span>
+          <span>Updated {@run["updated_at"]}</span>
+          <span class="font-mono">{@run["pi_session_id"]}</span>
+        </div>
+
+        <div
+          :if={@error}
+          id="automation-run-error"
+          class="rounded-lg border border-error/30 bg-error/8 px-4 py-3 text-sm text-error"
+          role="alert"
+        >
+          {@error}
+        </div>
+
+        <div
+          :if={@run && !@transcript_available?}
+          id="transcript-unavailable"
+          class="py-20 text-center"
+        >
+          <div class="mx-auto mb-4 grid size-11 place-items-center rounded-xl bg-base-200 text-base-content/45">
+            <.icon name="hero-document-text" class="size-5" />
+          </div>
+          <h2 class="text-sm font-semibold">
+            {if status_label(@run["status"]) == "Working",
+              do: "Run in progress",
+              else: "Transcript unavailable"}
+          </h2>
+          <p class="mt-1 text-sm text-base-content/45">
+            {if status_label(@run["status"]) == "Working",
+              do: "The transcript will appear after the agent writes its first response.",
+              else: "This run did not leave a readable session transcript."}
+          </p>
+        </div>
+
+        <section
+          :if={@transcript_available?}
+          id="transcript"
+          phx-hook="Transcript"
+          class="space-y-7"
+          aria-live="polite"
+        >
+          <div id="messages" phx-update="stream" class="contents">
+            <.transcript_item :for={{id, item} <- @streams.messages} id={id} item={item} />
+          </div>
+          <div
+            :if={@transcript && @transcript.messages == []}
+            id="empty-transcript"
+            class="py-20 text-center text-sm text-base-content/45"
+          >
+            No transcript entries yet.
+          </div>
+        </section>
+      </div>
+    </section>
+  </main>
+</Layouts.app>

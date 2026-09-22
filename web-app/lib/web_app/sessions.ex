@@ -3,7 +3,7 @@ defmodule WebApp.Sessions do
 
   use Boundary, top_level?: true, deps: [WebApp.Data], exports: []
 
-  alias WebApp.Sessions.{Agent, Catalog, Fanout, Registry, State, Store, Workspace}
+  alias WebApp.Sessions.{Agent, Catalog, Fanout, Registry, State, Store, Transcript, Workspace}
 
   def child_specs do
     [
@@ -28,6 +28,7 @@ defmodule WebApp.Sessions do
 
   defdelegate register(attributes), to: Store
   defdelegate get(id), to: Store
+  defdelegate load_automation_transcript(metadata), to: Transcript, as: :load
 
   defdelegate snapshot(id), to: Agent
   defdelegate snapshot_with_sequence(id), to: Agent
@@ -42,7 +43,8 @@ defmodule WebApp.Sessions do
 
   defdelegate workspace_directories(), to: Workspace, as: :directories
   defdelegate workspace_groups(records), to: Catalog
-  defdelegate automation_groups(records), to: Catalog
+  defdelegate automation_groups(records, automations), to: Catalog
+  defdelegate automation_runs(records, name), to: Catalog
 
   defdelegate clear_dialog(state), to: State
   defdelegate apply(state, event), to: State

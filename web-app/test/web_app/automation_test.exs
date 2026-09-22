@@ -120,11 +120,12 @@ defmodule WebApp.AutomationsTest do
     pi_dir = Path.join(System.tmp_dir!(), "pi-#{System.unique_integer([:positive])}")
     pi_path = Path.join(pi_dir, "pi")
     gate_path = temp_path()
+    args_path = temp_path()
     File.mkdir_p!(pi_dir)
 
     File.write!(
       pi_path,
-      "#!/bin/sh\nwhile [ ! -e #{gate_path} ]; do sleep 0.01; done\nprintf '{\"type\":\"agent_settled\"}\\n'\n"
+      "#!/bin/sh\nprintf '%s\\n' \"$@\" > #{args_path}\nwhile [ ! -e #{gate_path} ]; do sleep 0.01; done\nprintf '{\"type\":\"agent_settled\"}\\n'\n"
     )
 
     File.chmod!(pi_path, 0o755)
@@ -136,6 +137,7 @@ defmodule WebApp.AutomationsTest do
       File.write!(gate_path, "")
       System.put_env("PATH", original_path)
       File.rm(gate_path)
+      File.rm(args_path)
       File.rm_rf!(pi_dir)
 
       Store.list()
@@ -155,7 +157,14 @@ defmodule WebApp.AutomationsTest do
     assert_receive :changed
 
     assert [%{sessions: [%{id: id, status: "working", title: ^job_name}]}] =
-             Catalog.automation_groups(Registry.list())
+             Catalog.automation_groups(Registry.list(), [
+               %{id: 1, job_name: job_name, enabled: true}
+             ])
+
+    assert %{"pi_session_id" => ^id, "session_file" => session_file} = Store.get(id)
+    assert String.ends_with?(session_file, "/sessions/automations/#{id}.jsonl")
+    assert %{"id" => ^id, "type" => "session"} = session_file |> File.read!() |> Jason.decode!()
+    assert File.read!(args_path) =~ "--session\n#{session_file}\n"
 
     File.write!(gate_path, "")
     Task.await(task)
@@ -194,6 +203,25 @@ defmodule WebApp.AutomationsTest do
     assert %{"status" => "failed"} =
              Store.list()
              |> Enum.find(&(&1["name"] == job_name and &1["source"] == "automation"))
+  end
+
+  test "persists monitored failures before Pi starts" do
+    job_name = "missing-#{System.unique_integer([:positive])}"
+
+    on_exit(fn ->
+      Store.list()
+      |> Enum.filter(&(&1["name"] == job_name and &1["source"] == "automation"))
+      |> Enum.each(&Store.delete(&1["id"]))
+    end)
+
+    Runner.run(%{automation(job_name, "* * * * *") | monitor: true})
+    _ = :sys.get_state(Registry)
+
+    assert %{"status" => "failed", "session_file" => session_file} =
+             Store.list()
+             |> Enum.find(&(&1["name"] == job_name and &1["source"] == "automation"))
+
+    assert is_binary(session_file)
   end
 
   test "logs the failed automation and reason" do
