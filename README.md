@@ -59,7 +59,9 @@ The API has no built-in authentication. Keep the server private or place authent
 
 ## Remote sessions
 
-Run `/remote [name]` in an interactive Pi session to register it in the web app so it appears in the session list on your phone. Without a name, the project directory name is used. The web app URL is read from `MATATO_PI_WEB_URL` and defaults to `http://localhost:4000`. Ephemeral sessions cannot be registered. Running `/remote` again on the same session updates the existing entry.
+Run `/remote [name]` in an interactive Pi session to register it in the local web app so it appears in the session list on your phone. Without a name, the project directory name is used. The web app URL is read from `MATATO_PI_WEB_URL` and defaults to `http://localhost:4000`. Ephemeral sessions cannot be registered. Running `/remote` again on the same session updates the existing entry.
+
+To hand a laptop session off to a server, run `/remote [name] --host <sshHost>`, for example `/remote "My session" --host piServer`. Matato creates `~/.pi/agent/sessions` on that SSH host, copies the active session file there, then registers it at `http://<sshHost>:4000`. The remote server must run the Matato web app as the SSH user and allow the laptop to reach port 4000 through the SSH host name. Configure non-default hostnames, users, ports, and a non-interactive identity file in `~/.ssh/config`; `<sshHost>` must be an SSH config host name, not SSH options. If those prerequisites are unavailable, use `/remote [name]` to keep local registration.
 
 A registered session must not be driven from the terminal and the phone at the same time: both write to the same Pi session file, so concurrent use corrupts the conversation history.
 
@@ -70,6 +72,7 @@ Create a bot from the web app or asking your agent to do it. A bot has a name, r
 For Telegram, configure `TELEGRAM_BOT_TOKEN` and `TELEGRAM_OWNER_ID`, then create a `telegram-inbox` automation with `use_skill` enabled. It polls Telegram, accepts messages only from the owner chat ID, and replies through the configured bot.
 
 ## Automations
+
 Create an automation from the web app or ask your agent to do it. It runs a prompt on a cron schedule with the selected model and thinking level. An automation without `bot_id` is a workspace automation; set `bot_id` to make it a bot automation that runs with the bot's identity. `use_skill` runs the skill whose name matches `job_name`; its optional `scripts/preScript.ts` output is added to the agent context. After Pi completes, optional `scripts/postScript.ts` runs for follow-up work; a failing script fails the automation. `daily_session` reuses one Pi session per day, `can_overlap` permits concurrent runs, and `monitor` shows the job in the web app. Use `/automations` in Pi to inspect scheduled jobs.
 
 ## Contribute

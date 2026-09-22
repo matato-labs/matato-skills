@@ -62,9 +62,11 @@ defmodule WebApp.BotsTest do
       assert identity =~ "suggest an automation for a repeated task"
       assert identity =~ "durable solution for a recurring problem"
       assert identity =~ "After completing the user's immediate request"
+      assert identity =~ "briefly and optionally"
+      assert identity =~ "never assume consent or let it interrupt the current request"
 
       assert identity =~
-               "If the user declines a suggestion, do not raise that same suggestion again"
+               "If the user declines a suggestion, do not raise that same suggestion again unless they bring up the need again"
     end
 
     assert Bots.identity("missing") == nil
