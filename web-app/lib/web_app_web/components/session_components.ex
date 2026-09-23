@@ -102,19 +102,13 @@ defmodule WebAppWeb.SessionComponents do
           <h2 class="mb-2 px-2 text-[0.68rem] font-semibold uppercase tracking-[0.16em] text-base-content/45">
             Automations
           </h2>
-          <nav id="automation-session-groups" class="space-y-1.5" aria-label="Active automation work">
-            <.session_group
-              :for={group <- @automation_groups}
-              group={group}
-              prefix="automation"
-              session_id={@session_id}
-              delete_session_id={@delete_session_id}
-            />
+          <nav id="automation-session-groups" class="space-y-0.5" aria-label="Automations">
+            <.automation_row :for={automation <- @automation_groups} automation={automation} />
             <p
               :if={@automation_groups == []}
               class="px-2 py-1 text-xs leading-5 text-base-content/40"
             >
-              No active work.
+              No enabled automations.
             </p>
           </nav>
         </div>
@@ -155,6 +149,23 @@ defmodule WebAppWeb.SessionComponents do
         />
       </div>
     </details>
+    """
+  end
+
+  attr :automation, :map, required: true
+
+  defp automation_row(assigns) do
+    ~H"""
+    <.link
+      id={"automation-#{@automation.id}"}
+      navigate={"/automations/#{@automation.id}"}
+      class={session_row_class(false)}
+    >
+      <span class="min-w-0 flex-1 truncate">{@automation.label}</span>
+      <span class="shrink-0 text-[0.65rem] font-normal text-base-content/40">
+        {automation_count_summary(@automation)}
+      </span>
+    </.link>
     """
   end
 
@@ -431,7 +442,12 @@ defmodule WebAppWeb.SessionComponents do
     """
   end
 
-  def status_label("waiting_for_input"), do: "Waiting for input"
+  def status_label("settled"), do: "Finished"
+  def status_label("waiting_for_input"), do: "Working"
+
+  def status_label(status) when status in ["starting", "working", "retrying", "compacting"],
+    do: "Working"
+
   def status_label(status), do: status |> String.replace("_", " ") |> String.capitalize()
 
   def status_color(status) when status in ["starting", "working", "retrying", "compacting"],
@@ -444,6 +460,24 @@ defmodule WebAppWeb.SessionComponents do
 
   def status_color("settled"), do: "bg-success/70"
   def status_color(_status), do: "bg-base-content/35"
+
+  defp automation_count_summary(%{count: 0}), do: "No runs"
+
+  defp automation_count_summary(group) do
+    counts = Map.get(group, :status_counts, %{})
+
+    [
+      count_label(counts[:working], "working"),
+      count_label(counts[:finished], "finished"),
+      count_label(counts[:failed], "failed")
+    ]
+    |> Enum.reject(&is_nil/1)
+    |> Enum.join(" · ")
+  end
+
+  defp count_label(nil, _label), do: nil
+  defp count_label(0, _label), do: nil
+  defp count_label(count, label), do: "#{count} #{label}"
 
   defp session_row_class(selected) do
     [

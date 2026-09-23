@@ -52,20 +52,26 @@ defmodule WebApp.Sessions.Registry do
   def handle_call({:register_automation, name}, _from, state) do
     id = Base.url_encode64(:crypto.strong_rand_bytes(9), padding: false)
     project = Workspace.root()
+    session_file = automation_session_file(id)
+    File.mkdir_p!(Path.dirname(session_file))
+    write_automation_session!(session_file, id, project)
 
     case Store.create(%{
            id: id,
            name: name,
            project_path: project,
            relative_project: ".",
+           session_file: session_file,
+           pi_session_id: id,
            status: "working",
            source: "automation"
          }) do
       {:ok, _session} ->
         notify_sessions_changed()
-        {:reply, {:ok, id}, state}
+        {:reply, {:ok, %{id: id, session_file: session_file}}, state}
 
       {:error, reason} ->
+        File.rm(session_file)
         {:reply, {:error, format_error(reason)}, state}
     end
   end
@@ -275,6 +281,23 @@ defmodule WebApp.Sessions.Registry do
   defp put_status(id, status) do
     Store.update(id, %{status: to_string(status)})
     notify_sessions_changed()
+  end
+
+  defp automation_session_file(id) do
+    storage = Application.fetch_env!(:web_app, :automation_storage_path)
+    Path.join([storage, "sessions", "automations", "#{id}.jsonl"])
+  end
+
+  defp write_automation_session!(path, id, project) do
+    header = %{
+      type: "session",
+      version: 3,
+      id: id,
+      timestamp: DateTime.utc_now() |> DateTime.to_iso8601(),
+      cwd: project
+    }
+
+    File.write!(path, Jason.encode!(header) <> "\n", [:exclusive])
   end
 
   defp notify_sessions_changed,

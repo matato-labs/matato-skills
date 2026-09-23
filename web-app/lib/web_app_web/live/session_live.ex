@@ -1,13 +1,14 @@
 defmodule WebAppWeb.SessionLive do
   use WebAppWeb, :live_view
 
-  alias WebApp.{Bots, Sessions}
+  alias WebApp.{Automations, Bots, Sessions}
   alias WebAppWeb.SessionComponents
 
   @impl true
   def mount(_params, _session, socket) do
     if connected?(socket) do
       Sessions.subscribe()
+      Automations.subscribe()
       Bots.subscribe()
     end
 
@@ -19,7 +20,7 @@ defmodule WebAppWeb.SessionLive do
        projects: Sessions.workspace_directories(),
        sessions: sessions,
        workspace_groups: Sessions.workspace_groups(sessions),
-       automation_groups: Sessions.automation_groups(sessions),
+       automation_groups: Sessions.automation_groups(sessions, Automations.list()),
        bots: Bots.list(),
        session_id: nil,
        show_bot_form: false,
@@ -78,7 +79,7 @@ defmodule WebAppWeb.SessionLive do
          assign(socket,
            sessions: sessions,
            workspace_groups: Sessions.workspace_groups(sessions),
-           automation_groups: Sessions.automation_groups(sessions),
+           automation_groups: Sessions.automation_groups(sessions, Automations.list()),
            bots: Bots.list(),
            delete_session_id: nil,
            error: nil
@@ -112,7 +113,7 @@ defmodule WebAppWeb.SessionLive do
      assign(socket,
        sessions: sessions,
        workspace_groups: Sessions.workspace_groups(sessions),
-       automation_groups: Sessions.automation_groups(sessions),
+       automation_groups: Sessions.automation_groups(sessions, Automations.list()),
        bots: Bots.list()
      )}
   end
@@ -123,7 +124,7 @@ defmodule WebAppWeb.SessionLive do
     assign(socket,
       sessions: sessions,
       workspace_groups: Sessions.workspace_groups(sessions),
-      automation_groups: Sessions.automation_groups(sessions),
+      automation_groups: Sessions.automation_groups(sessions, Automations.list()),
       bots: Bots.list()
     )
   end

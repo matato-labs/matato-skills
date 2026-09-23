@@ -21,6 +21,8 @@ defmodule WebAppWeb.Router do
 
     live "/", SessionLive, :index
     live "/sessions/:id", AgentLive, :show
+    live "/automations/:id", AutomationLive, :show
+    live "/automation-runs/:id", AutomationRunLive, :show
     live "/bots/:bot_id", AgentLive, :show
   end
 

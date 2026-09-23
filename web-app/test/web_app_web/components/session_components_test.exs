@@ -21,25 +21,27 @@ defmodule WebAppWeb.SessionComponentsTest do
     refute html =~ "hero-cpu-chip"
   end
 
-  test "renders active automation work separately from workspace sessions" do
+  test "renders one automation link with status counts and no run links" do
     html =
       render_component(&SessionComponents.sidebar/1,
         workspace_groups: [],
         automation_groups: [
           %{
-            key: :others,
-            label: "Others",
-            sessions: [
-              %{id: "automation", source: "automation", status: "working", title: "Daily review"}
-            ]
+            key: 12,
+            id: 12,
+            label: "Daily review",
+            count: 4,
+            status_counts: %{working: 1, finished: 2, failed: 1},
+            sessions: []
           }
         ],
         mobile_sidebar_open: false
       )
 
-    assert html =~ "Automations"
-    assert html =~ "automation-session-groups"
+    assert html =~ ~s(aria-label="Automations")
     assert html =~ "Daily review"
-    assert html =~ "Working"
+    assert html =~ "1 working · 2 finished · 1 failed"
+    assert html =~ ~s(href="/automations/12")
+    refute html =~ "/automation-runs/"
   end
 end
