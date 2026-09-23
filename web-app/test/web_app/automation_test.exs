@@ -205,23 +205,13 @@ defmodule WebApp.AutomationsTest do
              |> Enum.find(&(&1["name"] == job_name and &1["source"] == "automation"))
   end
 
-  test "persists monitored failures before Pi starts" do
+  test "does not persist monitored failures before Pi starts" do
     job_name = "missing-#{System.unique_integer([:positive])}"
-
-    on_exit(fn ->
-      Store.list()
-      |> Enum.filter(&(&1["name"] == job_name and &1["source"] == "automation"))
-      |> Enum.each(&Store.delete(&1["id"]))
-    end)
 
     Runner.run(%{automation(job_name, "* * * * *") | monitor: true})
     _ = :sys.get_state(Registry)
 
-    assert %{"status" => "failed", "session_file" => session_file} =
-             Store.list()
-             |> Enum.find(&(&1["name"] == job_name and &1["source"] == "automation"))
-
-    assert is_binary(session_file)
+    refute Enum.any?(Store.list(), &(&1["name"] == job_name and &1["source"] == "automation"))
   end
 
   test "logs the failed automation and reason" do
@@ -308,8 +298,9 @@ defmodule WebApp.AutomationsTest do
       Repo.delete(bot)
     end)
 
-    Runner.run(%{automation(job_name, "* * * * *") | bot_id: bot.id})
+    Runner.run(%{automation(job_name, "* * * * *") | bot_id: bot.id, monitor: true})
     assert [] = Messages.list_for_bot(bot.id)
+    refute Enum.any?(Store.list(), &(&1["name"] == job_name and &1["source"] == "automation"))
     refute File.exists?(pi_marker)
     refute File.exists?(post_marker)
   end

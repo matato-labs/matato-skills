@@ -5,31 +5,29 @@ defmodule WebApp.Automations.Runner do
 
   def run(%Automations{use_skill: false} = automation) do
     Logger.debug("Automation started: #{automation.job_name}")
-    run_automation(automation, nil, nil, register_automation(automation))
+    run_automation(automation, nil, nil)
   end
 
   def run(%Automations{} = automation) do
     Logger.debug("Automation started: #{automation.job_name}")
-    monitor = register_automation(automation)
 
     with {:ok, skill_path} <- skill_path(automation.job_name),
          {:ok, output} <- script(skill_path, "preScript.ts") do
-      run_automation(automation, skill_path, output, monitor)
+      run_automation(automation, skill_path, output)
     else
       {:error, reason} ->
-        finish_automation_monitor(monitor, {:error, reason})
         persist_result(automation, "Automation failed: #{reason}")
         log_failure(automation, reason)
     end
   end
 
-  defp run_automation(%{use_skill: true} = automation, _skill_path, "", monitor) do
-    finish_automation_monitor(monitor, {:ok, ""})
+  defp run_automation(%{use_skill: true} = automation, _skill_path, "") do
     Logger.debug("Automation skipped: #{automation.job_name} (pre-script returned no work)")
   end
 
-  defp run_automation(automation, skill_path, output, monitor) do
+  defp run_automation(automation, skill_path, output) do
     Logger.info("Automation agent started: #{automation.job_name}")
+    monitor = register_automation(automation)
 
     result =
       with {:ok, response} <- run_pi(automation, skill_path, output, monitor),
