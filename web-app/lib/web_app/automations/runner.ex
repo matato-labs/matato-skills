@@ -183,7 +183,21 @@ defmodule WebApp.Automations.Runner do
     error -> {:error, Exception.message(error)}
   end
 
-  defp automation_env, do: [{"MATATO_PI_CONFIG", storage_path()}]
+  @automation_environment_names ["DISCORD_BOT_TOKEN", "DISCORD_GUILD_ID", "DISCORD_CHANNEL_IDS"]
+
+  defp automation_env do
+    [
+      {"MATATO_PI_CONFIG", storage_path()}
+      | Enum.flat_map(@automation_environment_names, &environment_value/1)
+    ]
+  end
+
+  defp environment_value(name) do
+    case System.fetch_env(name) do
+      {:ok, value} -> [{name, value}]
+      :error -> []
+    end
+  end
 
   defp storage_path, do: Application.fetch_env!(:web_app, :automation_storage_path)
 

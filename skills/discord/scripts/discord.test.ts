@@ -3,6 +3,7 @@ import {
   getBotIdentity,
   listAllowedChannels,
   readMessages,
+  readNewMessages,
   replyToMessage,
   sendMessage,
 } from "./discord.ts";
@@ -173,10 +174,64 @@ describe("Discord REST helpers", () => {
       "https://discord.com/api/v10/channels/channel-1",
       "https://discord.com/api/v10/channels/channel-1/messages",
     ]);
+    expect(JSON.parse(String(requests[1]?.options.body))).toEqual({
+      content: "Hello",
+      allowed_mentions: { parse: [] },
+    });
     expect(JSON.parse(String(requests[3]?.options.body))).toEqual({
       content: "Hello",
-      message_reference: { message_id: "message-1", fail_if_not_exists: true },
+      allowed_mentions: { parse: [] },
+      message_reference: {
+        message_id: "message-1",
+        channel_id: "channel-1",
+        fail_if_not_exists: true,
+      },
     });
+  });
+
+  test("walks older pages without skipping messages and returns chronological order", async () => {
+    configureDiscord();
+    const visited: Array<string> = [];
+    setFetch(async (url) => {
+      visited.push(url);
+      if (url.endsWith("/channels/channel-1"))
+        return new Response(
+          JSON.stringify({ id: "channel-1", guild_id: "guild-1", type: 0 }),
+        );
+      const ids = url.includes("before=2")
+        ? ["1"]
+        : Array.from({ length: 100 }, (_, index) => String(101 - index));
+      return new Response(
+        JSON.stringify(ids.map((id) => ({ id, channel_id: "channel-1" }))),
+      );
+    });
+
+    const messages = await readNewMessages("channel-1", "1");
+    expect(messages.map((message) => message.id)).toEqual(
+      Array.from({ length: 100 }, (_, index) => String(index + 2)),
+    );
+    expect(visited.some((url) => url.includes("before=2"))).toBe(true);
+  });
+
+  test("fails instead of advancing after the polling page limit", async () => {
+    configureDiscord();
+    setFetch(async (url) =>
+      url.endsWith("/channels/channel-1")
+        ? new Response(
+            JSON.stringify({ id: "channel-1", guild_id: "guild-1", type: 0 }),
+          )
+        : new Response(
+            JSON.stringify(
+              Array.from({ length: 100 }, (_, index) => ({
+                id: String(1000 - index),
+                channel_id: "channel-1",
+              })),
+            ),
+          ),
+    );
+    await expect(readNewMessages("channel-1", "1", 1)).rejects.toThrow(
+      "exceeded the polling page limit",
+    );
   });
 
   test("rejects blank messages before writing", async () => {

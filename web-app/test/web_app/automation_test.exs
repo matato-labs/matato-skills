@@ -77,6 +77,45 @@ defmodule WebApp.AutomationsTest do
     refute prompt =~ "/skill:"
   end
 
+  test "passes configured Discord variables to automation processes" do
+    job_name = "automation-#{System.unique_integer([:positive])}"
+    pi_dir = Path.join(System.tmp_dir!(), "pi-#{System.unique_integer([:positive])}")
+    pi_path = Path.join(pi_dir, "pi")
+    environment_path = temp_path()
+    File.mkdir_p!(pi_dir)
+
+    File.write!(
+      pi_path,
+      "#!/bin/sh\nprintf '%s|%s|%s' \"$DISCORD_BOT_TOKEN\" \"$DISCORD_GUILD_ID\" \"$DISCORD_CHANNEL_IDS\" > #{environment_path}\nprintf '{\\\"type\\\":\\\"agent_settled\\\"}\\n'\n"
+    )
+
+    File.chmod!(pi_path, 0o755)
+    original_path = System.get_env("PATH")
+    original_discord = System.fetch_env("DISCORD_BOT_TOKEN")
+    original_guild = System.fetch_env("DISCORD_GUILD_ID")
+    original_channels = System.fetch_env("DISCORD_CHANNEL_IDS")
+
+    System.put_env(%{
+      "PATH" => "#{pi_dir}:#{original_path}",
+      "DISCORD_BOT_TOKEN" => "token",
+      "DISCORD_GUILD_ID" => "guild",
+      "DISCORD_CHANNEL_IDS" => "channel"
+    })
+
+    on_exit(fn ->
+      System.put_env("PATH", original_path)
+      restore_env("DISCORD_BOT_TOKEN", original_discord)
+      restore_env("DISCORD_GUILD_ID", original_guild)
+      restore_env("DISCORD_CHANNEL_IDS", original_channels)
+      File.rm(environment_path)
+      File.rm_rf!(pi_dir)
+    end)
+
+    Runner.run(%{automation(job_name, "* * * * *") | use_skill: false})
+
+    assert File.read!(environment_path) == "token|guild|channel"
+  end
+
   test "persists bot automation execution and assistant result" do
     job_name = "automation-#{System.unique_integer([:positive])}"
     pi_dir = Path.join(System.tmp_dir!(), "pi-#{System.unique_integer([:positive])}")
@@ -384,8 +423,10 @@ defmodule WebApp.AutomationsTest do
     }
   end
 
-  defp restore_mix_env({:ok, value}), do: System.put_env("MIX_ENV", value)
-  defp restore_mix_env(:error), do: System.delete_env("MIX_ENV")
+  defp restore_env(name, {:ok, value}), do: System.put_env(name, value)
+  defp restore_env(name, :error), do: System.delete_env(name)
+
+  defp restore_mix_env(value), do: restore_env("MIX_ENV", value)
 
   defp temp_path do
     suffix = Base.url_encode64(:crypto.strong_rand_bytes(9), padding: false)

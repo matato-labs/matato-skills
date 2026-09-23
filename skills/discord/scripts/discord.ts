@@ -15,14 +15,14 @@ type DiscordChannel = {
   parent_id?: string | null;
 };
 
-type DiscordUser = {
+export type DiscordUser = {
   id: string;
   username: string;
   global_name: string | null;
   bot: boolean;
 };
 
-type DiscordMessage = {
+export type DiscordMessage = {
   id: string;
   channel_id: string;
   content: string;
@@ -90,7 +90,7 @@ const requireAllowedChannel = (
     throw new Error(`Channel ${channelId} is not allowlisted`);
 };
 
-const verifyGuildChannel = async (
+export const verifyGuildChannel = async (
   configuration: DiscordConfiguration,
   channelId: string,
 ): Promise<DiscordChannel> => {
@@ -125,13 +125,52 @@ export const listAllowedChannels = async (): Promise<Array<DiscordChannel>> => {
 export const readMessages = async (
   channelId: string,
   limit = 25,
+  before?: string,
 ): Promise<Array<DiscordMessage>> => {
   const configuration = resolveDiscordConfiguration();
   await verifyGuildChannel(configuration, channelId);
-  const messageLimit = resolveMessageLimit(limit);
+  const query = new URLSearchParams({
+    limit: String(resolveMessageLimit(limit)),
+  });
+  if (before) query.set("before", before);
   return requestDiscord<Array<DiscordMessage>>(
     configuration,
-    `/channels/${channelId}/messages?limit=${messageLimit}`,
+    `/channels/${channelId}/messages?${query}`,
+  );
+};
+
+// Walk backwards from the newest page until the saved cursor is reached.
+// Never advance a cursor if the bounded scan cannot reach it.
+export const readNewMessages = async (
+  channelId: string,
+  after: string,
+  maximumPages = 10,
+): Promise<Array<DiscordMessage>> => {
+  const messages: Array<DiscordMessage> = [];
+  let before: string | undefined;
+  for (let page = 0; page < maximumPages; page += 1) {
+    const batch = await readMessages(channelId, maximumMessageLimit, before);
+    if (batch.length === 0) break;
+    messages.push(
+      ...batch.filter((message) => BigInt(message.id) > BigInt(after)),
+    );
+    if (
+      batch.some((message) => BigInt(message.id) <= BigInt(after)) ||
+      batch.length < maximumMessageLimit
+    )
+      break;
+    before = batch[batch.length - 1].id;
+    if (page === maximumPages - 1)
+      throw new Error(
+        `Discord channel ${channelId} exceeded the polling page limit`,
+      );
+  }
+  return messages.sort((left, right) =>
+    BigInt(left.id) < BigInt(right.id)
+      ? -1
+      : BigInt(left.id) > BigInt(right.id)
+        ? 1
+        : 0,
   );
 };
 
@@ -146,7 +185,10 @@ export const sendMessage = async ({
   return requestDiscord<DiscordMessage>(
     configuration,
     `/channels/${channelId}/messages`,
-    { method: "POST", body: JSON.stringify({ content }) },
+    {
+      method: "POST",
+      body: JSON.stringify({ content, allowed_mentions: { parse: [] } }),
+    },
   );
 };
 
@@ -166,7 +208,12 @@ export const replyToMessage = async ({
       method: "POST",
       body: JSON.stringify({
         content,
-        message_reference: { message_id: messageId, fail_if_not_exists: true },
+        allowed_mentions: { parse: [] },
+        message_reference: {
+          message_id: messageId,
+          channel_id: channelId,
+          fail_if_not_exists: true,
+        },
       }),
     },
   );
