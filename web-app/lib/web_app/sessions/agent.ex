@@ -8,7 +8,6 @@ defmodule WebApp.Sessions.Agent do
   @command_timeout 15_000
   @max_record 16_777_216
   @max_stderr 8_192
-  @mix_test_instruction "Run Mix tests with `MIX_ENV=test mix test`. Do not unset `MIX_ENV`, because Mix would default to `dev`."
 
   def child_spec(options) do
     %{id: options[:id], start: {__MODULE__, :start_link, [options]}, restart: :temporary}
@@ -261,7 +260,6 @@ defmodule WebApp.Sessions.Agent do
     ]
     |> add_resource("--skill", project_skills)
     |> add_resource("--prompt-template", project_prompts)
-    |> add_system_instruction()
     |> add_identity(options[:identity])
     |> then(fn args ->
       if options[:session_file], do: args ++ ["--session", options[:session_file]], else: args
@@ -271,9 +269,6 @@ defmodule WebApp.Sessions.Agent do
   defp add_resource(args, flag, path) do
     if File.dir?(path), do: args ++ [flag, path], else: args
   end
-
-  defp add_system_instruction(args),
-    do: args ++ ["--append-system-prompt", @mix_test_instruction]
 
   defp add_identity(args, nil), do: args
   defp add_identity(args, identity), do: args ++ ["--append-system-prompt", identity]

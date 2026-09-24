@@ -84,8 +84,6 @@ defmodule WebApp.Sessions.AgentTest do
     assert "--no-prompt-templates" in arguments
     assert "--append-system-prompt" in arguments
 
-    assert "Run Mix tests with `MIX_ENV=test mix test`. Do not unset `MIX_ENV`, because Mix would default to `dev`." in arguments
-
     assert "You are Test, tester. Test agent sessions." in arguments
     assert Path.join(context.root, ".pi/skills") in arguments
     assert Path.join(context.root, ".pi/prompts") in arguments
