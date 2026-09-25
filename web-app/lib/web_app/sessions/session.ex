@@ -11,6 +11,7 @@ defmodule WebApp.Sessions.Session do
     field(:pi_session_id, :string)
     field(:source, :string, default: "web")
     field(:status, :string)
+    field(:result, :string)
     timestamps(type: :utc_datetime)
   end
 
@@ -24,7 +25,8 @@ defmodule WebApp.Sessions.Session do
       :session_file,
       :pi_session_id,
       :source,
-      :status
+      :status,
+      :result
     ])
     |> validate_required([:id, :name, :project_path, :relative_project, :source, :status])
   end

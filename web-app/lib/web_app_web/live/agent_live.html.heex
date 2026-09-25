@@ -1,6 +1,9 @@
 <Layouts.app flash={@flash}>
   <div class="h-screen overflow-hidden bg-base-300 text-base-content">
-    <div class="grid h-full lg:grid-cols-[17rem_minmax(0,1fr)]">
+    <div class={[
+      "grid h-full lg:grid-cols-[17rem_minmax(0,1fr)]",
+      @show_automation_activity && "lg:grid-cols-[17rem_minmax(0,1fr)_24rem]"
+    ]}>
       <SessionComponents.sidebar
         workspace_groups={@workspace_groups}
         automation_groups={@automation_groups}
@@ -31,6 +34,7 @@
           chat_name={@chat_name}
           bot={@bot}
           mobile_sidebar_open={@mobile_sidebar_open}
+          show_automation_activity={@show_automation_activity}
         />
         <SessionComponents.bot_editor
           show={@show_bot_editor}
@@ -342,6 +346,11 @@
           </section>
         <% end %>
       </main>
+      <SessionComponents.automation_activity_panel
+        :if={@show_automation_activity && @bot}
+        bot={@bot}
+        automation_groups={Enum.filter(@automation_groups, &(Map.get(&1, :bot_id) == @bot.id))}
+      />
     </div>
   </div>
 </Layouts.app>

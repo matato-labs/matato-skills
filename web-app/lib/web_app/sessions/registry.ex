@@ -29,8 +29,8 @@ defmodule WebApp.Sessions.Registry do
   def delete(id), do: GenServer.call(__MODULE__, {:delete, id}, 20_000)
   def register_automation(name), do: GenServer.call(__MODULE__, {:register_automation, name})
 
-  def complete_automation(id, status),
-    do: GenServer.cast(__MODULE__, {:complete_automation, id, status})
+  def complete_automation(id, status, result),
+    do: GenServer.cast(__MODULE__, {:complete_automation, id, status, result})
 
   @impl true
   def init(:ok) do
@@ -123,8 +123,9 @@ defmodule WebApp.Sessions.Registry do
   end
 
   @impl true
-  def handle_cast({:complete_automation, id, status}, state) do
-    put_status(id, status)
+  def handle_cast({:complete_automation, id, status, result}, state) do
+    Store.update(id, %{status: Atom.to_string(status), result: result})
+    notify_sessions_changed()
     {:noreply, state}
   end
 

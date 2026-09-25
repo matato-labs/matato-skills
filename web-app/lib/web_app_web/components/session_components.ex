@@ -103,9 +103,12 @@ defmodule WebAppWeb.SessionComponents do
             Automations
           </h2>
           <nav id="automation-session-groups" class="space-y-0.5" aria-label="Automations">
-            <.automation_row :for={automation <- @automation_groups} automation={automation} />
+            <.automation_row
+              :for={automation <- Enum.filter(@automation_groups, &is_nil(Map.get(&1, :bot_id)))}
+              automation={automation}
+            />
             <p
-              :if={@automation_groups == []}
+              :if={Enum.all?(@automation_groups, &(not is_nil(Map.get(&1, :bot_id))))}
               class="px-2 py-1 text-xs leading-5 text-base-content/40"
             >
               No enabled automations.
@@ -166,8 +169,63 @@ defmodule WebAppWeb.SessionComponents do
         {automation_count_summary(@automation)}
       </span>
     </.link>
+    <div :if={@automation.sessions != []} class="ml-3 space-y-1 pl-2">
+      <.automation_run :for={run <- Enum.take(@automation.sessions, 1)} run={run} />
+    </div>
     """
   end
+
+  attr :run, :map, required: true
+
+  defp automation_run(assigns) do
+    ~H"""
+    <.link
+      id={"automation-run-#{@run.id}"}
+      navigate={"/automation-runs/#{@run.id}"}
+      class="block rounded-md bg-base-content/5 px-2.5 py-2 text-xs transition-colors hover:bg-base-content/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+      aria-label={"Open #{automation_run_status(@run.status)} automation run"}
+      aria-live="polite"
+    >
+      <span class="flex items-center gap-2 font-medium">
+        <span class={["size-1.5 shrink-0 rounded-full", automation_run_color(@run.status)]}></span>
+        <span class={automation_run_text_color(@run.status)}>{automation_run_status(@run.status)}</span>
+        <.icon name="hero-arrow-up-right" class="ml-auto size-3 text-base-content/40" />
+      </span>
+      <span
+        :if={@run.result && @run.result != ""}
+        class="mt-1 block line-clamp-4 whitespace-pre-wrap break-words text-[0.7rem] leading-relaxed text-base-content/70"
+      >{@run.result}</span>
+      <span
+        :if={@run.status == "interrupted" && !@run.result}
+        class="mt-1 block text-[0.7rem] text-base-content/70"
+      >Run interrupted before completion.</span>
+    </.link>
+    """
+  end
+
+  defp automation_run_status("settled"), do: "Finished"
+
+  defp automation_run_status(status)
+       when status in ["starting", "working", "waiting_for_input", "retrying", "compacting"],
+       do: "Working"
+
+  defp automation_run_status(_status), do: "Failed"
+
+  defp automation_run_color("settled"), do: "bg-success/70"
+
+  defp automation_run_color(status)
+       when status in ["starting", "working", "waiting_for_input", "retrying", "compacting"],
+       do: "bg-warning"
+
+  defp automation_run_color(_status), do: "bg-error"
+
+  defp automation_run_text_color("settled"), do: "text-success"
+
+  defp automation_run_text_color(status)
+       when status in ["starting", "working", "waiting_for_input", "retrying", "compacting"],
+       do: "text-warning"
+
+  defp automation_run_text_color(_status), do: "text-error"
 
   attr :bot, :map, required: true
   attr :status, :string, required: true
@@ -251,6 +309,7 @@ defmodule WebAppWeb.SessionComponents do
   attr :chat_name, :string, default: nil
   attr :bot, :map, default: nil
   attr :mobile_sidebar_open, :boolean, required: true
+  attr :show_automation_activity, :boolean, required: true
 
   def chat_header(assigns) do
     ~H"""
@@ -273,6 +332,22 @@ defmodule WebAppWeb.SessionComponents do
         <h1 class="truncate text-sm font-semibold tracking-tight">{@chat_name || "Matato Agent"}</h1>
         <button
           :if={@bot}
+          id="automation-activity-button"
+          type="button"
+          phx-click="toggle_automation_activity"
+          class={[
+            "grid size-7 shrink-0 place-items-center rounded-md transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
+            @show_automation_activity && "bg-base-content/10 text-base-content",
+            !@show_automation_activity &&
+              "text-base-content/45 hover:bg-base-content/8 hover:text-base-content"
+          ]}
+          aria-label="Toggle automation activity"
+          aria-expanded={to_string(@show_automation_activity)}
+        >
+          <.icon name="hero-bolt" class="size-4" />
+        </button>
+        <button
+          :if={@bot}
           id="edit-bot-button"
           type="button"
           phx-click="show_bot_editor"
@@ -285,6 +360,107 @@ defmodule WebAppWeb.SessionComponents do
     </header>
     """
   end
+
+  attr :bot, :map, required: true
+  attr :automation_groups, :list, required: true
+
+  def automation_activity_panel(assigns) do
+    ~H"""
+    <aside
+      id="automation-activity-panel"
+      class="fixed inset-y-0 right-0 z-30 flex w-full max-w-sm flex-col border-l border-base-content/10 bg-base-200 shadow-2xl lg:static lg:z-auto lg:w-auto lg:max-w-none lg:shadow-none"
+      aria-label="Automation activity"
+    >
+      <header class="flex min-h-16 items-center justify-between gap-3 border-b border-base-content/10 px-5">
+        <div class="min-w-0">
+          <p class="text-[0.68rem] font-semibold uppercase tracking-[0.16em] text-base-content/45">
+            Automation activity
+          </p>
+          <h2 class="truncate text-sm font-semibold tracking-tight">{@bot.name}</h2>
+        </div>
+        <button
+          id="close-automation-activity"
+          type="button"
+          phx-click="hide_automation_activity"
+          class="grid size-8 shrink-0 place-items-center rounded-md text-base-content/45 transition-colors hover:bg-base-content/8 hover:text-base-content focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+          aria-label="Close automation activity"
+        >
+          <.icon name="hero-x-mark" class="size-4" />
+        </button>
+      </header>
+      <section class="min-h-0 flex-1 overflow-y-auto px-5 py-6" aria-live="polite">
+        <div
+          :if={@automation_groups == [] || Enum.all?(@automation_groups, &(&1.sessions == []))}
+          id="automation-activity-empty"
+          class="py-16 text-center"
+        >
+          <div class="mx-auto mb-4 grid size-11 place-items-center rounded-xl bg-base-300 text-base-content/45">
+            <.icon name="hero-bolt" class="size-5" />
+          </div>
+          <h3 class="text-sm font-semibold">No automation activity</h3>
+          <p class="mt-1 text-sm text-base-content/45">Runs for this bot will appear here.</p>
+        </div>
+        <div :if={@automation_groups != []} class="space-y-6">
+          <section
+            :for={automation <- @automation_groups}
+            aria-labelledby={"automation-activity-#{automation.id}"}
+          >
+            <h3
+              id={"automation-activity-#{automation.id}"}
+              class="mb-2 truncate text-xs font-semibold uppercase tracking-[0.12em] text-base-content/45"
+            >
+              {automation.label}
+            </h3>
+            <div class="space-y-3">
+              <p :if={automation.sessions == []} class="text-sm text-base-content/45">No runs yet.</p>
+              <article
+                :for={run <- automation.sessions}
+                id={"automation-activity-run-#{run.id}"}
+                class="rounded-lg border border-base-content/10 bg-base-300 px-4 py-3 text-sm text-base-content/75"
+              >
+                <div class="flex items-center justify-between gap-3">
+                  <p class="text-xs font-semibold uppercase tracking-wide text-base-content/55">
+                    Automation
+                  </p>
+                  <span class={[
+                    "rounded-full px-2 py-1 text-xs font-semibold",
+                    automation_activity_status_class(run.status)
+                  ]}>
+                    {automation_activity_status(run.status)}
+                  </span>
+                </div>
+                <p
+                  :if={run.result && run.result != ""}
+                  class="mt-2 whitespace-pre-wrap break-words leading-6"
+                >
+                  {run.result}
+                </p>
+                <p :if={run.status == "interrupted" && !run.result} class="mt-2 text-base-content/55">
+                  Run interrupted before completion.
+                </p>
+              </article>
+            </div>
+          </section>
+        </div>
+      </section>
+    </aside>
+    """
+  end
+
+  defp automation_activity_status("settled"), do: "Finished"
+
+  defp automation_activity_status(status)
+       when status in ["starting", "working", "waiting_for_input", "retrying", "compacting"],
+       do: "Working"
+
+  defp automation_activity_status(_status), do: "Failed"
+  defp automation_activity_status_class("settled"), do: "bg-success/10 text-success"
+
+  defp automation_activity_status_class(status)
+       when status in ["starting", "working", "waiting_for_input", "retrying", "compacting"],
+       do: "bg-warning/10 text-warning"
+
+  defp automation_activity_status_class(_status), do: "bg-error/10 text-error"
 
   attr :show, :boolean, required: true
   attr :bot_form, :map, required: true
@@ -461,6 +637,7 @@ defmodule WebAppWeb.SessionComponents do
   def status_color("settled"), do: "bg-success/70"
   def status_color(_status), do: "bg-base-content/35"
 
+  defp automation_count_summary(%{monitor: false, count: 0}), do: "Monitoring off"
   defp automation_count_summary(%{count: 0}), do: "No runs"
 
   defp automation_count_summary(group) do

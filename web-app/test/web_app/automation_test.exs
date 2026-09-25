@@ -4,7 +4,7 @@ defmodule WebApp.AutomationsTest do
   import ExUnit.CaptureLog
 
   alias WebApp.{Automations, Messages}
-  alias WebApp.Automations.{Runner, Scheduler}
+  alias WebApp.Automations.{Record, Runner, Scheduler}
   alias WebApp.Data.Repo
   alias WebApp.Sessions.{Catalog, Registry, Store}
 
@@ -41,6 +41,20 @@ defmodule WebApp.AutomationsTest do
                automation("duplicate", "* * * * *"),
                automation("duplicate", "*/5 * * * *")
              ])
+  end
+
+  test "rejects daily sessions for bot-owned automations at configuration time" do
+    attributes = Map.from_struct(automation("daily", "* * * * *"))
+
+    changeset =
+      Record.changeset(%Record{}, %{
+        attributes
+        | bot_id: Ecto.UUID.generate(),
+          daily_session: true
+      })
+
+    refute changeset.valid?
+    assert {"cannot be enabled for bot-owned automations", _} = changeset.errors[:daily_session]
   end
 
   test "runs a prompt-only automation without a skill" do
@@ -116,7 +130,7 @@ defmodule WebApp.AutomationsTest do
     assert File.read!(environment_path) == "token|guild|channel"
   end
 
-  test "persists bot automation execution and assistant result" do
+  test "does not enqueue a bot-owned automation result as a message" do
     job_name = "automation-#{System.unique_integer([:positive])}"
     pi_dir = Path.join(System.tmp_dir!(), "pi-#{System.unique_integer([:positive])}")
     pi_path = Path.join(pi_dir, "pi")
@@ -149,9 +163,7 @@ defmodule WebApp.AutomationsTest do
 
     Runner.run(%{automation(job_name, "* * * * *") | use_skill: false, bot_id: bot.id})
 
-    assert [result] = Messages.list_for_bot(bot.id)
-    assert result.kind == "result"
-    assert result.content == "Done"
+    assert [] = Messages.list_for_bot(bot.id)
   end
 
   test "registers monitored automation work while it is running" do

@@ -1,7 +1,7 @@
 defmodule WebApp.Automations.Runner do
   require Logger
 
-  alias WebApp.{Automations, Bots, Messages, Sessions}
+  alias WebApp.{Automations, Bots, Sessions}
 
   def run(%Automations{use_skill: false} = automation) do
     Logger.debug("Automation started: #{automation.job_name}")
@@ -63,11 +63,11 @@ defmodule WebApp.Automations.Runner do
 
   defp finish_automation_monitor(nil, _result), do: :ok
 
-  defp finish_automation_monitor(%{id: id}, {:ok, _response}),
-    do: Sessions.complete_automation(id, :settled)
+  defp finish_automation_monitor(%{id: id}, {:ok, response}),
+    do: Sessions.complete_automation(id, :settled, response)
 
-  defp finish_automation_monitor(%{id: id}, {:error, _reason}),
-    do: Sessions.complete_automation(id, :failed)
+  defp finish_automation_monitor(%{id: id}, {:error, reason}),
+    do: Sessions.complete_automation(id, :failed, reason)
 
   defp post_script(%{use_skill: false}, _skill_path), do: {:ok, nil}
   defp post_script(_automation, skill_path), do: script(skill_path, "postScript.ts")
@@ -124,14 +124,93 @@ defmodule WebApp.Automations.Runner do
     end
   end
 
-  defp run_pi(automation, skill_path, output, monitor) do
+  defp run_pi(%{bot_id: nil} = automation, skill_path, output, monitor) do
     with {:ok, executable} <- executable("pi"),
          {:ok, port} <-
            open_port(executable, pi_args(automation, skill_path, monitor), File.cwd!()),
-         :ok <- send_prompt(port, automation, output) do
+         :ok <- send_prompt(port, automation, output, true) do
       await_settled(port, "", automation, "")
     end
   end
+
+  defp run_pi(automation, _skill_path, output, _monitor) do
+    with false <- automation.daily_session,
+         %{background_remote_session_id: session_id} <- Bots.get(automation.bot_id),
+         :ok <- Sessions.open(session_id),
+         :owner <- await_background(session_id) do
+      try do
+        with :ok <- configure_model(session_id, automation.model),
+             :ok <- configure_thinking(session_id, automation.thinking_level) do
+          Sessions.owner_command_and_await_settled(
+            session_id,
+            self(),
+            prompt_command(automation, output, false)
+            |> Map.new(fn {key, value} -> {Atom.to_string(key), value} end)
+          )
+        end
+      after
+        Sessions.release(session_id, self())
+      end
+    else
+      nil -> {:error, "Automation bot no longer exists"}
+      true -> {:error, "Bot-owned automations cannot use daily_session"}
+      {:error, reason} -> {:error, reason}
+    end
+  catch
+    :exit, _reason -> {:error, "Bot background session stopped during automation"}
+  end
+
+  defp await_background(session_id) do
+    if Sessions.snapshot(session_id).status == :settled and
+         Sessions.claim(session_id, self()) == :owner do
+      if Sessions.snapshot(session_id).status == :settled do
+        :owner
+      else
+        Sessions.release(session_id, self())
+        retry_background(session_id)
+      end
+    else
+      retry_background(session_id)
+    end
+  end
+
+  defp retry_background(session_id) do
+    Process.sleep(50)
+    await_background(session_id)
+  end
+
+  defp configure_model(_session_id, nil), do: :ok
+
+  defp configure_model(session_id, model) do
+    case String.split(model, "/", parts: 2) do
+      [provider, model_id] when provider != "" and model_id != "" ->
+        command_ok(
+          Sessions.owner_command(session_id, self(), %{
+            "type" => "set_model",
+            "provider" => provider,
+            "modelId" => model_id
+          })
+        )
+
+      _ ->
+        {:error, "Bot automation model must be provider/model"}
+    end
+  end
+
+  defp configure_thinking(_session_id, nil), do: :ok
+
+  defp configure_thinking(session_id, level),
+    do:
+      command_ok(
+        Sessions.owner_command(session_id, self(), %{
+          "type" => "set_thinking_level",
+          "level" => level
+        })
+      )
+
+  defp command_ok(:ok), do: :ok
+  defp command_ok({:ok, _data}), do: :ok
+  defp command_ok(error), do: error
 
   defp executable(name) do
     case System.find_executable(name) do
@@ -205,14 +284,19 @@ defmodule WebApp.Automations.Runner do
 
   defp storage_path, do: Application.fetch_env!(:web_app, :automation_storage_path)
 
-  defp send_prompt(port, automation, output) do
-    prompt = skill_prompt(automation) ++ bot_identity(automation) ++ [automation.user_prompt]
-    prompt = if is_nil(output), do: prompt, else: prompt ++ ["", "Automation context:", output]
-    message = %{id: automation.job_name, type: "prompt", message: Enum.join(prompt, "\n")}
+  defp send_prompt(port, automation, output, include_identity) do
+    message = prompt_command(automation, output, include_identity)
 
     if Port.command(port, Jason.encode!(message) <> "\n"),
       do: :ok,
       else: {:error, "Could not send Pi prompt"}
+  end
+
+  defp prompt_command(automation, output, include_identity) do
+    identity = if include_identity, do: bot_identity(automation), else: []
+    prompt = skill_prompt(automation) ++ identity ++ [automation.user_prompt]
+    prompt = if is_nil(output), do: prompt, else: prompt ++ ["", "Automation context:", output]
+    %{id: automation.job_name, type: "prompt", message: Enum.join(prompt, "\n")}
   end
 
   defp skill_prompt(%{use_skill: false}), do: []
@@ -299,10 +383,8 @@ defmodule WebApp.Automations.Runner do
 
   defp automation_name(automation), do: Bots.name(automation.bot_id) || automation.job_name
 
-  defp persist_result(automation, content) do
-    _ = Messages.create_automation_result(automation.bot_id, content)
-    :ok
-  end
+  defp persist_result(%{bot_id: nil}, _content), do: :ok
+  defp persist_result(_automation, _content), do: :ok
 
   defp rpc_state(line) do
     case Jason.decode(line) do

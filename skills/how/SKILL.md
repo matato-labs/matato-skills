@@ -4,7 +4,7 @@ description: Use this skill when the user wants to know how something works in a
 disable-model-invocation: true
 ---
 
-The task is to review the user's request and provide a specific answer about how something works in a codebase. You need to read the code and never invent things; all answers need to be backed by evidence of what the actual code does.
+Understand the user's request and provide a specific answer. You need to read the code and never invent things; all answers need to be backed by evidence of what the actual code does.
 
 A user request can be categorized in two ways: simple and complex. You need to do a first run and determine which route to take.
 

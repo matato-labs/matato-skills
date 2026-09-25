@@ -26,7 +26,8 @@ defmodule WebApp.Sessions.State do
       commands: [],
       commands_error: nil,
       run_started_at: nil,
-      last_run_duration: nil
+      last_run_duration: nil,
+      settled_count: 0
     }
   end
 
@@ -54,7 +55,8 @@ defmodule WebApp.Sessions.State do
         dialog: nil,
         error: nil,
         run_started_at: nil,
-        last_run_duration: duration
+        last_run_duration: duration,
+        settled_count: state.settled_count + 1
     }
   end
 

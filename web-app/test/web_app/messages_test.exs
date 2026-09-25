@@ -78,40 +78,6 @@ defmodule WebApp.MessagesTest do
     assert {:sender_id, {"does not exist", []}} in changeset.errors
   end
 
-  test "hides delivered bot messages from notifications", %{bot: bot} do
-    {:ok, delivered} =
-      Messages.create(%{
-        receiver_bot_id: bot.id,
-        sender_type: "bot",
-        sender_id: bot.id,
-        kind: "request",
-        content: "Already in the chat"
-      })
-
-    {:ok, pending} =
-      Messages.create(%{
-        receiver_bot_id: bot.id,
-        sender_type: "bot",
-        sender_id: bot.id,
-        kind: "request",
-        content: "Still queued"
-      })
-
-    {:ok, automation} =
-      Messages.create(%{
-        receiver_bot_id: bot.id,
-        sender_type: "automation",
-        kind: "result",
-        content: "Automations done"
-      })
-
-    :ok = Messages.finish(delivered, "sent")
-    :ok = Messages.finish(automation, "sent")
-
-    notifications = Messages.list_notifications_for_bot(bot.id)
-    assert Enum.map(notifications, & &1.id) == [pending.id, automation.id]
-  end
-
   test "claims a pending message only once", %{bot: bot} do
     message = create_message(bot, DateTime.utc_now(), "claim me")
 

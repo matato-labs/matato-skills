@@ -29,6 +29,9 @@ defmodule WebApp.Sessions.Agent do
   def owner_command(id, owner, command),
     do: GenServer.call(via(id), {:owner_command, owner, command}, @command_timeout + 1_000)
 
+  def owner_command_and_await_settled(id, owner, command),
+    do: GenServer.call(via(id), {:owner_command_and_await_settled, owner, command}, :infinity)
+
   def claim(id, owner, takeover \\ false), do: GenServer.call(via(id), {:claim, owner, takeover})
   def release(id, owner), do: GenServer.cast(via(id), {:release, owner})
   def respond(id, response), do: GenServer.call(via(id), {:respond, response})
@@ -61,6 +64,8 @@ defmodule WebApp.Sessions.Agent do
       stderr_path: stderr_path,
       buffer: "",
       pending: %{},
+      settled_waiters: [],
+      automation_inflight: false,
       startup_waiters: [],
       sequence: 0,
       update_sequence: 0,
@@ -96,10 +101,38 @@ defmodule WebApp.Sessions.Agent do
   def handle_call(:await_ready, _from, state), do: {:reply, :ok, state}
 
   def handle_call({:owner_command, owner, command}, from, state) do
-    if state.owner == owner,
+    if state.owner == owner and elem(from, 0) == owner,
       do: handle_call({:command, command}, from, state),
       else: {:reply, {:error, "Only the interaction owner can control this session"}, state}
   end
+
+  def handle_call({:owner_command_and_await_settled, owner, command}, from, state) do
+    cond do
+      state.owner != owner or elem(from, 0) != owner ->
+        {:reply, {:error, "Only the interaction owner can control this session"}, state}
+
+      state.automation_inflight or state.view.status != :settled or
+        state.view.queue["steering"] != [] or state.view.queue["followUp"] != [] ->
+        {:reply, {:error, "Bot background session is busy"}, state}
+
+      command["type"] != "prompt" ->
+        {:reply, {:error, "Automation command must be a prompt"}, state}
+
+      byte_size(command["message"] || "") > 100_000 ->
+        {:reply, {:error, "Prompt exceeds 100 KB"}, state}
+
+      true ->
+        state.notifier.({:prompt, state.id, command["message"]})
+
+        state = %{state | automation_inflight: true}
+
+        {:noreply,
+         send_command(state, command, {:await_settled, from, length(state.view.messages)}, nil)}
+    end
+  end
+
+  def handle_call({:command, _command}, _from, %{automation_inflight: true} = state),
+    do: {:reply, {:error, "Automation turn is still in flight"}, state}
 
   def handle_call({:command, _command}, _from, %{view: %{status: :starting}} = state),
     do: {:reply, {:error, "Pi is still starting"}, state}
@@ -127,8 +160,9 @@ defmodule WebApp.Sessions.Agent do
   def handle_call({:claim, owner, takeover}, _from, state) do
     cond do
       state.owner == owner -> {:reply, :owner, state}
+      is_nil(state.owner) and state.automation_inflight -> {:reply, :observer, state}
       is_nil(state.owner) -> {:reply, :owner, set_owner(state, owner)}
-      takeover -> {:reply, :owner, set_owner(state, owner)}
+      takeover and !state.automation_inflight -> {:reply, :owner, set_owner(state, owner)}
       true -> {:reply, :observer, state}
     end
   end
@@ -182,10 +216,11 @@ defmodule WebApp.Sessions.Agent do
       do: Logger.warning("Pi RPC child exited", session_id: state.id, status: status)
 
     fail_pending(state.pending, error)
+    reply_waiters(state.settled_waiters, {:error, error})
     reply_waiters(state.startup_waiters, {:error, error})
     view = if state.closing, do: state.view, else: State.exit(state.view, error)
-    publish(%{state | view: view, pending: %{}}, {:exit, error})
-    {:stop, :normal, %{state | pending: %{}}}
+    publish(%{state | view: view, pending: %{}, settled_waiters: []}, {:exit, error})
+    {:stop, :normal, %{state | pending: %{}, settled_waiters: []}}
   end
 
   def handle_info({:command_timeout, id}, state) do
@@ -207,6 +242,10 @@ defmodule WebApp.Sessions.Agent do
 
       {pending, rest} ->
         error = "Pi command timed out; delivery is uncertain and was not retried"
+
+        if match?({:await_settled, _, _}, pending.kind),
+          do: reply(elem(pending.kind, 1), {:error, error})
+
         reply(pending.from, {:error, error})
         view = State.command_error(state.view, error)
         {:noreply, publish(%{state | pending: rest, view: view}, {:command_error, error})}
@@ -284,8 +323,18 @@ defmodule WebApp.Sessions.Agent do
       :use_stdio,
       {:args, Enum.map(shell_args, &String.to_charlist/1)},
       {:cd, String.to_charlist(project)},
-      {:env, [{~c"MIX_ENV", false}]}
+      {:env, [{~c"MIX_ENV", false} | automation_environment()]}
     ])
+  end
+
+  defp automation_environment do
+    ["DISCORD_BOT_TOKEN", "DISCORD_GUILD_ID", "DISCORD_CHANNEL_IDS"]
+    |> Enum.flat_map(fn name ->
+      case System.fetch_env(name) do
+        {:ok, value} -> [{String.to_charlist(name), String.to_charlist(value)}]
+        :error -> []
+      end
+    end)
   end
 
   defp send_command(state, command, kind, from) do
@@ -294,6 +343,12 @@ defmodule WebApp.Sessions.Agent do
 
     try do
       true = Port.command(state.port, Jason.encode!(payload) <> "\n")
+
+      state =
+        if command["type"] == "prompt",
+          do: %{state | view: State.apply(state.view, %{"type" => "agent_start"})},
+          else: state
+
       timer = Process.send_after(self(), {:command_timeout, id}, @command_timeout)
       pending = Map.put(state.pending, id, %{kind: kind, from: from, timer: timer})
       %{state | pending: pending, sequence: state.sequence + 1}
@@ -351,7 +406,16 @@ defmodule WebApp.Sessions.Agent do
 
   defp apply_response(%{"success" => false} = response, pending, state) do
     error = response["error"] || "Pi rejected the command"
+
+    if match?({:await_settled, _, _}, pending.kind),
+      do: reply(elem(pending.kind, 1), {:error, error})
+
     reply(pending.from, {:error, error})
+
+    state =
+      if match?({:await_settled, _, _}, pending.kind),
+        do: finish_automation(%{state | view: %{state.view | status: :settled}}),
+        else: state
 
     if pending.kind in [:state, :messages] do
       Port.close(state.port)
@@ -361,6 +425,15 @@ defmodule WebApp.Sessions.Agent do
         %{state | view: State.command_error(state.view, error)},
         {:command_error, error}
       )
+    end
+  end
+
+  defp apply_response(_response, %{kind: {:await_settled, from, message_count}}, state) do
+    if !state.automation_inflight do
+      GenServer.reply(from, {:ok, assistant_response(state.view, message_count)})
+      state
+    else
+      %{state | settled_waiters: [{from, message_count} | state.settled_waiters]}
     end
   end
 
@@ -413,6 +486,16 @@ defmodule WebApp.Sessions.Agent do
     publish(%{state | view: State.apply(state.view, event)}, {:event, event})
   end
 
+  defp publish_capped_event(%{"type" => "agent_settled"} = event, state) do
+    state =
+      state
+      |> Map.put(:view, State.apply(state.view, event))
+      |> settle_waiters()
+      |> finish_automation()
+
+    publish(state, {:event, event})
+  end
+
   defp publish_capped_event(event, state),
     do: publish(%{state | view: State.apply(state.view, event)}, {:event, event})
 
@@ -427,6 +510,7 @@ defmodule WebApp.Sessions.Agent do
     Logger.warning("Pi RPC protocol failure", session_id: state.id, reason: error)
     send(self(), :stop_protocol_failure)
     fail_pending(state.pending, error)
+    reply_waiters(state.settled_waiters, {:error, error})
     reply_waiters(state.startup_waiters, {:error, error})
 
     publish(
@@ -434,6 +518,7 @@ defmodule WebApp.Sessions.Agent do
         state
         | closing: true,
           pending: %{},
+          settled_waiters: [],
           startup_waiters: [],
           view: State.exit(state.view, error)
       },
@@ -441,8 +526,50 @@ defmodule WebApp.Sessions.Agent do
     )
   end
 
+  defp settle_waiters(%{automation_inflight: false} = state), do: state
+
+  defp settle_waiters(state) do
+    {automation_pending, pending} =
+      Enum.split_with(state.pending, fn {_id, request} ->
+        match?({:await_settled, _, _}, request.kind)
+      end)
+
+    Enum.each(automation_pending, fn {_id, request} ->
+      Process.cancel_timer(request.timer)
+      {:await_settled, from, message_count} = request.kind
+      reply(from, {:ok, assistant_response(state.view, message_count)})
+    end)
+
+    Enum.each(state.settled_waiters, fn {from, message_count} ->
+      GenServer.reply(from, {:ok, assistant_response(state.view, message_count)})
+    end)
+
+    %{state | settled_waiters: [], pending: Map.new(pending)}
+  end
+
+  defp assistant_response(view, message_count) do
+    view.messages
+    |> Enum.drop(message_count)
+    |> Enum.reverse()
+    |> Enum.find_value("", fn
+      %{"role" => "assistant", "content" => content} when is_list(content) ->
+        content |> Enum.filter(&(&1["type"] == "text")) |> Enum.map_join("\n", & &1["text"])
+
+      _ ->
+        nil
+    end)
+  end
+
+  defp finish_automation(state), do: %{state | automation_inflight: false}
+
   defp fail_pending(pending, error),
-    do: Enum.each(pending, fn {_id, request} -> reply(request.from, {:error, error}) end)
+    do:
+      Enum.each(pending, fn {_id, request} ->
+        if match?({:await_settled, _, _}, request.kind),
+          do: reply(elem(request.kind, 1), {:error, error})
+
+        reply(request.from, {:error, error})
+      end)
 
   defp reply_waiters(waiters, response), do: Enum.each(waiters, &GenServer.reply(&1, response))
 

@@ -11,7 +11,9 @@ defmodule WebApp.Sessions.Catalog do
       |> Enum.group_by(& &1.title)
 
     automations
-    |> Enum.filter(& &1.enabled)
+    |> Enum.filter(
+      &(&1.enabled and (not is_nil(Map.get(&1, :bot_id)) or Map.get(&1, :monitor, true)))
+    )
     |> Enum.map(fn automation ->
       automation_runs = runs |> Map.get(automation.job_name, []) |> sort_runs()
 
@@ -19,6 +21,8 @@ defmodule WebApp.Sessions.Catalog do
         key: automation.id,
         id: automation.id,
         label: automation.job_name,
+        bot_id: Map.get(automation, :bot_id),
+        monitor: Map.get(automation, :monitor, true),
         count: length(automation_runs),
         status_counts: Enum.frequencies_by(automation_runs, &status_group(&1.status)),
         sessions: automation_runs
@@ -63,6 +67,7 @@ defmodule WebApp.Sessions.Catalog do
       source: record["source"] || "web",
       status: record["status"] || "interrupted",
       title: record["name"] || if(project, do: Path.basename(project), else: "Untitled session"),
+      result: record["result"],
       project_root: project,
       project_label: label,
       group_key: group_key,

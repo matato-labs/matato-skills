@@ -49,7 +49,27 @@
         >
           <span>Started {@run["created_at"]}</span>
           <span>Updated {@run["updated_at"]}</span>
-          <span class="font-mono">{@run["pi_session_id"]}</span>
+          <span :if={!@bot_owned?} class="font-mono">{@run["pi_session_id"]}</span>
+        </div>
+
+        <div
+          :if={@run && @run["result"]}
+          id="automation-run-result"
+          class={[
+            "mb-6 rounded-lg border px-4 py-3 text-sm",
+            @run["status"] == "settled" && "border-success/30 bg-success/8 text-success",
+            @run["status"] != "settled" && "border-error/30 bg-error/8 text-error"
+          ]}
+        >
+          {@run["result"]}
+        </div>
+
+        <div
+          :if={@run && @run["status"] == "interrupted" && !@run["result"]}
+          role="alert"
+          class="mb-6 rounded-lg border border-error/30 bg-error/8 px-4 py-3 text-sm text-error"
+        >
+          Run interrupted before completion.
         </div>
 
         <div
@@ -62,7 +82,7 @@
         </div>
 
         <div
-          :if={@run && !@transcript_available?}
+          :if={@run && !@transcript_available? && (!@bot_owned? || !@run["result"])}
           id="transcript-unavailable"
           class="py-20 text-center"
         >
@@ -72,12 +92,20 @@
           <h2 class="text-sm font-semibold">
             {if status_label(@run["status"]) == "Working",
               do: "Run in progress",
-              else: "Transcript unavailable"}
+              else: if(@bot_owned?, do: "Run result", else: "Transcript unavailable")}
           </h2>
           <p class="mt-1 text-sm text-base-content/45">
             {if status_label(@run["status"]) == "Working",
-              do: "The transcript will appear after the agent writes its first response.",
-              else: "This run did not leave a readable session transcript."}
+              do:
+                if(@bot_owned?,
+                  do: "The result will appear when the bot and post-script finish.",
+                  else: "The transcript will appear after the agent writes its first response."
+                ),
+              else:
+                if(@bot_owned?,
+                  do: "This bot-owned run executed in the bot background session.",
+                  else: "This run did not leave a readable session transcript."
+                )}
           </p>
         </div>
 

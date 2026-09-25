@@ -81,6 +81,15 @@ defmodule WebApp.Sessions.CatalogTest do
              ])
   end
 
+  test "lists unmonitored bot automations but keeps unmonitored workspace jobs out of the sidebar" do
+    assert [%{label: "botJob", bot_id: "bot", monitor: false, sessions: []}] =
+             Catalog.automation_groups([], [
+               %{id: 1, job_name: "botJob", bot_id: "bot", enabled: true, monitor: false},
+               %{id: 2, job_name: "workspaceJob", bot_id: nil, enabled: true, monitor: false},
+               %{id: 3, job_name: "disabledJob", bot_id: "bot", enabled: false, monitor: false}
+             ])
+  end
+
   defp session(id, project, created_at, source \\ "web") do
     %{
       "id" => id,

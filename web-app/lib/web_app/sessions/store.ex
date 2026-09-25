@@ -203,6 +203,7 @@ defmodule WebApp.Sessions.Store do
       "pi_session_id" => session.pi_session_id,
       "source" => session.source,
       "status" => session.status,
+      "result" => session.result,
       "created_at" => DateTime.to_iso8601(session.inserted_at),
       "updated_at" => DateTime.to_iso8601(session.updated_at)
     }

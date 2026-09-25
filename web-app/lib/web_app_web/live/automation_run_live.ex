@@ -17,6 +17,7 @@ defmodule WebAppWeb.AutomationRunLive do
         automation_path: "/",
         transcript: nil,
         transcript_available?: false,
+        bot_owned?: false,
         expanded_work_ids: MapSet.new(),
         error: nil
       )
@@ -98,6 +99,24 @@ defmodule WebAppWeb.AutomationRunLive do
   end
 
   defp load_transcript(socket, run) do
+    if bot_owned?(run) do
+      socket
+      |> assign(
+        page_title: "#{run["name"]} · Automation run",
+        run: run,
+        automation_path: automation_path(run),
+        transcript: nil,
+        transcript_available?: false,
+        bot_owned?: true,
+        error: nil
+      )
+      |> stream(:messages, [], reset: true)
+    else
+      load_workspace_transcript(socket, run)
+    end
+  end
+
+  defp load_workspace_transcript(socket, run) do
     case Sessions.load_automation_transcript(run) do
       {:ok, transcript} ->
         items =
@@ -112,6 +131,7 @@ defmodule WebAppWeb.AutomationRunLive do
           automation_path: automation_path(run),
           transcript: transcript,
           transcript_available?: true,
+          bot_owned?: false,
           error: nil
         )
         |> stream(:messages, items, reset: true)
@@ -124,9 +144,17 @@ defmodule WebAppWeb.AutomationRunLive do
           automation_path: automation_path(run),
           transcript: nil,
           transcript_available?: false,
+          bot_owned?: false,
           error: nil
         )
         |> stream(:messages, [], reset: true)
+    end
+  end
+
+  defp bot_owned?(run) do
+    case Enum.find(Automations.list(), &(&1.job_name == run["name"])) do
+      %{bot_id: bot_id} when not is_nil(bot_id) -> true
+      _ -> false
     end
   end
 

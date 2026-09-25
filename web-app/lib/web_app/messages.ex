@@ -42,16 +42,6 @@ defmodule WebApp.Messages do
     )
   end
 
-  def list_notifications_for_bot(bot_id) do
-    Repo.all(
-      from(message in Message,
-        where: message.receiver_bot_id == ^bot_id,
-        where: not (message.sender_type == "bot" and message.sent_status == "sent"),
-        order_by: [asc: message.timestamp, asc: message.id]
-      )
-    )
-  end
-
   def claim_pending(excluded_ids \\ []) do
     query =
       from(message in Message,

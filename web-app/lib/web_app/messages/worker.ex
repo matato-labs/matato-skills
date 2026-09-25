@@ -72,9 +72,11 @@ defmodule WebApp.Messages.Worker do
 
       true ->
         try do
-          if Sessions.owner_command(session_id, self(), command(message)) == :ok,
-            do: :sent,
-            else: :failed
+          cond do
+            Sessions.snapshot(session_id).status in @busy_statuses -> :pending
+            Sessions.owner_command(session_id, self(), command(message)) == :ok -> :sent
+            true -> :failed
+          end
         after
           Sessions.release(session_id, self())
         end

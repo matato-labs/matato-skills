@@ -21,7 +21,7 @@ defmodule WebApp.Messages.WorkerTest do
 
     File.write!(
       executable,
-      "#!/usr/bin/env python3\nimport json, sys\nfor line in sys.stdin:\n command = json.loads(line)\n with open(\"commands.jsonl\", \"a\") as file: file.write(json.dumps(command) + \"\\n\")\n response = {\"id\": command[\"id\"], \"type\": \"response\", \"command\": command[\"type\"], \"success\": True}\n if command[\"type\"] == \"get_state\": response[\"data\"] = {\"model\": None, \"isStreaming\": False, \"isCompacting\": False, \"sessionFile\": None, \"sessionId\": \"worker\"}\n elif command[\"type\"] == \"get_messages\": response[\"data\"] = {\"messages\": []}\n elif command[\"type\"] == \"get_commands\": response[\"data\"] = {\"commands\": []}\n print(json.dumps(response), flush=True)\n"
+      "#!/usr/bin/env python3\nimport json, sys\nfor line in sys.stdin:\n command = json.loads(line)\n with open(\"commands.jsonl\", \"a\") as file: file.write(json.dumps(command) + \"\\n\")\n response = {\"id\": command[\"id\"], \"type\": \"response\", \"command\": command[\"type\"], \"success\": True}\n if command[\"type\"] == \"get_state\": response[\"data\"] = {\"model\": None, \"isStreaming\": False, \"isCompacting\": False, \"sessionFile\": None, \"sessionId\": \"worker\"}\n elif command[\"type\"] == \"get_messages\": response[\"data\"] = {\"messages\": []}\n elif command[\"type\"] == \"get_commands\": response[\"data\"] = {\"commands\": []}\n print(json.dumps(response), flush=True)\n if command[\"type\"] == \"prompt\": print(json.dumps({\"type\": \"agent_settled\"}), flush=True)\n"
     )
 
     File.chmod!(executable, 0o700)

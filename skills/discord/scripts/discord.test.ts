@@ -189,6 +189,33 @@ describe("Discord REST helpers", () => {
     });
   });
 
+  test("never writes a reply without an origin or to a disallowed destination", async () => {
+    configureDiscord();
+    const requests: Array<RequestRecord> = [];
+    setFetch(async (url, options) => {
+      requests.push({ url, options });
+      return new Response(
+        JSON.stringify({ id: "channel-1", guild_id: "guild-1", type: 0 }),
+      );
+    });
+
+    await expect(
+      replyToMessage({
+        channelId: "channel-1",
+        messageId: "  ",
+        content: "Answer",
+      }),
+    ).rejects.toThrow("messageId is required");
+    await expect(
+      replyToMessage({
+        channelId: "channel-3",
+        messageId: "message-1",
+        content: "Answer",
+      }),
+    ).rejects.toThrow("Channel channel-3 is not allowlisted");
+    expect(requests).toEqual([]);
+  });
+
   test("walks older pages without skipping messages and returns chronological order", async () => {
     configureDiscord();
     const visited: Array<string> = [];
@@ -254,7 +281,7 @@ describe("Discord REST helpers", () => {
         content: "   ",
       }),
     ).rejects.toThrow("content is required");
-    expect(requestCount).toBe(2);
+    expect(requestCount).toBe(1);
   });
 
   test("requires configuration without revealing its token", async () => {

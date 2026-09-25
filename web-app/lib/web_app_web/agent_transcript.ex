@@ -77,27 +77,6 @@ defmodule WebAppWeb.AgentTranscript do
       </div>
     </details>
 
-    <article
-      :if={@item.kind == :notification}
-      id={@id}
-      class={[
-        "mt-4 rounded-lg border px-4 py-3 text-sm text-base-content/75",
-        @item.status == "sent" && "border-info/30 bg-info/10",
-        @item.status == "failed" && "border-error/30 bg-error/10",
-        @item.status not in ["sent", "failed"] && "border-primary/20 bg-primary/5"
-      ]}
-    >
-      <p class={[
-        "mb-1 text-xs font-semibold uppercase tracking-wide",
-        @item.status == "sent" && "text-info",
-        @item.status == "failed" && "text-error",
-        @item.status not in ["sent", "failed"] && "text-primary"
-      ]}>
-        Activity · {@item.status}
-      </p>
-      <div class="markdown">{markdown(@item.content)}</div>
-    </article>
-
     <section
       :if={@item.kind == :agent_error}
       id={@id}
@@ -257,36 +236,6 @@ defmodule WebAppWeb.AgentTranscript do
         else: item
     end)
   end
-
-  def notification_items(messages) do
-    Enum.map(messages, fn message ->
-      %{
-        id: "notification-#{message.id}",
-        kind: :notification,
-        content: message.content,
-        status: message.sent_status,
-        timestamp: message.timestamp
-      }
-    end)
-  end
-
-  def timeline_items(transcript, notifications) do
-    Enum.sort_by(transcript ++ notifications, &timeline_sort_key/1)
-  end
-
-  defp timeline_sort_key(%{timestamp: %DateTime{} = timestamp}),
-    do: {0, DateTime.to_unix(timestamp, :millisecond)}
-
-  defp timeline_sort_key(%{timestamp: timestamp}) when is_integer(timestamp), do: {0, timestamp}
-
-  defp timeline_sort_key(%{timestamp: timestamp}) when is_binary(timestamp) do
-    case DateTime.from_iso8601(timestamp) do
-      {:ok, datetime, _offset} -> {0, DateTime.to_unix(datetime, :millisecond)}
-      _ -> {1, 0}
-    end
-  end
-
-  defp timeline_sort_key(_item), do: {1, 0}
 
   def transcript_items(session) do
     session

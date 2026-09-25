@@ -197,9 +197,10 @@ export const replyToMessage = async ({
   messageId,
   content,
 }: ReplyToMessageInput): Promise<DiscordMessage> => {
+  if (!messageId.trim()) throw new Error("messageId is required");
+  if (!content.trim()) throw new Error("content is required");
   const configuration = resolveDiscordConfiguration();
   await verifyGuildChannel(configuration, channelId);
-  if (!content.trim()) throw new Error("content is required");
 
   return requestDiscord<DiscordMessage>(
     configuration,

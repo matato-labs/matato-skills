@@ -3,11 +3,9 @@ defmodule WebAppWeb.AgentLiveTest do
 
   import Phoenix.LiveViewTest
 
-  alias WebApp.Messages
   alias WebApp.Data.Repo
   alias WebApp.Sessions.{Agent, Fanout, State, Store, Workspace}
   alias WebApp.Bots.Bot
-  alias WebApp.Messages.Message
 
   setup do
     root = Path.join(System.tmp_dir!(), "agent-live-#{System.unique_integer([:positive])}")
@@ -83,7 +81,6 @@ defmodule WebAppWeb.AgentLiveTest do
       })
 
     on_exit(fn ->
-      Repo.delete_all(Message)
       Repo.delete(bot)
       :ok = Store.delete(id)
 
@@ -94,61 +91,21 @@ defmodule WebAppWeb.AgentLiveTest do
     %{id: id, bot: bot, root: root}
   end
 
-  test "renders persisted bot activity in the bot chat", %{conn: conn, bot: bot} do
-    {:ok, _message} =
-      Messages.create(%{
-        receiver_bot_id: bot.id,
-        sender_type: "automation",
-        timestamp: DateTime.from_unix!(2, :second),
-        kind: "result",
-        content: "Daily review complete",
-        sent_status: "sent"
-      })
-
+  test "opens automation activity separately from the bot chat", %{conn: conn, bot: bot} do
     {:ok, view, _html} = live(conn, "/bots/#{bot.id}")
 
-    html = render(view)
-    assert has_element?(view, "[id*='notification-']")
-    assert html =~ "border-info/30"
-    assert html =~ "text-info"
-    assert html =~ "Daily review complete"
-    assert {prompt_index, _length} = :binary.match(html, "First prompt")
-    assert {activity_index, _length} = :binary.match(html, "Daily review complete")
-    assert {reply_index, _length} = :binary.match(html, "First reply")
-    assert prompt_index < activity_index
-    assert activity_index < reply_index
-  end
+    assert has_element?(view, "#automation-activity-button[aria-expanded='false']")
+    refute has_element?(view, "#automation-activity-panel")
 
-  test "hides delivered bot messages from the activity timeline", %{conn: conn, bot: bot} do
-    :ok = :sys.suspend(WebApp.Messages.Worker)
-    on_exit(fn -> :ok = :sys.resume(WebApp.Messages.Worker) end)
+    view |> element("#automation-activity-button") |> render_click()
 
-    {:ok, _delivered} =
-      Messages.create(%{
-        receiver_bot_id: bot.id,
-        sender_type: "bot",
-        sender_id: bot.id,
-        timestamp: DateTime.from_unix!(2, :second),
-        kind: "request",
-        content: "Already in the chat",
-        sent_status: "sent"
-      })
+    assert has_element?(view, "#automation-activity-panel")
+    assert has_element?(view, "#automation-activity-empty")
+    assert render(view) =~ "First prompt"
 
-    {:ok, _pending} =
-      Messages.create(%{
-        receiver_bot_id: bot.id,
-        sender_type: "bot",
-        sender_id: bot.id,
-        timestamp: DateTime.from_unix!(3, :second),
-        kind: "request",
-        content: "Still queued"
-      })
+    view |> element("#close-automation-activity") |> render_click()
 
-    {:ok, view, _html} = live(conn, "/bots/#{bot.id}")
-
-    html = render(view)
-    refute html =~ "Already in the chat"
-    assert html =~ "Still queued"
+    refute has_element?(view, "#automation-activity-panel")
   end
 
   test "keeps the chat header fixed on mobile", %{conn: conn, bot: bot} do
@@ -178,18 +135,6 @@ defmodule WebAppWeb.AgentLiveTest do
 
     refute has_element?(view, "#bot-editor")
     assert has_element?(view, "#chat-header", "Edited bot")
-  end
-
-  test "renders failed bot activity in red" do
-    html =
-      render_component(&WebAppWeb.AgentLive.transcript_item/1,
-        id: "notification-failed",
-        item: %{kind: :notification, status: "failed", content: "Delivery failed"}
-      )
-
-    assert html =~ "border-error/30"
-    assert html =~ "bg-error/10"
-    assert html =~ "text-error"
   end
 
   test "hides expanded skill content in the transcript" do

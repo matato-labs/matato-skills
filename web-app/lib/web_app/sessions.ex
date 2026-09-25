@@ -24,7 +24,7 @@ defmodule WebApp.Sessions do
   defdelegate stop(id), to: Registry
   defdelegate delete(id), to: Registry
   defdelegate register_automation(name), to: Registry
-  defdelegate complete_automation(id, status), to: Registry
+  defdelegate complete_automation(id, status, result), to: Registry
 
   defdelegate register(attributes), to: Store
   defdelegate get(id), to: Store
@@ -34,6 +34,7 @@ defmodule WebApp.Sessions do
   defdelegate snapshot_with_sequence(id), to: Agent
   defdelegate command(id, command), to: Agent
   defdelegate owner_command(id, owner, command), to: Agent
+  defdelegate owner_command_and_await_settled(id, owner, command), to: Agent
   defdelegate claim(id, owner), to: Agent
   defdelegate release(id, owner), to: Agent
   defdelegate respond(id, response), to: Agent

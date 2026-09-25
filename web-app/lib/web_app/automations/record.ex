@@ -48,8 +48,15 @@ defmodule WebApp.Automations.Record do
       :use_skill
     ])
     |> validate_schedule()
+    |> validate_bot_session()
     |> unique_constraint(:job_name)
     |> foreign_key_constraint(:bot_id)
+  end
+
+  defp validate_bot_session(changeset) do
+    if get_field(changeset, :bot_id) && get_field(changeset, :daily_session),
+      do: add_error(changeset, :daily_session, "cannot be enabled for bot-owned automations"),
+      else: changeset
   end
 
   defp validate_schedule(changeset) do
