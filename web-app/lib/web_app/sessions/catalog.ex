@@ -3,10 +3,33 @@ defmodule WebApp.Sessions.Catalog do
 
   def workspace_groups(records), do: groups(Enum.reject(records, &(&1["source"] == "automation")))
 
-  def automation_groups(records) do
+  def automation_groups(records, automations) do
+    runs =
+      records
+      |> Enum.filter(&(&1["source"] == "automation"))
+      |> Enum.map(&normalize(&1, Workspace.root()))
+      |> Enum.group_by(& &1.title)
+
+    automations
+    |> Enum.filter(& &1.enabled)
+    |> Enum.map(fn automation ->
+      automation_runs = runs |> Map.get(automation.job_name, []) |> sort_runs()
+
+      %{
+        key: automation.id,
+        id: automation.id,
+        label: automation.job_name,
+        count: length(automation_runs),
+        status_counts: Enum.frequencies_by(automation_runs, &status_group(&1.status)),
+        sessions: automation_runs
+      }
+    end)
+  end
+
+  def automation_runs(records, name) do
     records
-    |> Enum.filter(&(&1["source"] == "automation" and active?(&1["status"])))
-    |> groups()
+    |> Enum.filter(&(&1["source"] == "automation" and &1["name"] == name))
+    |> Enum.sort_by(&{&1["updated_at"] || &1["created_at"] || "", &1["id"]}, :desc)
   end
 
   def groups(records) do
@@ -19,8 +42,12 @@ defmodule WebApp.Sessions.Catalog do
     |> Enum.sort_by(&{&1.last_activity, &1.label}, :desc)
   end
 
-  defp active?(status),
-    do: status in ["starting", "working", "waiting_for_input", "retrying", "compacting"]
+  defp status_group(status)
+       when status in ["starting", "working", "waiting_for_input", "retrying", "compacting"],
+       do: :working
+
+  defp status_group("settled"), do: :finished
+  defp status_group(_status), do: :failed
 
   defp normalize(record, workspace) do
     project = canonical_project(record["project"])
@@ -42,6 +69,8 @@ defmodule WebApp.Sessions.Catalog do
       last_activity: last_activity
     }
   end
+
+  defp sort_runs(runs), do: Enum.sort_by(runs, &{&1.last_activity, &1.id}, :desc)
 
   defp group({group_key, sessions}) do
     sessions = Enum.sort_by(sessions, &{&1.last_activity, &1.id}, :desc)

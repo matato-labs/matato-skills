@@ -26,16 +26,16 @@ defmodule WebApp.Automations.Runner do
   end
 
   defp run_automation(automation, skill_path, output) do
-    monitor_id = register_automation(automation)
     Logger.info("Automation agent started: #{automation.job_name}")
+    monitor = register_automation(automation)
 
     result =
-      with {:ok, response} <- run_pi(automation, skill_path, output),
+      with {:ok, response} <- run_pi(automation, skill_path, output, monitor),
            {:ok, _output} <- post_script(automation, skill_path) do
         {:ok, response}
       end
 
-    finish_automation_monitor(monitor_id, result)
+    finish_automation_monitor(monitor, result)
 
     case result do
       {:ok, response} ->
@@ -63,10 +63,10 @@ defmodule WebApp.Automations.Runner do
 
   defp finish_automation_monitor(nil, _result), do: :ok
 
-  defp finish_automation_monitor(id, {:ok, _response}),
+  defp finish_automation_monitor(%{id: id}, {:ok, _response}),
     do: Sessions.complete_automation(id, :settled)
 
-  defp finish_automation_monitor(id, {:error, _reason}),
+  defp finish_automation_monitor(%{id: id}, {:error, _reason}),
     do: Sessions.complete_automation(id, :failed)
 
   defp post_script(%{use_skill: false}, _skill_path), do: {:ok, nil}
@@ -124,9 +124,10 @@ defmodule WebApp.Automations.Runner do
     end
   end
 
-  defp run_pi(automation, skill_path, output) do
+  defp run_pi(automation, skill_path, output, monitor) do
     with {:ok, executable} <- executable("pi"),
-         {:ok, port} <- open_port(executable, pi_args(automation, skill_path), File.cwd!()),
+         {:ok, port} <-
+           open_port(executable, pi_args(automation, skill_path, monitor), File.cwd!()),
          :ok <- send_prompt(port, automation, output) do
       await_settled(port, "", automation, "")
     end
@@ -139,7 +140,7 @@ defmodule WebApp.Automations.Runner do
     end
   end
 
-  defp pi_args(automation, skill_path) do
+  defp pi_args(automation, skill_path, monitor) do
     [
       "--mode",
       "rpc",
@@ -150,15 +151,18 @@ defmodule WebApp.Automations.Runner do
       automation.model,
       "--thinking",
       automation.thinking_level
-    ] ++ skill_args(skill_path) ++ daily_session_args(automation)
+    ] ++ skill_args(skill_path) ++ session_args(automation, monitor)
   end
 
   defp skill_args(nil), do: []
   defp skill_args(skill_path), do: ["--skill", skill_path]
 
-  defp daily_session_args(%{daily_session: false}), do: []
+  defp session_args(_automation, %{session_file: session_file}),
+    do: ["--session", session_file]
 
-  defp daily_session_args(automation) do
+  defp session_args(%{daily_session: false}, nil), do: []
+
+  defp session_args(automation, nil) do
     date = Date.utc_today() |> Date.to_iso8601()
     ["--session-id", "#{automation.job_name}-#{date}"]
   end

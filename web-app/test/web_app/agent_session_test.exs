@@ -15,6 +15,8 @@ defmodule WebApp.Sessions.AgentTest do
     import json, os, sys
     with open("#{root}/arguments.json", "w") as file:
       json.dump(sys.argv[1:], file)
+    with open("#{root}/mix_env", "w") as file:
+      file.write(os.environ.get("MIX_ENV", "unset"))
     for line in sys.stdin:
       command = json.loads(line)
       with open("#{root}/commands.jsonl", "a") as file:
@@ -81,12 +83,33 @@ defmodule WebApp.Sessions.AgentTest do
     assert "--no-skills" in arguments
     assert "--no-prompt-templates" in arguments
     assert "--append-system-prompt" in arguments
+
     assert "You are Test, tester. Test agent sessions." in arguments
     assert Path.join(context.root, ".pi/skills") in arguments
     assert Path.join(context.root, ".pi/prompts") in arguments
     refute Path.join(context.root, ".agents/skills") in arguments
     refute "--no-approve" in arguments
     refute "--session-dir" in arguments
+  end
+
+  test "runs Pi without a Mix environment without changing the parent environment", context do
+    original_mix_env = System.fetch_env("MIX_ENV")
+    System.put_env("MIX_ENV", "prod")
+    on_exit(fn -> restore_mix_env(original_mix_env) end)
+    id = "test-#{System.unique_integer([:positive])}"
+
+    start_supervised!(
+      {Agent,
+       id: id,
+       name: "test",
+       project: context.root,
+       executable: context.executable,
+       interrupted: false}
+    )
+
+    assert :ok = Agent.await_ready(id)
+    assert File.read!(Path.join(context.root, "mix_env")) == "unset"
+    assert System.get_env("MIX_ENV") == "prod"
   end
 
   test "discovers in order, keeps rejection nonfatal, and allows browser dialog responses",
@@ -275,6 +298,9 @@ defmodule WebApp.Sessions.AgentTest do
 
     refute log =~ "GenServer {WebApp.Sessions.ProcessRegistry"
   end
+
+  defp restore_mix_env({:ok, value}), do: System.put_env("MIX_ENV", value)
+  defp restore_mix_env(:error), do: System.delete_env("MIX_ENV")
 
   test "quarantines a child after an invalid protocol record", context do
     id = "test-#{System.unique_integer([:positive])}"

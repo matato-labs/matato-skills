@@ -283,7 +283,8 @@ defmodule WebApp.Sessions.Agent do
       :exit_status,
       :use_stdio,
       {:args, Enum.map(shell_args, &String.to_charlist/1)},
-      {:cd, String.to_charlist(project)}
+      {:cd, String.to_charlist(project)},
+      {:env, [{~c"MIX_ENV", false}]}
     ])
   end
 

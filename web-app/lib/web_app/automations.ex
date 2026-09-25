@@ -12,6 +12,9 @@ defmodule WebApp.Automations do
 
   def child_specs, do: [WebApp.Automations.Scheduler, WebApp.Automations.Subscription]
 
+  def subscribe, do: Phoenix.PubSub.subscribe(WebApp.PubSub, "automations")
+  def run(automation), do: Task.start(fn -> WebApp.Automations.Runner.run(automation) end)
+
   @enforce_keys [
     :job_name,
     :enabled,
