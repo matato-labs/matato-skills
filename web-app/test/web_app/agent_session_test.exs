@@ -92,7 +92,7 @@ defmodule WebApp.Sessions.AgentTest do
     refute "--session-dir" in arguments
   end
 
-  test "runs Pi in the test Mix environment without changing the parent environment", context do
+  test "runs Pi without a Mix environment without changing the parent environment", context do
     original_mix_env = System.fetch_env("MIX_ENV")
     System.put_env("MIX_ENV", "prod")
     on_exit(fn -> restore_mix_env(original_mix_env) end)
@@ -108,7 +108,7 @@ defmodule WebApp.Sessions.AgentTest do
     )
 
     assert :ok = Agent.await_ready(id)
-    assert File.read!(Path.join(context.root, "mix_env")) == "test"
+    assert File.read!(Path.join(context.root, "mix_env")) == "unset"
     assert System.get_env("MIX_ENV") == "prod"
   end
 
