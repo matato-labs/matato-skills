@@ -158,7 +158,7 @@ defmodule WebApp.AutomationsTest do
 
     assert [%{sessions: [%{id: id, status: "working", title: ^job_name}]}] =
              Catalog.automation_groups(Registry.list(), [
-               %{id: 1, job_name: job_name, enabled: true}
+               %{id: 1, job_name: job_name, enabled: true, monitor: true}
              ])
 
     assert %{"pi_session_id" => ^id, "session_file" => session_file} = Store.get(id)

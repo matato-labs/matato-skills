@@ -11,7 +11,7 @@ defmodule WebApp.Sessions.Catalog do
       |> Enum.group_by(& &1.title)
 
     automations
-    |> Enum.filter(& &1.enabled)
+    |> Enum.filter(&(&1.enabled and &1.monitor))
     |> Enum.map(fn automation ->
       automation_runs = runs |> Map.get(automation.job_name, []) |> sort_runs()
 

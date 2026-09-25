@@ -76,8 +76,8 @@ defmodule WebApp.Sessions.CatalogTest do
              }
            ] =
              Catalog.automation_groups(sessions, [
-               %{id: 7, job_name: "daily", enabled: true},
-               %{id: 8, job_name: "disabled", enabled: false}
+               %{id: 7, job_name: "daily", enabled: true, monitor: true},
+               %{id: 8, job_name: "unmonitored", enabled: true, monitor: false}
              ])
   end
 

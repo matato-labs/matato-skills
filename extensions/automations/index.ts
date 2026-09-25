@@ -9,6 +9,7 @@ import {
   matchesKey,
   truncateToWidth,
   visibleWidth,
+  wrapTextWithAnsi,
   type TUI,
 } from "@earendil-works/pi-tui";
 
@@ -214,7 +215,7 @@ class AutomationBrowser {
       `Bot: ${automation.botId ?? "none"}`,
       "",
       this.theme.fg("muted", "Prompt"),
-      ...automation.userPrompt.split("\n"),
+      ...wrapTextWithAnsi(automation.userPrompt, width),
     ].map((line) => truncateToWidth(line, width));
   }
 
