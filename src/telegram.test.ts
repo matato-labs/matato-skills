@@ -1,221 +1,89 @@
-import {
-  afterAll,
-  afterEach,
-  beforeEach,
-  describe,
-  expect,
-  spyOn,
-  test,
-} from "bun:test";
-import { getTelegramUpdates, sendTelegramMessage } from "./telegram.ts";
+import { afterEach, beforeEach, expect, spyOn, test } from "bun:test";
+import { sendTelegramMessage } from "./telegram.ts";
 
-const originalToken = process.env.TELEGRAM_BOT_TOKEN;
-const fetchSpy = spyOn(globalThis, "fetch");
+const envKeys = [
+  "TELEGRAM_BOT_TOKEN",
+  "TELEGRAM_OWNER_ID",
+  "MATATO_PI_WEB_URL",
+];
+const originalEnv = envKeys.map((key) => [key, process.env[key]] as const);
+let fetchSpy = spyOn(globalThis, "fetch");
+const send = (text = "hello", chatId = "123") =>
+  sendTelegramMessage({ chatId, text });
 
 beforeEach(() => {
-  process.env.TELEGRAM_BOT_TOKEN = "token";
+  process.env.TELEGRAM_BOT_TOKEN = "private-token";
+  process.env.TELEGRAM_OWNER_ID = "123";
+  process.env.MATATO_PI_WEB_URL = "http://127.0.0.1:1";
+  fetchSpy = spyOn(globalThis, "fetch");
 });
-
 afterEach(() => {
-  fetchSpy.mockReset();
-  if (originalToken === undefined) delete process.env.TELEGRAM_BOT_TOKEN;
-  else process.env.TELEGRAM_BOT_TOKEN = originalToken;
+  fetchSpy.mockRestore();
+  for (const [key, value] of originalEnv) {
+    if (value === undefined) delete process.env[key];
+    else process.env[key] = value;
+  }
 });
 
-afterAll(() => fetchSpy.mockRestore());
+test("sends normalized text directly to the owner without contacting the web app", async () => {
+  fetchSpy.mockResolvedValueOnce(Response.json({ ok: true }));
+  await send("hello\\nworld");
+  expect(fetchSpy).toHaveBeenCalledTimes(1);
+  expect(fetchSpy.mock.calls[0]).toEqual([
+    "https://api.telegram.org/botprivate-token/sendMessage",
+    {
+      method: "POST",
+      signal: expect.any(AbortSignal),
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ chat_id: "123", text: "hello\nworld" }),
+    },
+  ]);
+});
 
-describe("Telegram API", () => {
-  test("sends normalized text", async () => {
-    fetchSpy.mockResolvedValue(new Response(JSON.stringify({ ok: true })));
+test("requires both credentials and rejects non-owner destinations before network access", async () => {
+  delete process.env.TELEGRAM_BOT_TOKEN;
+  await expect(send()).rejects.toThrow("TELEGRAM_BOT_TOKEN is required");
+  process.env.TELEGRAM_BOT_TOKEN = "private-token";
+  delete process.env.TELEGRAM_OWNER_ID;
+  await expect(send()).rejects.toThrow("TELEGRAM_OWNER_ID is required");
+  process.env.TELEGRAM_OWNER_ID = "123";
+  await expect(send("hello", "456")).rejects.toThrow("configured owner");
+  await expect(send("hello", "")).rejects.toThrow("chatId is required");
+  expect(fetchSpy).not.toHaveBeenCalled();
+});
 
-    await sendTelegramMessage({ chatId: "123", text: "hello\\nworld" });
+test("enforces the 4096 limit after newline normalization", async () => {
+  await expect(send("")).rejects.toThrow("text is required");
+  await expect(send("a".repeat(4097))).rejects.toThrow("4096");
+  expect(fetchSpy).not.toHaveBeenCalled();
+  fetchSpy.mockResolvedValueOnce(Response.json({ ok: true }));
+  await send("\\n".repeat(4096));
+  expect(fetchSpy.mock.calls[0]?.[1]?.body).toBe(
+    JSON.stringify({ chat_id: "123", text: "\n".repeat(4096) }),
+  );
+});
 
-    expect(fetchSpy).toHaveBeenCalledWith(
-      "https://api.telegram.org/bottoken/sendMessage",
-      {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ chat_id: "123", text: "hello\nworld" }),
-      },
+test("bounds sends without retrying uncertain delivery", async () => {
+  fetchSpy.mockRejectedValueOnce(new DOMException("secret", "TimeoutError"));
+  await expect(send()).rejects.toThrow("delivery is uncertain");
+  expect(fetchSpy).toHaveBeenCalledTimes(1);
+  expect(fetchSpy.mock.calls[0]?.[1]?.signal).toBeInstanceOf(AbortSignal);
+});
+
+test("sanitizes HTTP, API, JSON and network errors", async () => {
+  const failures = [
+    new Response("private-token", { status: 401 }),
+    Response.json({ ok: false, description: "private-token" }),
+    new Response("private-token"),
+  ];
+  for (const failure of failures) {
+    fetchSpy.mockResolvedValueOnce(failure);
+    await expect(send()).rejects.toThrow(
+      /^Telegram sendMessage request failed$/,
     );
-  });
-
-  test("maps user text updates and advances past ignored updates", async () => {
-    fetchSpy.mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          ok: true,
-          result: [
-            {
-              update_id: 4,
-              message: {
-                date: 0,
-                chat: { id: 1 },
-                from: { id: 1, is_bot: true },
-                text: "ignore",
-              },
-            },
-            {
-              update_id: 5,
-              message: {
-                date: 1,
-                chat: { id: 2 },
-                from: { id: 8, username: "not-leon" },
-                text: "ignore",
-              },
-            },
-            {
-              update_id: 6,
-              message: {
-                date: 1,
-                chat: { id: 2 },
-                from: { id: 7, username: "leon" },
-                text: "hello",
-              },
-            },
-          ],
-        }),
-      ),
-    );
-
-    await expect(
-      getTelegramUpdates({ offset: 4, ownerId: "7" }),
-    ).resolves.toEqual({
-      nextOffset: 7,
-      updates: [
-        {
-          chatId: "2",
-          from: "leon",
-          text: "hello",
-          sentAt: "1970-01-01T00:00:01.000Z",
-        },
-      ],
-    });
-  });
-
-  test("ignores non-text updates while advancing their offset", async () => {
-    fetchSpy.mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          ok: true,
-          result: [
-            {
-              update_id: 8,
-              message: {
-                date: 1,
-                chat: { id: 2 },
-                from: { id: 7, username: "leon" },
-              },
-            },
-          ],
-        }),
-      ),
-    );
-
-    await expect(
-      getTelegramUpdates({ offset: 8, ownerId: "7" }),
-    ).resolves.toEqual({
-      nextOffset: 9,
-      updates: [],
-    });
-  });
-
-  test("keeps inbound text raw and preserves literal backslash-n", async () => {
-    fetchSpy.mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          ok: true,
-          result: [
-            {
-              update_id: 9,
-              message: {
-                date: 1,
-                chat: { id: 2 },
-                from: { id: 7, username: "leon" },
-                text: "hello\\nworld",
-              },
-            },
-          ],
-        }),
-      ),
-    );
-
-    await expect(
-      getTelegramUpdates({ offset: 9, ownerId: "7" }),
-    ).resolves.toEqual({
-      nextOffset: 10,
-      updates: [
-        {
-          chatId: "2",
-          from: "leon",
-          text: "hello\\nworld",
-          sentAt: "1970-01-01T00:00:01.000Z",
-        },
-      ],
-    });
-  });
-
-  test("forwards the offset and keeps it when no updates arrive", async () => {
-    fetchSpy.mockResolvedValue(
-      new Response(JSON.stringify({ ok: true, result: [] })),
-    );
-
-    await expect(
-      getTelegramUpdates({ offset: 7, ownerId: "7" }),
-    ).resolves.toEqual({
-      updates: [],
-      nextOffset: 7,
-    });
-    expect(String(fetchSpy.mock.calls[0]?.[0])).toContain("offset=7");
-  });
-
-  test("accepts a negative offset to discard the initial backlog", async () => {
-    fetchSpy.mockResolvedValue(
-      new Response(JSON.stringify({ ok: true, result: [] })),
-    );
-
-    await expect(
-      getTelegramUpdates({ offset: -1, ownerId: "7" }),
-    ).resolves.toEqual({
-      updates: [],
-      nextOffset: 0,
-    });
-    expect(String(fetchSpy.mock.calls[0]?.[0])).toContain("offset=-1");
-  });
-
-  test("fails clearly when configuration or Telegram rejects a request", async () => {
-    delete process.env.TELEGRAM_BOT_TOKEN;
-    await expect(
-      getTelegramUpdates({ offset: null, ownerId: "7" }),
-    ).rejects.toThrow("TELEGRAM_BOT_TOKEN is required");
-
-    process.env.TELEGRAM_BOT_TOKEN = "token";
-    fetchSpy.mockResolvedValue(
-      new Response("server exploded", { status: 500 }),
-    );
-    await expect(
-      getTelegramUpdates({ offset: null, ownerId: "7" }),
-    ).rejects.toThrow(
-      "Telegram getUpdates request failed with status 500 and message server exploded",
-    );
-
-    fetchSpy.mockResolvedValue(
-      new Response(JSON.stringify({ ok: false, description: "blocked" })),
-    );
-    await expect(
-      sendTelegramMessage({ chatId: "1", text: "hello" }),
-    ).rejects.toThrow("Telegram sendMessage failed: blocked");
-
-    fetchSpy.mockResolvedValue(new Response(JSON.stringify({ ok: true })));
-    await expect(
-      getTelegramUpdates({ offset: null, ownerId: "7" }),
-    ).rejects.toThrow("Telegram getUpdates failed: Unknown Telegram API error");
-
-    await expect(
-      sendTelegramMessage({ chatId: "", text: "hello" }),
-    ).rejects.toThrow("Telegram chatId is required");
-    await expect(
-      sendTelegramMessage({ chatId: "1", text: "" }),
-    ).rejects.toThrow("Telegram message text is required");
-  });
+  }
+  fetchSpy.mockRejectedValueOnce(
+    new Error("https://api.telegram.org/botprivate-token/sendMessage"),
+  );
+  await expect(send()).rejects.toThrow(/^Telegram sendMessage request failed$/);
 });

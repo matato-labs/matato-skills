@@ -1,7 +1,7 @@
 defmodule WebAppWeb.AgentLive do
   use WebAppWeb, :live_view
 
-  alias WebApp.{Automations, Bots, Messages, Sessions}
+  alias WebApp.{Automations, Sessions}
 
   alias WebAppWeb.{AgentTranscript, SessionComponents}
 
@@ -12,7 +12,6 @@ defmodule WebAppWeb.AgentLive do
     if connected?(socket) do
       Sessions.subscribe()
       Automations.subscribe()
-      Bots.subscribe()
     end
 
     sessions = Sessions.list()
@@ -23,18 +22,10 @@ defmodule WebAppWeb.AgentLive do
         sessions: sessions,
         workspace_groups: Sessions.workspace_groups(sessions),
         automation_groups: Sessions.automation_groups(sessions, Automations.list()),
-        bots: Bots.list(),
+        general_sessions: Sessions.general_sessions(sessions),
         session_id: nil,
-        bot: nil,
         chat_name: nil,
-        show_bot_form: false,
-        bot_error: nil,
-        bot_form: bot_form(),
-        show_bot_editor: false,
-        bot_editor_error: nil,
-        bot_editor_form: bot_form(),
         delete_session_id: nil,
-        delete_bot_id: nil,
         mobile_sidebar_open: false,
         session: nil,
         draft: "",
@@ -52,19 +43,6 @@ defmodule WebAppWeb.AgentLive do
   end
 
   @impl true
-  def handle_params(%{"bot_id" => bot_id}, _uri, socket) do
-    socket = unsubscribe_session(socket)
-
-    case Bots.get(bot_id) do
-      nil ->
-        {:noreply, assign(socket, bot: nil, chat_name: nil, session: nil, error: "Bot not found")}
-
-      bot ->
-        if connected?(socket), do: Messages.subscribe(bot.id)
-        open_bot_chat(socket, bot)
-    end
-  end
-
   def handle_params(%{"id" => id}, _uri, socket) do
     socket = unsubscribe_session(socket)
     if connected?(socket), do: Sessions.subscribe_agent(id)
@@ -77,7 +55,6 @@ defmodule WebAppWeb.AgentLive do
          socket
          |> assign(
            session_id: id,
-           bot: nil,
            chat_name: session_name(id),
            mobile_sidebar_open: false,
            expanded_work_ids: MapSet.new(),
@@ -90,7 +67,6 @@ defmodule WebAppWeb.AgentLive do
         {:noreply,
          assign(socket,
            session_id: id,
-           bot: nil,
            chat_name: nil,
            session: nil,
            mobile_sidebar_open: false,
@@ -102,66 +78,8 @@ defmodule WebAppWeb.AgentLive do
   def handle_params(_params, _uri, socket), do: {:noreply, unsubscribe_session(socket)}
 
   @impl true
-  def handle_event("show_bot_form", _params, socket),
-    do: {:noreply, assign(socket, show_bot_form: true, bot_error: nil, bot_form: bot_form())}
-
-  def handle_event("hide_bot_form", _params, socket),
-    do: {:noreply, assign(socket, show_bot_form: false, bot_error: nil)}
-
-  def handle_event("create_bot", %{"bot" => params}, socket) do
-    case Bots.create(params) do
-      {:ok, bot} -> {:noreply, push_navigate(socket, to: "/bots/#{bot.id}")}
-      {:error, reason} -> {:noreply, assign(socket, bot_error: format_error(reason))}
-    end
-  end
-
-  def handle_event("show_bot_editor", _params, %{assigns: %{bot: nil}} = socket),
-    do: {:noreply, socket}
-
-  def handle_event("show_bot_editor", _params, socket) do
-    {:noreply,
-     assign(socket,
-       show_bot_editor: true,
-       bot_editor_error: nil,
-       bot_editor_form: bot_form(socket.assigns.bot)
-     )}
-  end
-
-  def handle_event("hide_bot_editor", _params, socket),
-    do: {:noreply, assign(socket, show_bot_editor: false, bot_editor_error: nil)}
-
-  def handle_event("update_bot", %{"bot" => params}, %{assigns: %{bot: bot}} = socket) do
-    case Bots.update(bot.id, params) do
-      {:ok, bot} ->
-        {:noreply,
-         socket
-         |> assign(bot: bot, chat_name: bot.name, show_bot_editor: false, bot_editor_error: nil)
-         |> assign_sessions()}
-
-      {:error, reason} ->
-        {:noreply,
-         assign(socket, bot_editor_error: format_error(reason), bot_editor_form: bot_form(params))}
-    end
-  end
-
   def handle_event("confirm_delete_session", %{"id" => id}, socket),
     do: {:noreply, assign(socket, delete_session_id: id)}
-
-  def handle_event("confirm_delete_bot", %{"id" => id}, socket),
-    do: {:noreply, assign(socket, delete_bot_id: id)}
-
-  def handle_event("delete_bot", %{"id" => id}, socket) do
-    case Bots.delete(id) do
-      :ok ->
-        {:noreply, push_navigate(socket, to: "/")}
-
-      {:error, :not_found} ->
-        {:noreply, assign(socket, error: "Bot not found", delete_bot_id: nil)}
-
-      {:error, reason} ->
-        {:noreply, assign(socket, error: format_error(reason), delete_bot_id: nil)}
-    end
-  end
 
   def handle_event("toggle_work", %{"id" => id, "open" => "true"}, socket),
     do: {:noreply, update(socket, :expanded_work_ids, &MapSet.put(&1, id))}
@@ -273,15 +191,6 @@ defmodule WebAppWeb.AgentLive do
   @impl true
   def handle_info(:changed, socket), do: {:noreply, assign_sessions(socket)}
 
-  def handle_info(
-        {:message_changed, bot_id},
-        %{assigns: %{session: session, bot: %{id: bot_id}}} = socket
-      )
-      when not is_nil(session),
-      do: {:noreply, reconcile_timeline(socket)}
-
-  def handle_info({:message_changed, _bot_id}, socket), do: {:noreply, socket}
-
   def handle_info({:agent_update, session_id, sequence, update}, socket) do
     cond do
       session_id != socket.assigns.session_id ->
@@ -372,20 +281,7 @@ defmodule WebAppWeb.AgentLive do
       sessions: sessions,
       workspace_groups: Sessions.workspace_groups(sessions),
       automation_groups: Sessions.automation_groups(sessions, Automations.list()),
-      bots: Bots.list()
-    )
-  end
-
-  defp bot_form, do: bot_form(%{})
-
-  defp bot_form(bot) do
-    to_form(
-      %{
-        "name" => Map.get(bot, :name) || Map.get(bot, "name", ""),
-        "role" => Map.get(bot, :role) || Map.get(bot, "role", ""),
-        "description" => Map.get(bot, :description) || Map.get(bot, "description", "")
-      },
-      as: :bot
+      general_sessions: Sessions.general_sessions(sessions)
     )
   end
 
@@ -395,9 +291,6 @@ defmodule WebAppWeb.AgentLive do
       nil -> nil
     end
   end
-
-  defp format_error(reason) when is_binary(reason), do: reason
-  defp format_error(reason), do: inspect(reason)
 
   defp sync_session(socket, snapshot) do
     items = timeline_for(socket, snapshot)
@@ -493,14 +386,8 @@ defmodule WebAppWeb.AgentLive do
   end
 
   defp timeline_for(socket, session) do
-    messages =
-      if socket.assigns.bot,
-        do: Messages.list_notifications_for_bot(socket.assigns.bot.id),
-        else: []
-
     session
     |> AgentTranscript.transcript_items()
-    |> AgentTranscript.timeline_items(AgentTranscript.notification_items(messages))
     |> AgentTranscript.mark_expanded_work(socket.assigns.expanded_work_ids)
   end
 
@@ -521,39 +408,7 @@ defmodule WebAppWeb.AgentLive do
     if connected?(socket) and socket.assigns.session_id,
       do: Sessions.unsubscribe_agent(socket.assigns.session_id)
 
-    if connected?(socket) and socket.assigns.bot, do: Messages.unsubscribe(socket.assigns.bot.id)
     socket
-  end
-
-  defp open_bot_chat(socket, bot) do
-    id = bot.chat_remote_session_id
-    if connected?(socket), do: Sessions.subscribe_agent(id)
-
-    case Sessions.open(id, Bots.identity_for(bot)) do
-      :ok ->
-        {:noreply,
-         socket
-         |> assign(
-           bot: bot,
-           chat_name: bot.name,
-           session_id: id,
-           mobile_sidebar_open: false,
-           expanded_work_ids: MapSet.new(),
-           error: nil
-         )
-         |> resync_session(id)}
-
-      {:error, error} ->
-        {:noreply,
-         assign(socket,
-           bot: bot,
-           chat_name: bot.name,
-           session_id: id,
-           session: nil,
-           mobile_sidebar_open: false,
-           error: error
-         )}
-    end
   end
 
   defp dialog_response(%{"id" => id, "method" => "confirm"}, params) do

@@ -31,7 +31,7 @@ defmodule WebApp.Sessions.RegistryTest do
     assert Store.get(id)["name"] == "My session"
   end
 
-  test "keeps bot session names" do
+  test "keeps historical bot-linked session names" do
     id = create_session("alpha", "alpha", "bot_chat")
 
     GenServer.cast(Registry, {:prompt, id, "fix the login bug"})

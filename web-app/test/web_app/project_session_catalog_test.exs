@@ -21,7 +21,7 @@ defmodule WebApp.Sessions.CatalogTest do
     %{workspace: workspace, outside: outside}
   end
 
-  test "groups workspace projects and places outside and root sessions in Others", context do
+  test "groups workspace projects and root separately from outside sessions", context do
     alpha = Path.join(context.workspace, "alpha")
     beta = Path.join(context.workspace, "team/beta")
 
@@ -33,10 +33,25 @@ defmodule WebApp.Sessions.CatalogTest do
         session("root", context.workspace, "2026-01-04T00:00:00Z")
       ])
 
-    assert Enum.map(groups, & &1.label) == ["Others", "team/beta", "alpha"]
-    assert [%{count: 2, sessions: others} | _rest] = groups
-    assert Enum.map(others, & &1.id) == ["root", "outside"]
-    assert Enum.find(others, &(&1.id == "outside")).source == "terminal"
+    assert Enum.map(groups, & &1.label) == [
+             Path.basename(context.workspace),
+             "team/beta",
+             "Others",
+             "alpha"
+           ]
+
+    assert [%{id: "root"}] = Enum.find(groups, &(&1.key == context.workspace)).sessions
+    assert [%{id: "outside"}] = Enum.find(groups, &(&1.label == "Others")).sessions
+  end
+
+  test "general sessions are separate from historical workspace root sessions", context do
+    records = [
+      session("general", context.outside, "2026-01-02T00:00:00Z", "general"),
+      session("old-bot", context.workspace, "2026-01-01T00:00:00Z", "bot_chat")
+    ]
+
+    assert [%{sessions: [%{id: "old-bot"}]}] = Catalog.workspace_groups(records)
+    assert [%{id: "general", source: "general"}] = Catalog.general_sessions(records)
   end
 
   test "uses canonical project roots as group keys", context do

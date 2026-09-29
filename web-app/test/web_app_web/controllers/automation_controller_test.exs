@@ -2,8 +2,6 @@ defmodule WebAppWeb.AutomationControllerTest do
   use WebAppWeb.ConnCase, async: false
 
   alias WebApp.Automations
-  alias WebApp.Data.Repo
-  alias WebApp.Bots.Bot
 
   setup do
     :ok = Automations.replace([])
@@ -24,60 +22,9 @@ defmodule WebAppWeb.AutomationControllerTest do
         "use_skill" => false
       })
 
-    assert %{"monitor" => false} = json_response(conn, 201)["automation"]
-  end
-
-  test "accepts nullable bot ids", %{conn: conn} do
-    bot =
-      Repo.insert!(%Bot{
-        name: "Automations",
-        role: "operator",
-        description: "Runs jobs",
-        chat_remote_session_id: "chat-controller",
-        background_remote_session_id: "background-controller"
-      })
-
-    on_exit(fn -> Repo.delete(bot) end)
-
-    attributes = %{
-      "job_name" => "bot-job",
-      "bot_id" => bot.id,
-      "enabled" => true,
-      "schedule" => "0 9 * * *",
-      "user_prompt" => "Run it",
-      "daily_session" => false,
-      "can_overlap" => false,
-      "model" => "model",
-      "thinking_level" => "low",
-      "can_launch_sub_agents" => false,
-      "use_skill" => false
-    }
-
-    conn = post(conn, "/api/automations", attributes)
-    assert %{"id" => id, "bot_id" => bot_id} = json_response(conn, 201)["automation"]
-    assert bot_id == bot.id
-
-    conn = put(build_conn(), "/api/automations/#{id}", Map.put(attributes, "bot_id", nil))
-    assert %{"bot_id" => nil} = json_response(conn, 200)["automation"]
-  end
-
-  test "rejects a bot id that does not identify a durable bot", %{conn: conn} do
-    conn =
-      post(conn, "/api/automations", %{
-        "job_name" => "missing-bot",
-        "bot_id" => Ecto.UUID.generate(),
-        "enabled" => true,
-        "schedule" => "0 9 * * *",
-        "user_prompt" => "Run it",
-        "daily_session" => false,
-        "can_overlap" => false,
-        "model" => "model",
-        "thinking_level" => "low",
-        "can_launch_sub_agents" => false,
-        "use_skill" => false
-      })
-
-    assert %{"errors" => %{"bot_id" => ["does not exist"]}} = json_response(conn, 422)
+    automation = json_response(conn, 201)["automation"]
+    assert %{"monitor" => false} = automation
+    refute Map.has_key?(automation, "bot_id")
   end
 
   test "creates, reads, updates, and deletes automations", %{conn: conn} do

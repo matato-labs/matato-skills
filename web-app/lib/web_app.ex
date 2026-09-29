@@ -1,6 +1,6 @@
 defmodule WebApp do
   use Boundary,
-    deps: [WebApp.Automations, WebApp.Bots, WebApp.Data, WebApp.Messages, WebApp.Sessions],
+    deps: [WebApp.Automations, WebApp.Data, WebApp.Sessions],
     exports: []
 
   def prepare do
@@ -21,7 +21,6 @@ defmodule WebApp do
       ] ++
       WebApp.Data.child_specs() ++
       WebApp.Sessions.child_specs() ++
-      WebApp.Messages.child_specs() ++
       WebApp.Automations.child_specs()
   end
 

@@ -3,7 +3,6 @@ defmodule WebApp.Automations.Record do
   import Ecto.Changeset
 
   schema "automations" do
-    field(:bot_id, :binary_id)
     field(:job_name, :string)
     field(:enabled, :boolean, default: true)
     field(:schedule, :string)
@@ -21,7 +20,6 @@ defmodule WebApp.Automations.Record do
   def changeset(record, attributes) do
     record
     |> cast(attributes, [
-      :bot_id,
       :job_name,
       :enabled,
       :schedule,
@@ -49,7 +47,6 @@ defmodule WebApp.Automations.Record do
     ])
     |> validate_schedule()
     |> unique_constraint(:job_name)
-    |> foreign_key_constraint(:bot_id)
   end
 
   defp validate_schedule(changeset) do

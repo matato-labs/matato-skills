@@ -1,12 +1,10 @@
 defmodule WebApp.ArchitectureTest do
   use ExUnit.Case, async: true
 
-  @domains [WebApp.Automations, WebApp.Bots, WebApp.Messages, WebApp.Sessions]
+  @domains [WebApp.Automations, WebApp.Sessions]
 
   @controller_domains %{
     WebAppWeb.AutomationController => WebApp.Automations,
-    WebAppWeb.BotController => WebApp.Bots,
-    WebAppWeb.MessageController => WebApp.Messages,
     WebAppWeb.SessionController => WebApp.Sessions
   }
 

@@ -3,7 +3,6 @@ import { join } from "node:path";
 export type ThinkingLevel =
   "off" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max";
 export type Automation = {
-  botId?: string;
   jobName: string;
   enabled: boolean;
   schedule: string;

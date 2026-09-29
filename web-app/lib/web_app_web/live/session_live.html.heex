@@ -4,17 +4,10 @@
       <SessionComponents.sidebar
         workspace_groups={@workspace_groups}
         automation_groups={@automation_groups}
-        bots={@bots}
-        sessions={@sessions}
+        general_sessions={@general_sessions}
         session_id={@session_id}
         delete_session_id={@delete_session_id}
-        delete_bot_id={@delete_bot_id}
         mobile_sidebar_open={@mobile_sidebar_open}
-      />
-      <SessionComponents.bot_dialog
-        show_bot_form={@show_bot_form}
-        bot_form={@bot_form}
-        bot_error={@bot_error}
       />
       <div
         :if={@mobile_sidebar_open}
@@ -29,6 +22,19 @@
         <SessionComponents.mobile_header mobile_sidebar_open={@mobile_sidebar_open} />
         <div class="grid min-h-0 flex-1 place-items-center overflow-y-auto px-5 py-12">
           <div class="w-full max-w-lg">
+            <h1 class="mb-2 text-xl font-semibold tracking-tight">Start a session</h1>
+            <p class="mb-8 text-sm text-base-content/55">
+              Start in the Matato config folder, or choose a workspace project.
+            </p>
+            <button
+              id="start-general-button"
+              type="button"
+              phx-click="start_general"
+              class="btn btn-primary mb-7 w-full"
+            >Start without a project <.icon name="hero-arrow-right" class="size-4" /></button>
+            <p class="mb-3 text-xs font-semibold uppercase tracking-wide text-base-content/45">
+              Or choose a project
+            </p>
             <.form for={@start_form} id="start-session-form" phx-submit="start" class="space-y-5">
               <div class="relative">
                 <.icon
@@ -52,7 +58,7 @@
               </div>
 
               <button id="start-session-button" class="btn btn-primary w-full">
-                Start <.icon name="hero-arrow-right" class="size-4" />
+                Start in project <.icon name="hero-arrow-right" class="size-4" />
               </button>
             </.form>
 

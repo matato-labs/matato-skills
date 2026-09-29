@@ -23,7 +23,6 @@ defmodule WebAppWeb.Router do
     live "/sessions/:id", AgentLive, :show
     live "/automations/:id", AutomationLive, :show
     live "/automation-runs/:id", AutomationRunLive, :show
-    live "/bots/:bot_id", AgentLive, :show
   end
 
   scope "/api", WebAppWeb do
@@ -31,9 +30,6 @@ defmodule WebAppWeb.Router do
 
     resources "/automations", AutomationController,
       only: [:index, :show, :create, :update, :delete]
-
-    resources "/bots", BotController, only: [:index, :show, :create, :update, :delete]
-    resources "/messages", MessageController, only: [:create]
 
     post "/sessions", SessionController, :create
   end
