@@ -1,6 +1,6 @@
 # Matato Pi
 
-Matato Pi extends [Pi](https://github.com/earendil-works/pi) with coding skills, prompts, subagents, scheduled automations, Telegram support, and an optional web app for remote sessions, bots, and automation management.
+Matato Pi extends [Pi](https://github.com/earendil-works/pi) with coding skills, prompts, subagents, scheduled automations, direct Telegram and Discord channels, and an optional web app for remote sessions and automation management.
 
 It works as a Pi package: Pi loads the extensions, skills, and prompts declared in `package.json`. The web app starts Pi in RPC mode, stores automation and remote-session metadata in SQLite, and keeps Pi JSONL files as the conversation history.
 
@@ -24,6 +24,9 @@ Set these variables when using the matching features:
 export WORKSPACE=/absolute/path/to/projects
 export TELEGRAM_BOT_TOKEN=your-token
 export TELEGRAM_OWNER_ID=your-chat-id
+export DISCORD_BOT_TOKEN=your-discord-bot-token
+export DISCORD_GUILD_ID=your-server-id
+export DISCORD_CHANNEL_IDS=comma-separated-channel-ids
 export TAVILY_API_KEY=your-tavily-api-key
 ```
 
@@ -31,7 +34,7 @@ export TAVILY_API_KEY=your-tavily-api-key
 
 ## Web app
 
-The optional Phoenix app provides remote Pi sessions, bots, and automations.
+The Phoenix app provides remote Pi sessions and automations. Telegram and Discord extensions send directly and do not require the web app.
 
 ```bash
 cd web-app
@@ -41,23 +44,29 @@ WORKSPACE=/absolute/path/to/projects mix phx.server
 
 Open `http://localhost:4000`. Its SQLite database is `$MATATO_PI_CONFIG/matato-pi.sqlite3`.
 
+Set `WEB_APP_TIME_ZONE` to change the application's time zone (default `Europe/Berlin`), for example `WEB_APP_TIME_ZONE=America/New_York mix phx.server`.
+
+### LiveDashboard
+
+LiveDashboard exposes Phoenix, LiveView, Ecto/SQLite, and VM metrics at `/dashboard`, with `/dev/dashboard` also available in development. Destructive dashboard actions are disabled. For remote access, use authenticated TLS ingress and allow WebSocket upgrades for `/dashboard/livewebsocket`.
+
 ## API
 
-The web app exposes JSON CRUD endpoints for bots and automations:
+The web app exposes JSON CRUD endpoints for automations:
 
 ```text
-GET, POST                 /api/bots
-GET, PUT, DELETE          /api/bots/:id
 GET, POST                 /api/automations
 GET, PUT, DELETE          /api/automations/:id
 POST                      /api/sessions
 ```
 
-`POST /api/sessions` registers a session started outside the web app (see `/remote` below); it accepts `name`, `relative_project`, `session_file`, and `pi_session_id`.
+`POST /api/sessions` with an empty object starts a general session. With `relative_project`, it registers an external session (see `/remote` below), accepting `name`, `session_file`, and `pi_session_id`.
 
 The API has no built-in authentication. Keep the server private or place authenticated TLS ingress in front of it.
 
 ## Remote sessions
+
+The new-session screen offers a general session or a workspace project. General sessions start in `MATATO_PI_CONFIG`, not a repository. Pi requires a working directory, so these are project-independent, not literally folderless.
 
 Run `/remote [name]` in an interactive Pi session to register it in the local web app so it appears in the session list on your phone. Without a name, the project directory name is used. The web app URL is read from `MATATO_PI_WEB_URL` and defaults to `http://localhost:4000`. Ephemeral sessions cannot be registered. Running `/remote` again on the same session updates the existing entry.
 
@@ -65,15 +74,23 @@ To hand a laptop session off to a server, run `/remote [name] --host <sshHost>`,
 
 A registered session must not be driven from the terminal and the phone at the same time: both write to the same Pi session file, so concurrent use corrupts the conversation history.
 
-## Bots
+## Direct channels
 
-Create a bot from the web app or asking your agent to do it. A bot has a name, role, and description; Matato creates separate durable chat and background Pi sessions and gives both its identity. Open the bot from the web app to chat with it. Add its `bot_id` to an automation to run scheduled work as that bot.
+Telegram and Discord are outbound only: no inbox ingestion, polling, or channel cron. Configure the required environment variables in the Pi process that sends messages. Extensions call each channel's API directly; there are no web-app switches or channel settings stored in the database.
 
-For Telegram, configure `TELEGRAM_BOT_TOKEN` and `TELEGRAM_OWNER_ID`, then create a `telegram-inbox` automation with `use_skill` enabled. It polls Telegram, accepts messages only from the owner chat ID, and replies through the configured bot.
+Telegram requires `TELEGRAM_BOT_TOKEN` and `TELEGRAM_OWNER_ID`. `telegram_send_message` sends only to that owner, with a 4096-character limit after newline normalization. Discord requires `DISCORD_BOT_TOKEN`, `DISCORD_GUILD_ID`, and comma-separated `DISCORD_CHANNEL_IDS`. `discord_send_message` verifies the allowlisted channel and guild on every send, disables automatic mentions, and accepts an optional `replyTo` message ID. Threads must be explicitly allowlisted; DMs are unsupported.
+
+Missing credentials or invalid destinations block delivery. HTTP requests have a 15-second timeout; an uncertain delivery is not retried automatically. Errors do not expose credentials or raw network details. `MATATO_PI_WEB_URL` is not used for channel sends.
+
+Use the `telegram` and `discord` skills for owner-requested messages or approved notifications. They have no pre/post scripts. Schedule notifications through ordinary user automations, with channel environment variables set in the web-app process so its Pi children inherit them. Review outgoing text for secrets. Neither tool posts Pi's final response automatically.
 
 ## Automations
 
-Create an automation from the web app or ask your agent to do it. It runs a prompt on a cron schedule with the selected model and thinking level. An automation without `bot_id` is a workspace automation; set `bot_id` to make it a bot automation that runs with the bot's identity. `use_skill` runs the skill whose name matches `job_name`; its optional `scripts/preScript.ts` output is added to the agent context. After Pi completes, optional `scripts/postScript.ts` runs for follow-up work; a failing script fails the automation. `daily_session` reuses one Pi session per day, `can_overlap` permits concurrent runs, and `monitor` shows the job in the web app. Use `/automations` in Pi to inspect scheduled jobs.
+Create a standalone automation from the web app or ask your agent to do it. It runs a prompt on a cron schedule using the automation's required `model` and `thinking_level` settings. `use_skill` loads the skill named by `job_name`; optional `scripts/preScript.ts` output is added to the agent context. After Pi completes, optional `scripts/postScript.ts` runs; failure fails the automation. `daily_session` reuses one Pi session per day, `can_overlap` permits concurrent runs, and `monitor` shows the job in the web app. Use `/automations` in Pi to inspect scheduled jobs. Automations send notifications through the same environment-configured extensions as interactive sessions.
+
+## Upgrade
+
+Back up `$MATATO_PI_CONFIG/matato-pi.sqlite3` before migrating. The migration removes bot profiles and the internal message queue, detaches automations from bots, and retires legacy `telegram-inbox`/`discord` skill polling jobs. Other automations and all session metadata/transcript files remain. Historical bot conversations reopen as workspace sessions. Removed profiles, queued messages, and polling jobs cannot be recovered by rolling migrations back. A follow-up migration drops the unused `channel_settings` table; channel sends no longer consult the web app.
 
 ## Contribute
 

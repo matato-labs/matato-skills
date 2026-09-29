@@ -17,6 +17,7 @@ defmodule WebApp.Sessions do
   defdelegate validate_workspace!(), to: Workspace, as: :validate!
   defdelegate list(), to: Registry
   defdelegate subscribe(), to: Registry, as: :subscribe
+  defdelegate create_general(), to: Registry
   defdelegate create(relative), to: Registry
   defdelegate create(relative, options), to: Registry
   defdelegate open(id), to: Registry
@@ -43,6 +44,7 @@ defmodule WebApp.Sessions do
 
   defdelegate workspace_directories(), to: Workspace, as: :directories
   defdelegate workspace_groups(records), to: Catalog
+  defdelegate general_sessions(records), to: Catalog
   defdelegate automation_groups(records, automations), to: Catalog
   defdelegate automation_runs(records, name), to: Catalog
 

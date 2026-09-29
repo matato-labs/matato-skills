@@ -54,7 +54,6 @@ defmodule WebAppWeb.AutomationController do
   defp data(automation) do
     Map.take(automation, [
       :id,
-      :bot_id,
       :job_name,
       :enabled,
       :schedule,

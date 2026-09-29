@@ -14,19 +14,52 @@ defmodule WebApp.Sessions.Store do
 
   def validate_metadata(metadata) do
     with true <- valid_id?(metadata["id"]),
-         relative when is_binary(relative) <- metadata["relative_project"],
-         project <- Workspace.resolve(relative),
-         {:ok, session_file} <- validate_session_file(metadata["session_file"]) do
-      {:ok,
-       metadata
-       |> Map.put("name", Path.basename(project))
-       |> Map.put("project", project)
-       |> Map.put("session_file", session_file)}
+         {:ok, project} <- metadata_project(metadata),
+         {:ok, session_file} <-
+           validate_session_file(metadata["session_file"], metadata["source"]) do
+      {:ok, metadata |> Map.put("project", project) |> Map.put("session_file", session_file)}
     else
       _ -> {:error, "Invalid session metadata"}
     end
   rescue
     error in [ArgumentError, File.Error] -> {:error, Exception.message(error)}
+  end
+
+  def config_root! do
+    path = Application.fetch_env!(:web_app, :automation_storage_path) |> Path.expand()
+    File.mkdir_p!(path)
+
+    case Workspace.canonical(path) do
+      {:ok, root} -> root
+      {:error, reason} -> raise File.Error, reason: reason, action: "resolve", path: path
+    end
+  end
+
+  defp metadata_project(%{"source" => "general", "relative_project" => ".", "project" => stored}) do
+    root = config_root!()
+    if stored == root, do: {:ok, root}, else: {:error, :invalid_project}
+  end
+
+  defp metadata_project(%{"source" => "general"}), do: {:error, :invalid_project}
+
+  defp metadata_project(%{
+         "source" => "automation",
+         "relative_project" => ".",
+         "project" => stored
+       }) do
+    root = config_root!()
+    if stored == root, do: {:ok, root}, else: workspace_project(".", stored)
+  end
+
+  defp metadata_project(%{"relative_project" => relative, "project" => stored})
+       when is_binary(relative), do: workspace_project(relative, stored)
+
+  defp metadata_project(_metadata), do: {:error, :invalid_project}
+
+  defp workspace_project(relative, stored)
+       when is_binary(relative) do
+    project = Workspace.resolve(relative)
+    if stored == project, do: {:ok, project}, else: {:error, :invalid_project}
   end
 
   def create(attributes) do
@@ -81,20 +114,33 @@ defmodule WebApp.Sessions.Store do
     |> Repo.update_all(set: [status: "interrupted", updated_at: DateTime.utc_now()])
   end
 
-  def validate_session_file(nil), do: {:ok, nil}
+  def validate_session_file(path), do: validate_session_file(path, "web")
+  def validate_session_file(nil, _source), do: {:ok, nil}
 
-  def validate_session_file(path) when is_binary(path) do
+  def validate_session_file(path, source) when is_binary(path) do
     root = Application.fetch_env!(:web_app, :session_dir) |> Path.expand()
 
+    allowed =
+      session_path_allowed?(path, root) or
+        (source == "automation" and
+           session_path_allowed?(path, Path.join(config_root!(), "sessions/automations")))
+
     cond do
-      !session_path_allowed?(path, root) -> {:error, "Invalid session path"}
-      File.exists?(path) and !File.regular?(path) -> {:error, "Invalid session path"}
-      File.exists?(path) -> {:ok, path}
-      true -> {:ok, nil}
+      !allowed ->
+        {:error, "Invalid session path"}
+
+      File.exists?(path) and !File.regular?(path) ->
+        {:error, "Invalid session path"}
+
+      File.exists?(path) ->
+        {:ok, path}
+
+      true ->
+        {:ok, nil}
     end
   end
 
-  def validate_session_file(_path), do: {:error, "Invalid session path"}
+  def validate_session_file(_path, _source), do: {:error, "Invalid session path"}
 
   defp registration_project(relative) when is_binary(relative) do
     project = Workspace.resolve(relative)

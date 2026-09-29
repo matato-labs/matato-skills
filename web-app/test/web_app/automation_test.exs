@@ -3,13 +3,9 @@ defmodule WebApp.AutomationsTest do
 
   import ExUnit.CaptureLog
 
-  alias WebApp.{Automations, Messages}
+  alias WebApp.Automations
   alias WebApp.Automations.{Runner, Scheduler}
-  alias WebApp.Data.Repo
   alias WebApp.Sessions.{Catalog, Registry, Store}
-
-  alias WebApp.Bots.Bot
-  alias WebApp.Messages.Message
 
   setup do
     :ok = Automations.replace([])
@@ -77,44 +73,6 @@ defmodule WebApp.AutomationsTest do
     refute prompt =~ "/skill:"
   end
 
-  test "persists bot automation execution and assistant result" do
-    job_name = "automation-#{System.unique_integer([:positive])}"
-    pi_dir = Path.join(System.tmp_dir!(), "pi-#{System.unique_integer([:positive])}")
-    pi_path = Path.join(pi_dir, "pi")
-    File.mkdir_p!(pi_dir)
-
-    bot =
-      Repo.insert!(%Bot{
-        name: "Ops",
-        role: "operator",
-        description: "Operate safely",
-        chat_remote_session_id: "chat-ops",
-        background_remote_session_id: "background-ops"
-      })
-
-    File.write!(
-      pi_path,
-      "#!/bin/sh\nIFS= read -r line\nprintf '%s\\n' '{\"type\":\"message_end\",\"message\":{\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"Done\"}]}}' '{\"type\":\"agent_settled\"}'\n"
-    )
-
-    File.chmod!(pi_path, 0o755)
-    original_path = System.get_env("PATH")
-    System.put_env("PATH", "#{pi_dir}:#{original_path}")
-
-    on_exit(fn ->
-      System.put_env("PATH", original_path)
-      Repo.delete_all(Message)
-      Repo.delete(bot)
-      File.rm_rf!(pi_dir)
-    end)
-
-    Runner.run(%{automation(job_name, "* * * * *") | use_skill: false, bot_id: bot.id})
-
-    assert [result] = Messages.list_for_bot(bot.id)
-    assert result.kind == "result"
-    assert result.content == "Done"
-  end
-
   test "registers monitored automation work while it is running" do
     job_name = "automation-#{System.unique_integer([:positive])}"
     pi_dir = Path.join(System.tmp_dir!(), "pi-#{System.unique_integer([:positive])}")
@@ -161,9 +119,15 @@ defmodule WebApp.AutomationsTest do
                %{id: 1, job_name: job_name, enabled: true, monitor: true}
              ])
 
-    assert %{"pi_session_id" => ^id, "session_file" => session_file} = Store.get(id)
+    assert %{"pi_session_id" => ^id, "session_file" => session_file, "project" => project} =
+             Store.get(id)
+
+    assert project == Store.config_root!()
     assert String.ends_with?(session_file, "/sessions/automations/#{id}.jsonl")
-    assert %{"id" => ^id, "type" => "session"} = session_file |> File.read!() |> Jason.decode!()
+
+    assert %{"id" => ^id, "type" => "session", "cwd" => ^project} =
+             session_file |> File.read!() |> Jason.decode!()
+
     assert File.read!(args_path) =~ "--session\n#{session_file}\n"
 
     File.write!(gate_path, "")
@@ -254,16 +218,7 @@ defmodule WebApp.AutomationsTest do
     assert job.overlap
   end
 
-  test "empty pre-script output skips Pi and post-script without notifying its bot" do
-    bot =
-      Repo.insert!(%Bot{
-        name: "Skip",
-        role: "operator",
-        description: "Skips empty work",
-        chat_remote_session_id: "chat-skip",
-        background_remote_session_id: "background-skip"
-      })
-
+  test "empty pre-script output skips Pi and post-script" do
     job_name = "automation-#{System.unique_integer([:positive])}"
     skill_path = Path.join([System.user_home!(), ".pi", "agent", "skills", job_name])
     pi_marker = temp_path()
@@ -294,12 +249,9 @@ defmodule WebApp.AutomationsTest do
       File.rm(pi_marker)
       File.rm(post_marker)
       File.rm_rf!(pi_dir)
-      Repo.delete_all(Message)
-      Repo.delete(bot)
     end)
 
-    Runner.run(%{automation(job_name, "* * * * *") | bot_id: bot.id, monitor: true})
-    assert [] = Messages.list_for_bot(bot.id)
+    Runner.run(%{automation(job_name, "* * * * *") | monitor: true})
     refute Enum.any?(Store.list(), &(&1["name"] == job_name and &1["source"] == "automation"))
     refute File.exists?(pi_marker)
     refute File.exists?(post_marker)

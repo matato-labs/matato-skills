@@ -7,7 +7,7 @@ export default function (pi: ExtensionAPI): void {
     name: "telegram_send_message",
     label: "Telegram send message",
     description:
-      "Send a concise text message to the Telegram owner (TELEGRAM_OWNER_ID).",
+      "Send a concise, safe text message only to the Telegram owner (TELEGRAM_OWNER_ID) on request or through an owner-approved automation. Uses TELEGRAM_BOT_TOKEN directly; no web app required. Maximum 4096 characters after newline normalization.",
     parameters: Type.Object({
       text: Type.String({ minLength: 1, description: "Message text" }),
     }),

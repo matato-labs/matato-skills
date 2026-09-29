@@ -1,12 +1,11 @@
 defmodule WebApp.Automations do
   use Boundary,
     top_level?: true,
-    deps: [WebApp.Bots, WebApp.Data, WebApp.Messages, WebApp.Sessions],
+    deps: [WebApp.Data, WebApp.Execution, WebApp.Sessions],
     exports: []
 
   import Ecto.Query
 
-  alias WebApp.Bots
   alias WebApp.Automations.Record
   alias WebApp.Data.Repo
 
@@ -28,7 +27,6 @@ defmodule WebApp.Automations do
   ]
   defstruct [
     :id,
-    :bot_id,
     :job_name,
     :enabled,
     :schedule,
@@ -83,8 +81,7 @@ defmodule WebApp.Automations do
   defp insert(automation) do
     changeset = Record.changeset(%Record{}, Map.from_struct(automation))
 
-    with :ok <- validate_bot(changeset),
-         {:ok, _record} <- Repo.insert(changeset) do
+    with {:ok, _record} <- Repo.insert(changeset) do
       :ok
     else
       {:error, reason} -> Repo.rollback(reason)
@@ -94,21 +91,7 @@ defmodule WebApp.Automations do
   defp persist(record, attributes, operation) do
     changeset = Record.changeset(record, attributes)
 
-    with :ok <- validate_bot(changeset) do
-      changeset |> operation.() |> result() |> notify_result()
-    end
-  end
-
-  defp validate_bot(changeset) do
-    case Ecto.Changeset.get_field(changeset, :bot_id) do
-      nil ->
-        :ok
-
-      bot_id ->
-        if Bots.get(bot_id),
-          do: :ok,
-          else: {:error, Ecto.Changeset.add_error(changeset, :bot_id, "does not exist")}
-    end
+    changeset |> operation.() |> result() |> notify_result()
   end
 
   defp result({:ok, record}), do: {:ok, to_domain(record)}

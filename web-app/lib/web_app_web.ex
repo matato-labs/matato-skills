@@ -1,6 +1,6 @@
 defmodule WebAppWeb do
   use Boundary,
-    deps: [WebApp.Automations, WebApp.Bots, WebApp.Data, WebApp.Messages, WebApp.Sessions],
+    deps: [WebApp.Automations, WebApp.Data, WebApp.Sessions],
     exports: [Endpoint]
 
   @moduledoc """

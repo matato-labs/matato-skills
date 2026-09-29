@@ -5,20 +5,51 @@ defmodule WebAppWeb.SessionComponentsTest do
 
   alias WebAppWeb.SessionComponents
 
-  test "shows each bot chat status with the workspace status marker" do
+  test "shows generic sessions without bots or plugin controls" do
     html =
       render_component(&SessionComponents.sidebar/1,
         workspace_groups: [],
         automation_groups: [],
-        bots: [%{id: "bot", name: "Review bot", chat_remote_session_id: "chat"}],
-        sessions: [%{"id" => "chat", "status" => "working"}],
+        general_sessions: [
+          %{id: "general-1", title: "New session", status: "settled", source: "general"}
+        ],
         mobile_sidebar_open: false
       )
 
-    assert html =~ "bot-bot"
-    assert html =~ "bg-warning"
-    assert html =~ "Working"
-    refute html =~ "hero-cpu-chip"
+    document = LazyHTML.from_fragment(html)
+    assert LazyHTML.query(document, "#session-sidebar button[phx-click='start_general']") != []
+
+    assert LazyHTML.query(
+             document,
+             "#session-sidebar a[aria-label='New workspace session'][href='/']"
+           ) != []
+
+    assert html =~ ~s(id="general-sessions")
+    assert html =~ ~s(href="/sessions/general-1")
+    refute html =~ ~s(href="/plugins")
+    refute html =~ ~s(id="bots")
+  end
+
+  test "historical conversations remain clickable workspace sessions" do
+    html =
+      render_component(&SessionComponents.sidebar/1,
+        workspace_groups: [
+          %{
+            key: :root,
+            label: "Workspace",
+            sessions: [
+              %{id: "historicalId", title: "Conversation", status: "stopped", source: "bot_chat"}
+            ]
+          }
+        ],
+        automation_groups: [],
+        mobile_sidebar_open: false
+      )
+
+    assert html
+           |> LazyHTML.from_fragment()
+           |> LazyHTML.query("#session-historicalId a[href='/sessions/historicalId']")
+           |> Enum.count() == 1
   end
 
   test "renders one automation link with status counts and no run links" do

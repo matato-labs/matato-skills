@@ -1,7 +1,15 @@
 defmodule WebApp.Sessions.Catalog do
   alias WebApp.Sessions.Workspace
 
-  def workspace_groups(records), do: groups(Enum.reject(records, &(&1["source"] == "automation")))
+  def workspace_groups(records),
+    do: groups(Enum.reject(records, &(&1["source"] in ["automation", "general"])))
+
+  def general_sessions(records) do
+    records
+    |> Enum.filter(&(&1["source"] == "general"))
+    |> Enum.map(&normalize(&1, Workspace.root()))
+    |> sort_runs()
+  end
 
   def automation_groups(records, automations) do
     runs =
@@ -53,7 +61,7 @@ defmodule WebApp.Sessions.Catalog do
     project = canonical_project(record["project"])
 
     inside_workspace? =
-      project != workspace and String.starts_with?(project || "", workspace <> "/")
+      project == workspace or String.starts_with?(project || "", workspace <> "/")
 
     {group_key, label} = group_details(project, workspace, inside_workspace?)
     last_activity = record["updated_at"] || record["created_at"] || ""
@@ -85,7 +93,12 @@ defmodule WebApp.Sessions.Catalog do
   end
 
   defp group_details(project, workspace, true),
-    do: {project, Path.relative_to(project, workspace)}
+    do:
+      {project,
+       if(project == workspace,
+         do: Path.basename(workspace),
+         else: Path.relative_to(project, workspace)
+       )}
 
   defp group_details(_project, _workspace, false), do: {:others, "Others"}
 

@@ -11,11 +11,6 @@ config :web_app,
   ecto_repos: [WebApp.Data.Repo],
   generators: [timestamp_type: :utc_datetime]
 
-config :web_app, WebApp.Messages.Scheduler,
-  jobs: [
-    {"*/3 * * * * *", {WebApp.Messages.Worker, :deliver_pending, []}}
-  ]
-
 # Configure the endpoint
 config :web_app, WebAppWeb.Endpoint,
   url: [host: "localhost"],

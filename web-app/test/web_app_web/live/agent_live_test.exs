@@ -3,11 +3,7 @@ defmodule WebAppWeb.AgentLiveTest do
 
   import Phoenix.LiveViewTest
 
-  alias WebApp.Messages
-  alias WebApp.Data.Repo
   alias WebApp.Sessions.{Agent, Fanout, State, Store, Workspace}
-  alias WebApp.Bots.Bot
-  alias WebApp.Messages.Message
 
   setup do
     root = Path.join(System.tmp_dir!(), "agent-live-#{System.unique_integer([:positive])}")
@@ -73,123 +69,20 @@ defmodule WebAppWeb.AgentLiveTest do
         status: "settled"
       })
 
-    bot =
-      Repo.insert!(%Bot{
-        name: "Test bot",
-        role: "tester",
-        description: "Tests UI",
-        chat_remote_session_id: id,
-        background_remote_session_id: "background-#{id}"
-      })
-
     on_exit(fn ->
-      Repo.delete_all(Message)
-      Repo.delete(bot)
       :ok = Store.delete(id)
 
       File.rm_rf!(root)
       File.rm_rf!(project)
     end)
 
-    %{id: id, bot: bot, root: root}
+    %{id: id, root: root}
   end
 
-  test "renders persisted bot activity in the bot chat", %{conn: conn, bot: bot} do
-    {:ok, _message} =
-      Messages.create(%{
-        receiver_bot_id: bot.id,
-        sender_type: "automation",
-        timestamp: DateTime.from_unix!(2, :second),
-        kind: "result",
-        content: "Daily review complete",
-        sent_status: "sent"
-      })
-
-    {:ok, view, _html} = live(conn, "/bots/#{bot.id}")
-
-    html = render(view)
-    assert has_element?(view, "[id*='notification-']")
-    assert html =~ "border-info/30"
-    assert html =~ "text-info"
-    assert html =~ "Daily review complete"
-    assert {prompt_index, _length} = :binary.match(html, "First prompt")
-    assert {activity_index, _length} = :binary.match(html, "Daily review complete")
-    assert {reply_index, _length} = :binary.match(html, "First reply")
-    assert prompt_index < activity_index
-    assert activity_index < reply_index
-  end
-
-  test "hides delivered bot messages from the activity timeline", %{conn: conn, bot: bot} do
-    :ok = :sys.suspend(WebApp.Messages.Worker)
-    on_exit(fn -> :ok = :sys.resume(WebApp.Messages.Worker) end)
-
-    {:ok, _delivered} =
-      Messages.create(%{
-        receiver_bot_id: bot.id,
-        sender_type: "bot",
-        sender_id: bot.id,
-        timestamp: DateTime.from_unix!(2, :second),
-        kind: "request",
-        content: "Already in the chat",
-        sent_status: "sent"
-      })
-
-    {:ok, _pending} =
-      Messages.create(%{
-        receiver_bot_id: bot.id,
-        sender_type: "bot",
-        sender_id: bot.id,
-        timestamp: DateTime.from_unix!(3, :second),
-        kind: "request",
-        content: "Still queued"
-      })
-
-    {:ok, view, _html} = live(conn, "/bots/#{bot.id}")
-
-    html = render(view)
-    refute html =~ "Already in the chat"
-    assert html =~ "Still queued"
-  end
-
-  test "keeps the chat header fixed on mobile", %{conn: conn, bot: bot} do
-    {:ok, view, _html} = live(conn, "/bots/#{bot.id}")
-
-    html = render(view)
-    assert html =~ "fixed inset-x-0 top-0 z-10"
-    assert html =~ "bg-base-300 pt-16 lg:pt-0"
-  end
-
-  test "shows the bot name and edits its identity from the chat header", %{conn: conn, bot: bot} do
-    {:ok, view, _html} = live(conn, "/bots/#{bot.id}")
-
+  test "keeps the chat header fixed on mobile", %{conn: conn, id: id} do
+    {:ok, view, _html} = live(conn, ~p"/sessions/#{id}")
     assert has_element?(view, "#chat-header")
-    assert has_element?(view, "#edit-bot-button")
-
-    view |> element("#edit-bot-button") |> render_click()
-
-    assert has_element?(view, "#bot-editor")
-    assert has_element?(view, "#edit-bot-form")
-
-    view
-    |> form("#edit-bot-form",
-      bot: %{name: "Edited bot", role: "editor", description: "Edits work"}
-    )
-    |> render_submit()
-
-    refute has_element?(view, "#bot-editor")
-    assert has_element?(view, "#chat-header", "Edited bot")
-  end
-
-  test "renders failed bot activity in red" do
-    html =
-      render_component(&WebAppWeb.AgentLive.transcript_item/1,
-        id: "notification-failed",
-        item: %{kind: :notification, status: "failed", content: "Delivery failed"}
-      )
-
-    assert html =~ "border-error/30"
-    assert html =~ "bg-error/10"
-    assert html =~ "text-error"
+    refute has_element?(view, "#edit-bot-button")
   end
 
   test "hides expanded skill content in the transcript" do

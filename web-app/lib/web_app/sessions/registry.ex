@@ -25,6 +25,13 @@ defmodule WebApp.Sessions.Registry do
         do: :ok
       )
 
+  def create_general do
+    case GenServer.call(__MODULE__, :create_general) do
+      {:ok, id} -> await_created(id)
+      {:error, reason} -> {:error, format_error(reason)}
+    end
+  end
+
   def stop(id), do: GenServer.call(__MODULE__, {:stop, id}, 20_000)
   def delete(id), do: GenServer.call(__MODULE__, {:delete, id}, 20_000)
   def register_automation(name), do: GenServer.call(__MODULE__, {:register_automation, name})
@@ -39,19 +46,15 @@ defmodule WebApp.Sessions.Registry do
   end
 
   @impl true
-  def handle_call({:create, relative, options}, _from, state) do
-    now = System.monotonic_time(:millisecond)
-    recent = Enum.filter(state.creation_times, &(now - &1 < @creation_window_ms))
-    state = %{state | creation_times: [now | recent]}
+  def handle_call({:create, relative, options}, _from, state),
+    do: rate_limited_create(state, fn state -> create_session(relative, options, state) end)
 
-    if length(recent) >= @creation_limit,
-      do: {:reply, {:error, "Session creation rate limit exceeded"}, state},
-      else: create_session(relative, options, state)
-  end
+  def handle_call(:create_general, _from, state),
+    do: rate_limited_create(state, &create_general_session/1)
 
   def handle_call({:register_automation, name}, _from, state) do
     id = Base.url_encode64(:crypto.strong_rand_bytes(9), padding: false)
-    project = Workspace.root()
+    project = Store.config_root!()
     session_file = automation_session_file(id)
     File.mkdir_p!(Path.dirname(session_file))
     write_automation_session!(session_file, id, project)
@@ -108,7 +111,8 @@ defmodule WebApp.Sessions.Registry do
 
   def handle_call({:delete, id}, _from, state) do
     with metadata when not is_nil(metadata) <- Store.get(id),
-         {:ok, _session_file} <- Store.validate_session_file(metadata["session_file"]),
+         {:ok, _session_file} <-
+           Store.validate_session_file(metadata["session_file"], metadata["source"]),
          :ok <- Store.delete(id) do
       if Agent.whereis(id), do: Agent.stop(id)
       notify_sessions_changed()
@@ -152,15 +156,43 @@ defmodule WebApp.Sessions.Registry do
     {:noreply, state}
   end
 
+  defp rate_limited_create(state, create) do
+    now = System.monotonic_time(:millisecond)
+    recent = Enum.filter(state.creation_times, &(now - &1 < @creation_window_ms))
+    state = %{state | creation_times: [now | recent]}
+
+    if length(recent) >= @creation_limit,
+      do: {:reply, {:error, "Session creation rate limit exceeded"}, state},
+      else: create.(state)
+  end
+
+  defp create_general_session(state) do
+    project = Store.config_root!()
+    create_at(project, %{name: "New session", source: "general", relative_project: "."}, state)
+  rescue
+    error in [ArgumentError, File.Error] -> {:reply, {:error, Exception.message(error)}, state}
+  end
+
   defp create_session(relative, options, state) do
     project = Workspace.resolve(relative)
+
+    create_at(
+      project,
+      Map.put(options, :relative_project, Path.relative_to(project, Workspace.root())),
+      state
+    )
+  rescue
+    error in [ArgumentError, File.Error] -> {:reply, {:error, Exception.message(error)}, state}
+  end
+
+  defp create_at(project, options, state) do
     id = Base.url_encode64(:crypto.strong_rand_bytes(9), padding: false)
 
     metadata = %{
       "id" => id,
       "name" => Map.get(options, :name) || Path.basename(project),
       "project" => project,
-      "relative_project" => Path.relative_to(project, Workspace.root()),
+      "relative_project" => options.relative_project,
       "session_file" => nil,
       "pi_session_id" => nil,
       "source" => Map.get(options, :source, "web"),
@@ -190,8 +222,6 @@ defmodule WebApp.Sessions.Registry do
       {:error, reason} ->
         {:reply, {:error, format_error(reason)}, state}
     end
-  rescue
-    error in [ArgumentError, File.Error] -> {:reply, {:error, Exception.message(error)}, state}
   end
 
   defp start(metadata, identity \\ nil),
@@ -253,6 +283,9 @@ defmodule WebApp.Sessions.Registry do
     case Store.get(id) do
       %{"source" => "web", "name" => name, "project" => project} ->
         if name == Path.basename(project), do: rename_session(id, message)
+
+      %{"source" => "general", "name" => "New session"} ->
+        rename_session(id, message)
 
       _session ->
         :ok
