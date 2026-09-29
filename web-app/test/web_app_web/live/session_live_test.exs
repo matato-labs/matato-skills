@@ -5,11 +5,17 @@ defmodule WebAppWeb.SessionLiveTest do
 
   alias WebApp.Sessions.{Store, Workspace}
 
-  test "offers a project-free start and keeps the workspace picker", %{conn: conn} do
+  test "centers the workspace picker and keeps general creation in the sidebar", %{conn: conn} do
     {:ok, view, _html} = live(conn, ~p"/")
 
-    assert has_element?(view, "#start-general-button[phx-click='start_general']")
-    assert has_element?(view, "#start-session-form select[name='session[project]']")
+    assert has_element?(
+             view,
+             "main .place-items-center #start-session-form select[name='session[project]']"
+           )
+
+    refute has_element?(view, "#start-general-button")
+    assert has_element?(view, "#session-sidebar button[phx-click='start_general']")
+    assert has_element?(view, "#session-sidebar a[aria-label='New workspace session'][href='/']")
     refute has_element?(view, "#plugins-link")
   end
 

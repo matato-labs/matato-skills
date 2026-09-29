@@ -41,11 +41,12 @@ defmodule WebAppWeb.SessionComponents do
           <h2 class="text-[0.68rem] font-semibold uppercase tracking-[0.16em] text-base-content/45">
             Sessions
           </h2>
-          <.link
-            navigate="/"
+          <button
+            type="button"
+            phx-click="start_general"
             aria-label="New session"
             class="rounded-md p-1 text-base-content/45 hover:text-base-content focus-visible:outline-2 focus-visible:outline-primary"
-          ><.icon name="hero-plus" class="size-4" /></.link>
+          ><.icon name="hero-plus" class="size-4" /></button>
         </div>
         <nav id="general-sessions" class="space-y-0.5" aria-label="Sessions">
           <.session_row
@@ -67,7 +68,7 @@ defmodule WebAppWeb.SessionComponents do
             <.link
               navigate="/"
               class="rounded-md p-1 text-base-content/45 transition-colors hover:bg-base-content/5 hover:text-base-content focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-              aria-label="New session"
+              aria-label="New workspace session"
             >
               <.icon name="hero-plus" class="size-4" />
             </.link>

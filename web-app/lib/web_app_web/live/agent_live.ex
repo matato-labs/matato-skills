@@ -99,6 +99,13 @@ defmodule WebAppWeb.AgentLive do
   def handle_event("close_mobile_sidebar", _params, socket),
     do: {:noreply, assign(socket, mobile_sidebar_open: false)}
 
+  def handle_event("start_general", _params, socket) do
+    case Sessions.create_general() do
+      {:ok, id} -> {:noreply, push_navigate(socket, to: "/sessions/#{id}")}
+      {:error, error} -> {:noreply, assign(socket, error: error)}
+    end
+  end
+
   def handle_event("delete_session", %{"id" => id}, socket) do
     case Sessions.delete(id) do
       :ok when id == socket.assigns.session_id ->

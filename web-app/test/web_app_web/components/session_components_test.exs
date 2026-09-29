@@ -16,6 +16,14 @@ defmodule WebAppWeb.SessionComponentsTest do
         mobile_sidebar_open: false
       )
 
+    document = LazyHTML.from_fragment(html)
+    assert LazyHTML.query(document, "#session-sidebar button[phx-click='start_general']") != []
+
+    assert LazyHTML.query(
+             document,
+             "#session-sidebar a[aria-label='New workspace session'][href='/']"
+           ) != []
+
     assert html =~ ~s(id="general-sessions")
     assert html =~ ~s(href="/sessions/general-1")
     refute html =~ ~s(href="/plugins")

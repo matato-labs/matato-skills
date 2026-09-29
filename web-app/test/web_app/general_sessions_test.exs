@@ -1,6 +1,8 @@
 defmodule WebApp.Sessions.GeneralTest do
   use WebAppWeb.ConnCase, async: false
 
+  import Phoenix.LiveViewTest
+
   alias WebApp.Sessions
   alias WebApp.Sessions.{Agent, Registry, Store, Workspace}
 
@@ -66,6 +68,14 @@ defmodule WebApp.Sessions.GeneralTest do
     assert :ok = Sessions.open(id)
     assert :ok = Sessions.stop(id)
     assert :ok = Sessions.delete(id)
+  end
+
+  test "sidebar plus creates a general session directly from home", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    view |> element("#session-sidebar button[phx-click='start_general']") |> render_click()
+    assert {"/sessions/" <> id, %{}} = assert_redirect(view)
+    assert %{"source" => "general"} = Sessions.get(id)
   end
 
   test "creates a general session through the sessions API when project is omitted", %{

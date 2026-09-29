@@ -22,18 +22,9 @@
         <SessionComponents.mobile_header mobile_sidebar_open={@mobile_sidebar_open} />
         <div class="grid min-h-0 flex-1 place-items-center overflow-y-auto px-5 py-12">
           <div class="w-full max-w-lg">
-            <h1 class="mb-2 text-xl font-semibold tracking-tight">Start a session</h1>
+            <h1 class="mb-2 text-xl font-semibold tracking-tight">Start a workspace session</h1>
             <p class="mb-8 text-sm text-base-content/55">
-              Start in the Matato config folder, or choose a workspace project.
-            </p>
-            <button
-              id="start-general-button"
-              type="button"
-              phx-click="start_general"
-              class="btn btn-primary mb-7 w-full"
-            >Start without a project <.icon name="hero-arrow-right" class="size-4" /></button>
-            <p class="mb-3 text-xs font-semibold uppercase tracking-wide text-base-content/45">
-              Or choose a project
+              Choose a workspace project to start in.
             </p>
             <.form for={@start_form} id="start-session-form" phx-submit="start" class="space-y-5">
               <div class="relative">
