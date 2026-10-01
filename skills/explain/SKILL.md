@@ -8,6 +8,6 @@ Explain is a companion for `how` and `why`, let those skills do the investigatio
 
 Build up an incremental and digestible explanation for the user request following the next criteria:
 
-- Keep it simple, go to the point and avoid complex and long sentences.
+- Keep it simple, go to the point and avoid complex long sentences.
 - Add evidence, code snapshots, sources or anything to allow the user to understand `where` something happens
 - Draw a digram or diagrams with mermaid to explain the user the steps how something works, enumerate the steps so the user can follow the steps. Draw at the level the user is talking to, level 1 is module to module, level two is file to file, level 3 is function to function.

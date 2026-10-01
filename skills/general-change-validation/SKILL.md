@@ -24,10 +24,6 @@ Follow YAGNI principle and prefer one-line solutions when they are readable.
 
 Analyse the code does log the right log levels depending the situation, if the project support monitoring via metrics, traces or anything other tool, make sure the code follows the standards in the repository.
 
-## Testing
-
-Make sure the test have a business meaning according to the change, avoid technicalities in the test names. There are times the test is analysing a non-functional criteria, in such case if fine to introduce technicalities in the test.
-
 ## Typechecks and lint
 
 Typechecks, linting passes, the project compile/build, all tests passes.
