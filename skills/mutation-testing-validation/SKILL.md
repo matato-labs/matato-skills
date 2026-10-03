@@ -6,7 +6,7 @@ disable-model-invocation: true
 
 # Mutation Testing Validation
 
-> This is a MANUAL TEST; There is no mutation testing frame work, you need to do the changes your self and run the test, once case at a time.
+> This is a MANUAL TEST; there is no mutation testing framework, so you need to make the changes yourself and run the test, one case at a time.
 
 Identify the meaningful behavioral changes and the tests that cover them. Work through one mutation at a time. Choose small, plausible defects that exercise the changed behavior, such as inverted conditions, changed comparison operators, altered boolean values, removed guards, changed return values, or altered boundary values.
 

@@ -12,22 +12,22 @@ Validate the code for the following categories. You MUST change the code for any
 
 Validate the usage of strong types, try to avoid weak types like `unknown`, `any` or such kind of types in the programming language the code is in. Type checks should be done via the programming language strong typing systems instead of checks such as `if(value === string)`.
 
-## Safe guards
+## Safeguards
 
-Always prefer safe guards at the start of a function that discard the edge cases and do early return instead of complex if-else statements or nested logic.
+Always prefer safeguards at the start of a function that discard edge cases and return early instead of using complex if-else statements or nested logic.
 
 ## YAGNI
 
-Follow YAGNI principle and prefer one-line solutions when they are readable.
+Follow the YAGNI principle and prefer one-line solutions when they are readable.
 
 ## Logging and monitoring
 
-Analyse the code does log the right log levels depending the situation, if the project support monitoring via metrics, traces or anything other tool, make sure the code follows the standards in the repository.
+Analyse whether the code logs the right log levels depending on the situation; if the project supports monitoring via metrics, traces, or any other tools, make sure the code follows the standards in the repository.
 
 ## Typechecks and lint
 
-Typechecks, linting passes, the project compile/build, all tests passes.
+Typechecks and linting pass, the project compiles/builds, and all tests pass.
 
 ## Architecture
 
-Analyse the code for lean and straight architecture, it means, no complex back and for calls between components, no thigh coupling, only introduce new components when it's extremely necessary.
+Analyse the code for a lean and straightforward architecture, which means no complex back-and-forth calls between components and no tight coupling; only introduce new components when it's extremely necessary.

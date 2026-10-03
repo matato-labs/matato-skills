@@ -6,7 +6,7 @@ disable-model-invocation: true
 
 # Quality Checks Validation
 
-Validate the code for the following quality categories and fix all findings, do not stop until all categories are in a good state.
+Validate the code for the following quality categories and fix all findings; do not stop until all categories are in a good state.
 
 ## File size
 

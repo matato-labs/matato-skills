@@ -7,9 +7,9 @@ description: Use this skill when the user wants to create a GitHub issue in a co
 
 ## Workflow
 
-1. Identify the requested project from the user request.
+1. Identify the requested project from the user's request.
 2. Derive `OWNER/REPO` from the project's repository URL.
-3. Prepare a concise issue title and a Markdown issue body from the user request.
+3. Prepare a concise issue title and a Markdown issue body from the user's request.
 4. Before creating the issue, list existing issues to avoid duplicates.
 5. If an existing issue clearly covers the request, do not create a duplicate.
 6. Write the Markdown body to a temporary `.md` file.
@@ -46,9 +46,9 @@ Short description of the issue.
 
 ## Proposed Solution
 
-- Concreate and to the point way to solve this issue.
+- A concrete and to-the-point way to solve this issue.
 
 ## Acceptance Criteria
 
-- List of acceptance critirias divided in functional requirements and nun functional requirements
+- List of acceptance criteria divided into functional requirements and non-functional requirements
 ```
