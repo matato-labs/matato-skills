@@ -4,7 +4,7 @@ description: Use this skill when the user wants to know why something works the 
 disable-model-invocation: true
 ---
 
-Sometimes the user will call `/how`, and the answer for that skill will require investigating WHY the code is like that. This skill provides the answer on the WHY.
+Sometimes the user will call `/deep-dive`, and the answer for that skill will require investigating WHY the code is like that. This skill provides the answer on the WHY.
 
 You need to be honest about the findings; never invent or assume. It's better to say that you found something that could be relevant but are not sure than to treat it as fact when in doubt.
 

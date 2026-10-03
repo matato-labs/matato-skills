@@ -4,7 +4,7 @@ description: Use this skill when the user wants to fully understand something.
 disable-model-invocation: true
 ---
 
-Explain is a companion for `how` and `why`, let those skills do the investigation and you use the result to build a slow and comprehensive explanation for the user. If `how` and `why` ran already in this session, use that, if not launch subagents as you believe appropriate to run those skills.
+Explain is a companion for `deep-dive` and `why`, let those skills do the investigation and you use the result to build a slow and comprehensive explanation for the user. If `deep-dive` and `why` ran already in this session, use that, if not launch subagents as you believe appropriate to run those skills.
 
 Build up an incremental and digestible explanation for the user request following the next criteria:
 
