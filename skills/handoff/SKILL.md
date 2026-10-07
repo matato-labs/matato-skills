@@ -36,19 +36,13 @@ Always capture these sections:
 Use this structure unless the user asks for a different one:
 
 ```md
-# Handoff
+# Context
+What are you doing, why, what has been done
 
-## Objective
+# Next steps
+What is missing base on the conversation
 
-## Current State
-
-## Important Decisions
-
-## Files And Artifacts
-
-## Open Issues
-
-## Next Steps
-```
+# Considerations
+What to consider, trade off, important decisions taken
 
 > If `pbcopy`, `wl-copy`, or any similar tool is available in the system, copy the handoff to the clipboard.

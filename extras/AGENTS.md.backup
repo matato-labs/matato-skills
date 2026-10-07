@@ -18,7 +18,7 @@
 ## When spawning subagents
 
 - Use gpt-6-luna at high effort for documentation lookup, codebase mapping, extraction, classification, and simple audits. Raise to xhigh only when the task requires judgment beyond a clear rubric.
-- Use gpt-6-sol at medium effort for isolated implementation with clear acceptance criteria, multi-file changes, debugging, or non-obvious test failures.
-- Use gpt-6-sol at high effort for security, concurrency, migrations, architecture, and ambiguous high-value work. Use high effort when an incorrect result is costly or an independent review is required.
+- Use gpt-6.1-sol at medium effort for isolated implementation with clear acceptance criteria, multi-file changes, debugging, or non-obvious test failures.
+- Use gpt-6.1-sol at high effort for security, concurrency, migrations, architecture, and ambiguous high-value work. Use high effort when an incorrect result is costly or an independent review is required.
 - Never use Max or Ultra thinking level.
 - Treat Sol as the highest permitted model unless the user explicitly asks to use Astra.

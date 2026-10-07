@@ -18,4 +18,4 @@ You need to be honest about the findings; never invent or assume. It's better to
 Launch up to 4 subagents in parallel to go over the different tools and collect the required information from each tool. Use only one tool per subagent. Create a good linear history of the codebase changes with links, commits, PRs, etc., so the subagent can extract the required information.
 
 ## Output
-When all investigations are done and you have a better overview, draft the answer to the user. Get to the point as if you are talking to a senior software engineer. Make any answer concise. Sacrifice grammar for the sake of concision. Add meaningful evidence from the tools the subagents used to support your answer.
+When all investigations are done and you have a better overview, draft the answer to the user. Make any answer concise. Sacrifice grammar for the sake of concision. Add meaningful evidence from the tools the subagents used to support your answer.

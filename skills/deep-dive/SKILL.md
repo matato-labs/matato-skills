@@ -15,4 +15,4 @@ The user's question can be answered by reading part of the code and doesn't requ
 Give a quick analysis first; try to find files, classes, modules, functions or any code artifact and identify different branches that are worth exploring; for each branch, launch a sub-agent that will do a deep-dive and come back with a conclusion; they need to work until the branch's theory is proven or disproven.
 
 ## Output
-When all investigations are done and you have a better overview, draft the answer to the user. Get to the point as if you are talking to a senior software engineer. Make any answer concise. Sacrifice grammar for the sake of concision.
+When all investigations are done and you have a better overview, draft the answer to the user. Make any answer concise. Sacrifice grammar for the sake of concision.
