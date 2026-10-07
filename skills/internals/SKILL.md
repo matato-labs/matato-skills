@@ -13,6 +13,14 @@ Open or create sessions in the web UI. General sessions start in `MATATO_PI_CONF
 
 ## Automations
 
+### TypeScript-only cron jobs
+
+Run `npm run worker` from the package to schedule jobs without Elixir or the web app. Manage `$MATATO_PI_CONFIG/automations/config.json` (default `~/.config/matato-pi/automations/config.json`), or the file selected by `MATATO_PI_AUTOMATIONS_CONFIG`. It contains `{ "automations": [...] }` with camelCase fields: `jobName`, `enabled`, `schedule`, `userPrompt`, `dailySession`, `canOverlap`, `model`, `thinkingLevel`, `canLaunchSubAgents`, `useSkill`. `extras/automations.json` is a disabled template; set a real model and enable the job. Croner supports five or six fields and uses the process time zone. Edits reload every five seconds; invalid schedules retain the previous jobs.
+
+`useSkill` defaults to true for historical configs, and `canOverlap` defaults to false. Skill jobs resolve the user's skills before bundled skills. Optional pre/post scripts work as below. Empty pre-script output skips Pi. `monitor` and web run history are unavailable. SQLite jobs are separate and are not imported: avoid scheduling the same work in both runners. Channel credentials must be in the worker environment. `/automations` prefers the local file when present or explicitly selected.
+
+### Web-app jobs
+
 Manage standalone automations with the local API: `api="${MATATO_PI_WEB_URL:-http://localhost:4000}/api/automations"`. `GET` lists, `GET /:id` reads, `POST` creates, `PUT /:id` updates, and `DELETE /:id` deletes. Create and update send all fields:
 
 | Field | Purpose |
@@ -46,6 +54,6 @@ With `use_skill`, optional `scripts/preScript.ts` output becomes the run context
 
 Telegram and Discord extensions send directly to their external APIs, independently of the web app. There are no web-app channel toggles, status checks, or persisted channel settings. There is no channel inbox ingestion, polling, or channel cron.
 
-Telegram requires `TELEGRAM_BOT_TOKEN` and `TELEGRAM_OWNER_ID`; Discord requires `DISCORD_BOT_TOKEN`, `DISCORD_GUILD_ID`, and `DISCORD_CHANNEL_IDS`. Configure these in the sending Pi process. Web-app sessions and automations inherit them from the web-app process. Missing credentials or invalid destinations block delivery. `MATATO_PI_WEB_URL` is not used for channel sends.
+Telegram requires `TELEGRAM_BOT_TOKEN` and `TELEGRAM_OWNER_ID`; Discord requires `DISCORD_BOT_TOKEN`, `DISCORD_GUILD_ID`, and `DISCORD_CHANNEL_IDS`. Configure these in the sending Pi process. Web-app sessions and automations inherit them from the web-app process; TypeScript jobs inherit them from the worker. Missing credentials or invalid destinations block delivery. `MATATO_PI_WEB_URL` is not used for channel sends.
 
 Telegram transport restricts delivery to the owner. Discord verifies its guild/channel allowlists and disables automatic mentions; the destination allowlist is not an owner identity check. See `skills/telegram/SKILL.md` and `skills/discord/SKILL.md` for direct-send policies.

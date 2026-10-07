@@ -1,0 +1,16 @@
+{
+  "automations": [
+    {
+      "jobName": "dailyReview",
+      "enabled": false,
+      "schedule": "0 9 * * *",
+      "userPrompt": "Review open work and summarize what needs attention.",
+      "dailySession": false,
+      "canOverlap": false,
+      "model": "replaceWithYourPiModel",
+      "thinkingLevel": "low",
+      "canLaunchSubAgents": false,
+      "useSkill": false
+    }
+  ]
+}
