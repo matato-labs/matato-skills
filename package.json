@@ -23,6 +23,7 @@
   },
   "scripts": {
     "check": "tsc --noEmit",
+    "worker": "bun worker/index.ts",
     "test": "bun test",
     "lint": "eslint ."
   },
@@ -30,6 +31,9 @@
     "@earendil-works/pi-coding-agent": "*",
     "@earendil-works/pi-tui": "*",
     "typebox": "*"
+  },
+  "dependencies": {
+    "croner": "^10.0.1"
   },
   "devDependencies": {
     "@earendil-works/pi-coding-agent": "^1.0.4",

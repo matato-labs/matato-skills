@@ -82,9 +82,35 @@ Telegram requires `TELEGRAM_BOT_TOKEN` and `TELEGRAM_OWNER_ID`. `telegram_send_m
 
 Missing credentials or invalid destinations block delivery. HTTP requests have a 15-second timeout; an uncertain delivery is not retried automatically. Errors do not expose credentials or raw network details. `MATATO_PI_WEB_URL` is not used for channel sends.
 
-Use the `telegram` and `discord` skills for owner-requested messages or approved notifications. They have no pre/post scripts. Schedule notifications through ordinary user automations, with channel environment variables set in the web-app process so its Pi children inherit them. Review outgoing text for secrets. Neither tool posts Pi's final response automatically.
+Use the `telegram` and `discord` skills for owner-requested messages or approved notifications. They have no pre/post scripts. Schedule notifications through ordinary user automations, with channel environment variables set in the worker or web-app process so its Pi children inherit them. Review outgoing text for secrets. Neither tool posts Pi's final response automatically.
 
 ## Automations
+
+### TypeScript worker (no Elixir required)
+
+The original Croner-based worker is restored from `worker/index.ts` (introduced in `f14f1e3`, removed in `3a90990`). It reads local JSON and runs Pi directly; no web app, database, or HTTP API is needed.
+
+```text
+config.json → Croner → optional preScript.ts → Pi → optional postScript.ts
+```
+
+Install Bun and Pi, then configure and start the worker:
+
+```bash
+npm install
+mkdir -p "${MATATO_PI_CONFIG:-$HOME/.config/matato-pi}/automations"
+cp extras/automations.json "${MATATO_PI_CONFIG:-$HOME/.config/matato-pi}/automations/config.json"
+# Edit the file: choose a real model and set enabled to true.
+npm run worker
+```
+
+The JSON uses camelCase fields (`jobName`, `userPrompt`, `dailySession`, `canOverlap`, `thinkingLevel`, `canLaunchSubAgents`, `useSkill`), unlike the web API. See `extras/automations.json` for a safe, disabled example. `MATATO_PI_AUTOMATIONS_CONFIG` overrides the file path; otherwise it is `$MATATO_PI_CONFIG/automations/config.json`. Five- and six-field cron schedules are supported. The worker reloads edits every five seconds and retains existing schedules if a replacement is invalid. Missing configuration means no jobs; deleting the file stops future runs, and the worker stays running for later edits.
+
+`useSkill: false` runs a prompt without a skill. Skill jobs resolve `~/.pi/agent/skills/<jobName>` before the package's bundled skills and run optional `scripts/preScript.ts` and `scripts/postScript.ts` with Bun. Empty pre-script output skips Pi. Historical configs default to `useSkill: true` and `canOverlap: false`. Set Telegram/Discord credentials in the worker's environment for approved notifications.
+
+Local jobs are independent of web-app automations: SQLite jobs are not automatically imported, and `monitor`/web run history are not supported by the worker; omit `monitor` or set it to false (enabled monitored jobs are rejected). Do not schedule the same job in both runners. `/automations` reads local configuration when it exists or when `MATATO_PI_AUTOMATIONS_CONFIG` is set; otherwise it uses the web API.
+
+### Web-app automations
 
 Create a standalone automation from the web app or ask your agent to do it. It runs a prompt on a cron schedule using the automation's required `model` and `thinking_level` settings. `use_skill` loads the skill named by `job_name`; optional `scripts/preScript.ts` output is added to the agent context. After Pi completes, optional `scripts/postScript.ts` runs; failure fails the automation. `daily_session` reuses one Pi session per day, `can_overlap` permits concurrent runs, and `monitor` shows the job in the web app. Use `/automations` in Pi to inspect scheduled jobs. Automations send notifications through the same environment-configured extensions as interactive sessions.
 

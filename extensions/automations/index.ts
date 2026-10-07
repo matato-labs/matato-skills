@@ -1,4 +1,9 @@
+import { existsSync } from "node:fs";
 import type { Automation } from "../../src/automation.ts";
+import {
+  automationConfigPath,
+  loadAutomationConfig,
+} from "../../src/automationConfig.ts";
 import type {
   ExtensionAPI,
   ExtensionCommandContext,
@@ -52,8 +57,18 @@ function fromRecord(record: AutomationRecord): Automation {
   };
 }
 
-async function loadAutomations(): Promise<Array<Automation>> {
-  const response = await fetch(automationApiUrl);
+function usesLocalConfig(): boolean {
+  return (
+    process.env.MATATO_PI_AUTOMATIONS_CONFIG !== undefined ||
+    existsSync(automationConfigPath())
+  );
+}
+
+export async function loadAutomations(
+  fetchImpl: (url: string) => Promise<Response> = fetch,
+): Promise<Array<Automation>> {
+  if (usesLocalConfig()) return (await loadAutomationConfig()).automations;
+  const response = await fetchImpl(automationApiUrl);
   if (!response.ok)
     throw new Error(`Automation API returned ${response.status}.`);
   const body = (await response.json()) as AutomationResponse;
@@ -206,7 +221,7 @@ class AutomationBrowser {
       `Model: ${automation.model}`,
       `Reasoning: ${automation.thinkingLevel}`,
       `Sub-agents: ${automation.canLaunchSubAgents ? "allowed" : "not allowed"}`,
-      `Monitoring: ${automation.monitor ? "enabled" : "disabled"}`,
+      `Monitoring: ${usesLocalConfig() ? "unavailable in TS worker" : automation.monitor ? "enabled" : "disabled"}`,
       `Daily session: ${automation.dailySession ? "enabled" : "disabled"}`,
       `Overlapping runs: ${automation.canOverlap ? "allowed" : "blocked"}`,
       `Skill: ${automation.useSkill ? automation.jobName : "none"}`,
