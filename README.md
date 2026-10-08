@@ -64,3 +64,18 @@ Use `/skill:<name>` or ask the agent for the matching task. Each linked skill do
 | [telegram](extensions/telegram/index.ts) | `telegram_send_message` | Send directly to the configured owner. |
 
 Telegram requires `TELEGRAM_BOT_TOKEN` and `TELEGRAM_OWNER_ID`. Discord requires `DISCORD_BOT_TOKEN`, `DISCORD_GUILD_ID`, and comma-separated `DISCORD_CHANNEL_IDS`. Set these in the sending Pi process; channels are outbound only.
+
+## Contribute
+
+Fork the repository, clone your fork, and create a branch for your change. Install Node.js and Bun, then run from the repository root:
+
+```bash
+npm ci
+npm run check
+npm run lint
+npm test
+```
+
+Add skills in `skills/<name>/SKILL.md`, extensions in `extensions/<name>/index.ts`, and prompt templates in `prompts/`. Follow `AGENTS.md`, add tests for behavior changes, and update this README when adding a skill or extension.
+
+Open a pull request against `main` with a short summary and the checks you ran. For larger changes, open an issue first to discuss the approach.
