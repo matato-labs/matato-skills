@@ -129,6 +129,17 @@ npm run lint
 npm test
 ```
 
+Run a fresh Atlas report with a zero-findings gate (requires [uv](https://docs.astral.sh/uv/) and `jq`):
+
+```bash
+npm run atlas                     # Analyze this repository, including web-app
+npm run atlas -- /path/to/project  # Analyze another folder
+# Override the sibling Atlas Python project location when using a worktree:
+ATLAS_PROJECT=/path/to/atlas/atlas npm run atlas
+```
+
+`ATLAS_PROJECT` defaults to `../atlas/atlas`, the Python project in a sibling `atlas` checkout, relative to the working directory. The command prints Atlas's JSON report and exits nonzero for any findings, analysis failure, or invalid report. It uses `--skip-save` so it never writes to the Atlas database. Local `.atlasignore` rules still apply.
+
 For the web app, install Elixir/Erlang and run:
 
 ```bash

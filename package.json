@@ -22,6 +22,7 @@
     ]
   },
   "scripts": {
+    "atlas": "bash scripts/atlasReport.sh",
     "check": "tsc --noEmit",
     "worker": "bun worker/index.ts",
     "test": "bun test",
