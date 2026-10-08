@@ -79,3 +79,15 @@ npm test
 Add skills in `skills/<name>/SKILL.md`, extensions in `extensions/<name>/index.ts`, and prompt templates in `prompts/`. Follow `AGENTS.md`, add tests for behavior changes, and update this README when adding a skill or extension.
 
 Open a pull request against `main` with a short summary and the checks you ran. For larger changes, open an issue first to discuss the approach.
+
+### Secret scanning
+
+CI runs Gitleaks 8.30.1 against the complete checked-out branch history, including merge-commit changes, for every pull request and push to `main`. With the same version installed, run locally:
+
+```bash
+gitleaks git --log-opts="--full-history --diff-merges=first-parent HEAD" --redact=100 --ignore-gitleaks-allow --max-decode-depth=5 --max-archive-depth=3 --no-banner
+```
+
+`.gitleaksignore` accepts only exact audited historical findings: the development/test signing keys and a synthetic token fixture. It does not exclude their files or disable detection rules. New findings require review; never blanket-ignore a file or commit to make CI pass.
+
+Keep real credentials in local environment or credential files, not tracked examples. Git ignores and deleting a file do not remove existing Git history. Rotate any real exposed credential before considering history cleanup.

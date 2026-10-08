@@ -1,0 +1,13 @@
+# Exact historical findings reviewed before public release. No files or rules
+# are excluded; newly committed credentials in these files still fail scanning.
+
+# Phoenix development and test signing keys; production requires SECRET_KEY_BASE.
+169c95cab0a0d652df2b351f20160a8aa9c69ad3:web-app/config/dev.exs:generic-api-key:16
+169c95cab0a0d652df2b351f20160a8aa9c69ad3:web-app/config/test.exs:generic-api-key:7
+
+# The same two audited keys when that branch was merged into main.
+0d704b7ce80e3b2340c280d6f43797db4d92990e:web-app/config/dev.exs:generic-api-key:16
+0d704b7ce80e3b2340c280d6f43797db4d92990e:web-app/config/test.exs:generic-api-key:7
+
+# Synthetic GitLab token in an unsafe-message rejection test on a historical branch.
+757f1efc92dfb4fa4108439dc177f5a2e31b60a5:src/telegram.test.ts:gitlab-pat:70

@@ -1,3 +1,27 @@
 node_modules/
 coverage/
 .playwright-cli/
+
+# Local environment values; sanitized examples may be committed.
+.env
+.env.*
+.envrc
+!.env.example
+!.env.sample
+!.env.template
+
+# Local credential stores and private keys.
+.npmrc
+.netrc
+auth.json
+credentials.json
+*.pem
+*.key
+*.p12
+*.pfx
+id_rsa
+id_ed25519
+
+# Local logs and operating-system metadata.
+*.log
+.DS_Store
