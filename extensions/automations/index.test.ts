@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, mock, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -14,11 +14,16 @@ import registerAutomations, {
   loadAutomations,
 } from "./index.ts";
 
+const originalFetch = globalThis.fetch;
+const fetchImpl = mock<
+  (...args: Parameters<typeof fetch>) => ReturnType<typeof fetch>
+>(() => Promise.reject(new Error("The automation browser must not use HTTP.")));
 const originalConfig = process.env.MATATO_PI_CONFIG;
 const originalAutomations = process.env.MATATO_PI_AUTOMATIONS_CONFIG;
 const directories: Array<string> = [];
 
 afterEach(async () => {
+  globalThis.fetch = originalFetch;
   if (originalConfig === undefined) delete process.env.MATATO_PI_CONFIG;
   else process.env.MATATO_PI_CONFIG = originalConfig;
   if (originalAutomations === undefined)
@@ -84,10 +89,16 @@ function commandContext(
   return { ctx: ctx as ExtensionCommandContext, notify };
 }
 
-const emptyApi = () =>
-  mock(() => Promise.resolve(Response.json({ automations: [] })));
-
 describe("automation browser source", () => {
+  beforeEach(async () => {
+    delete process.env.MATATO_PI_AUTOMATIONS_CONFIG;
+    process.env.MATATO_PI_CONFIG = await temporaryDirectory();
+    fetchImpl.mockClear();
+    globalThis.fetch = Object.assign(fetchImpl, {
+      preconnect: originalFetch.preconnect,
+    });
+  });
+
   test("local jobs do not require the web app", async () => {
     const path = join(await temporaryDirectory(), "config.json");
     process.env.MATATO_PI_AUTOMATIONS_CONFIG = path;
@@ -107,24 +118,20 @@ describe("automation browser source", () => {
         ],
       }),
     );
-    const fetchImpl = emptyApi();
-    const jobs = await loadAutomations(fetchImpl);
+    const jobs = await loadAutomations();
     expect(jobs[0].jobName).toBe("heartbeat");
     expect(jobs[0].useSkill).toBe(true);
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 
-  test("prefers the default local file over web jobs", async () => {
-    delete process.env.MATATO_PI_AUTOMATIONS_CONFIG;
-    const directory = await temporaryDirectory();
-    process.env.MATATO_PI_CONFIG = directory;
+  test("reads the default local file", async () => {
+    const directory = process.env.MATATO_PI_CONFIG!;
     await mkdir(join(directory, "automations"));
     await writeFile(
       join(directory, "automations", "config.json"),
-      '{"automations":[]}',
+      JSON.stringify({ automations: [automation] }),
     );
-    const fetchImpl = emptyApi();
-    expect(await loadAutomations(fetchImpl)).toEqual([]);
+    expect(await loadAutomations()).toEqual([automation]);
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 
@@ -133,25 +140,33 @@ describe("automation browser source", () => {
       await temporaryDirectory(),
       "missing.json",
     );
-    const fetchImpl = emptyApi();
-    expect(await loadAutomations(fetchImpl)).toEqual([]);
+    expect(await loadAutomations()).toEqual([]);
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 
-  test("retains web app browsing when no local config exists", async () => {
-    delete process.env.MATATO_PI_AUTOMATIONS_CONFIG;
-    process.env.MATATO_PI_CONFIG = await temporaryDirectory();
-    const fetchImpl = emptyApi();
-    expect(await loadAutomations(fetchImpl)).toEqual([]);
-    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  test("a missing default config returns no jobs without HTTP", async () => {
+    expect(await loadAutomations()).toEqual([]);
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  test("reloads config edits and returns no jobs after deletion", async () => {
+    const path = join(await temporaryDirectory(), "config.json");
+    process.env.MATATO_PI_AUTOMATIONS_CONFIG = path;
+    await writeFile(path, JSON.stringify({ automations: [automation] }));
+    expect(await loadAutomations()).toEqual([automation]);
+    const updated = { ...automation, jobName: "updated" };
+    await writeFile(path, JSON.stringify({ automations: [updated] }));
+    expect(await loadAutomations()).toEqual([updated]);
+    await rm(path);
+    expect(await loadAutomations()).toEqual([]);
+    expect(fetchImpl).not.toHaveBeenCalled();
   });
 
   test("broken local JSON is surfaced instead of falling back to HTTP", async () => {
     const path = join(await temporaryDirectory(), "broken.json");
     process.env.MATATO_PI_AUTOMATIONS_CONFIG = path;
     await writeFile(path, "{");
-    const fetchImpl = emptyApi();
-    await expect(loadAutomations(fetchImpl)).rejects.toThrow();
+    await expect(loadAutomations()).rejects.toThrow();
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 });
@@ -178,24 +193,14 @@ describe("automation browser rendering", () => {
     expect(text).toContain("Ask the agent to create one.");
   });
 
-  test("monitoring distinguishes local, enabled and disabled jobs", async () => {
-    process.env.MATATO_PI_AUTOMATIONS_CONFIG = join(
-      await temporaryDirectory(),
-      "missing.json",
-    );
-    expect(browser([automation]).render(100).join("\n")).toContain(
-      "Monitoring: unavailable in TS worker",
-    );
-    delete process.env.MATATO_PI_AUTOMATIONS_CONFIG;
-    process.env.MATATO_PI_CONFIG = await temporaryDirectory();
-    expect(browser([automation]).render(100).join("\n")).toContain(
-      "Monitoring: enabled",
-    );
-    expect(
-      browser([{ ...automation, monitor: false }])
-        .render(100)
-        .join("\n"),
-    ).toContain("Monitoring: disabled");
+  test("monitoring is always unavailable for config jobs", () => {
+    for (const monitor of [true, false]) {
+      expect(
+        browser([{ ...automation, monitor }])
+          .render(100)
+          .join("\n"),
+      ).toContain("Monitoring: unavailable in TS worker");
+    }
   });
 });
 

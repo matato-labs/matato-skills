@@ -1,9 +1,5 @@
-import { existsSync } from "node:fs";
 import type { Automation } from "../../src/automation.ts";
-import {
-  automationConfigPath,
-  loadAutomationConfig,
-} from "../../src/automationConfig.ts";
+import { loadAutomationConfig } from "../../src/automationConfig.ts";
 import type {
   ExtensionAPI,
   ExtensionCommandContext,
@@ -20,59 +16,8 @@ import {
 
 type BrowserResult = { action: "close" | "refresh" };
 
-type AutomationResponse = {
-  automations: Array<AutomationRecord>;
-};
-
-type AutomationRecord = {
-  id: number;
-  job_name: string;
-  enabled: boolean;
-  schedule: string;
-  user_prompt: string;
-  daily_session: boolean;
-  can_overlap: boolean;
-  model: string;
-  thinking_level: Automation["thinkingLevel"];
-  can_launch_sub_agents: boolean;
-  monitor: boolean;
-  use_skill: boolean;
-};
-
-const automationApiUrl = `${process.env.MATATO_PI_WEB_URL ?? "http://localhost:4000"}/api/automations`;
-
-function fromRecord(record: AutomationRecord): Automation {
-  return {
-    jobName: record.job_name,
-    enabled: record.enabled,
-    schedule: record.schedule,
-    userPrompt: record.user_prompt,
-    dailySession: record.daily_session,
-    canOverlap: record.can_overlap,
-    model: record.model,
-    thinkingLevel: record.thinking_level,
-    canLaunchSubAgents: record.can_launch_sub_agents,
-    monitor: record.monitor,
-    useSkill: record.use_skill,
-  };
-}
-
-function usesLocalConfig(): boolean {
-  return (
-    process.env.MATATO_PI_AUTOMATIONS_CONFIG !== undefined ||
-    existsSync(automationConfigPath())
-  );
-}
-
-export async function loadAutomations(
-  fetchImpl: (url: string) => Promise<Response> = fetch,
-): Promise<Array<Automation>> {
-  if (usesLocalConfig()) return (await loadAutomationConfig()).automations;
-  const response = await fetchImpl(automationApiUrl);
-  if (!response.ok)
-    throw new Error(`Automation API returned ${response.status}.`);
-  const body = (await response.json()) as AutomationResponse;
-  return body.automations.map(fromRecord);
+export async function loadAutomations(): Promise<Array<Automation>> {
+  return (await loadAutomationConfig()).automations;
 }
 
 export class AutomationBrowser {
@@ -206,11 +151,6 @@ export class AutomationBrowser {
     return `${this.theme.fg("accent", "› ")}${this.theme.fg("accent", automation.jobName)}`;
   }
 
-  private monitoringLabel(automation: Automation): string {
-    if (usesLocalConfig()) return "unavailable in TS worker";
-    return automation.monitor ? "enabled" : "disabled";
-  }
-
   private previewLines(width: number): Array<string> {
     const automation = this.automations[this.selected];
     if (!automation)
@@ -229,7 +169,7 @@ export class AutomationBrowser {
       `Model: ${automation.model}`,
       `Reasoning: ${automation.thinkingLevel}`,
       `Sub-agents: ${automation.canLaunchSubAgents ? "allowed" : "not allowed"}`,
-      `Monitoring: ${this.monitoringLabel(automation)}`,
+      "Monitoring: unavailable in TS worker",
       `Daily session: ${automation.dailySession ? "enabled" : "disabled"}`,
       `Overlapping runs: ${automation.canOverlap ? "allowed" : "blocked"}`,
       `Skill: ${automation.useSkill ? automation.jobName : "none"}`,

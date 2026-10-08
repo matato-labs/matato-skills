@@ -108,11 +108,11 @@ The JSON uses camelCase fields (`jobName`, `userPrompt`, `dailySession`, `canOve
 
 `useSkill: false` runs a prompt without a skill. Skill jobs resolve `~/.pi/agent/skills/<jobName>` before the package's bundled skills and run optional `scripts/preScript.ts` and `scripts/postScript.ts` with Bun. Empty pre-script output skips Pi. Historical configs default to `useSkill: true` and `canOverlap: false`. Set Telegram/Discord credentials in the worker's environment for approved notifications.
 
-Local jobs are independent of web-app automations: SQLite jobs are not automatically imported, and `monitor`/web run history are not supported by the worker; omit `monitor` or set it to false (enabled monitored jobs are rejected). Do not schedule the same job in both runners. `/automations` reads local configuration when it exists or when `MATATO_PI_AUTOMATIONS_CONFIG` is set; otherwise it uses the web API.
+Local jobs are independent of web-app automations: SQLite jobs are not automatically imported, and `monitor`/web run history are not supported by the worker; omit `monitor` or set it to false (enabled monitored jobs are rejected). Do not schedule the same job in both runners. `/automations` reads only this local configuration, never the web API. A missing file shows an empty list; press `r` to reload after editing it.
 
 ### Web-app automations
 
-Create a standalone automation from the web app or ask your agent to do it. It runs a prompt on a cron schedule using the automation's required `model` and `thinking_level` settings. `use_skill` loads the skill named by `job_name`; optional `scripts/preScript.ts` output is added to the agent context. After Pi completes, optional `scripts/postScript.ts` runs; failure fails the automation. `daily_session` reuses one Pi session per day, `can_overlap` permits concurrent runs, and `monitor` shows the job in the web app. Use `/automations` in Pi to inspect scheduled jobs. Automations send notifications through the same environment-configured extensions as interactive sessions.
+Create a standalone automation from the web app or ask your agent to do it. It runs a prompt on a cron schedule using the automation's required `model` and `thinking_level` settings. `use_skill` loads the skill named by `job_name`; optional `scripts/preScript.ts` output is added to the agent context. After Pi completes, optional `scripts/postScript.ts` runs; failure fails the automation. `daily_session` reuses one Pi session per day, `can_overlap` permits concurrent runs, and `monitor` shows the job in the web app. `/automations` in Pi shows only local config jobs, not web-app jobs. Automations send notifications through the same environment-configured extensions as interactive sessions.
 
 ## Upgrade
 
