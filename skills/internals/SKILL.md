@@ -5,13 +5,13 @@ description: How Matato Pi works. Use when managing automations, their local JSO
 
 # Internals
 
-`WORKSPACE` is the projects directory. `MATATO_PI_CONFIG` holds Matato configuration and state (default `~/.config/matato-pi`). Pi JSONL files retain conversation history.
+`WORKSPACE` is the projects directory. `MATATO_PI_CONFIG` holds Matato runtime state (default `~/.config/matato-pi`), not the default automation configuration. Pi JSONL files retain conversation history.
 
 ## Automations
 
 Use local config for requests to list, create, update, pause, or delete automations. `/automations` is a read-only config browser, not an editor or scheduler.
 
-Run `npm run worker` from the package to schedule jobs. Manage `$MATATO_PI_CONFIG/automations/config.json` (default `~/.config/matato-pi/automations/config.json`), or the file selected by `MATATO_PI_AUTOMATIONS_CONFIG`. It contains `{ "automations": [...] }` with camelCase fields: `jobName`, `enabled`, `schedule`, `userPrompt`, `dailySession`, `canOverlap`, `model`, `thinkingLevel`, `canLaunchSubAgents`, `useSkill`. `extras/automations.json` is a disabled template; set a real model and enable the job. Croner supports five or six fields and uses the process time zone. Edits reload every five seconds; invalid schedules retain the previous jobs.
+Run `npm run worker` from the package to schedule jobs. Manage `config/config.json` at the installed repository root, or the file selected by `MATATO_PI_AUTOMATIONS_CONFIG`. The default path is independent of the process's working directory and `MATATO_PI_CONFIG`; the old `~/.config/matato-pi/automations/config.json` is no longer loaded by default. It contains `{ "automations": [...] }` with camelCase fields: `jobName`, `enabled`, `schedule`, `userPrompt`, `dailySession`, `canOverlap`, `model`, `thinkingLevel`, `canLaunchSubAgents`, `useSkill`. `config/config.json` contains only automation settings and ships with a disabled example; set a real model and enable the job. When migrating an old mixed configuration, copy only its `automations` array into this file. Croner supports five or six fields and uses the process time zone. Edits reload every five seconds; invalid schedules retain the previous jobs.
 
 Read the resolved config before editing; preserve unrelated jobs and fields. Create the parent directory and `{ "automations": [] }` only if the file is missing; do not overwrite invalid JSON. Identify jobs by unique `jobName`. Use camelCase fields and a configured Pi model; ask if the model or schedule/time zone is unclear. Set `useSkill: false` explicitly for plain prompt jobs; with `useSkill: true`, `jobName` must name an installed skill. Escape multiline prompts with `\n` in JSON. Disable jobs with `enabled: false`; delete only the requested entry. Neither change cancels an in-flight run.
 

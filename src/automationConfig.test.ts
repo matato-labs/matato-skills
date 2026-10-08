@@ -2,6 +2,7 @@ import { afterEach, describe, expect, test } from "bun:test";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import type { Automation } from "./automation.ts";
 import {
   automationConfigPath,
@@ -30,12 +31,21 @@ async function temporaryConfig(): Promise<string> {
 }
 
 describe("standalone automation configuration", () => {
-  test("uses Matato storage and supports the historical path override", () => {
+  test("uses the repository config independently of storage and working directory", () => {
     delete process.env.MATATO_PI_AUTOMATIONS_CONFIG;
     process.env.MATATO_PI_CONFIG = "/customConfig";
-    expect(automationConfigPath()).toBe(
-      "/customConfig/automations/config.json",
-    );
+    const originalDirectory = process.cwd();
+    try {
+      process.chdir(tmpdir());
+      expect(automationConfigPath()).toBe(
+        fileURLToPath(new URL("../config/config.json", import.meta.url)),
+      );
+    } finally {
+      process.chdir(originalDirectory);
+    }
+  });
+
+  test("supports an explicit automation config path", () => {
     process.env.MATATO_PI_AUTOMATIONS_CONFIG = "/customAutomations.json";
     expect(automationConfigPath()).toBe("/customAutomations.json");
   });
@@ -74,6 +84,15 @@ describe("standalone automation configuration", () => {
         currentJob,
       ],
     });
+  });
+
+  test("loads only automation settings from a legacy mixed config", async () => {
+    const path = await temporaryConfig();
+    await writeFile(
+      path,
+      JSON.stringify({ automations: [], unrelatedSetting: "ignored" }),
+    );
+    expect(await loadAutomationConfig(path)).toEqual({ automations: [] });
   });
 
   test("invalid JSON is not silently treated as empty configuration", async () => {

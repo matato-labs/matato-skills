@@ -91,20 +91,22 @@ Use the `telegram` and `discord` skills for owner-requested messages or approved
 The original Croner-based worker is restored from `worker/index.ts` (introduced in `f14f1e3`, removed in `3a90990`). It reads local JSON and runs Pi directly; no web app, database, or HTTP API is needed.
 
 ```text
-config.json → Croner → optional preScript.ts → Pi → optional postScript.ts
+config/config.json → Croner → optional preScript.ts → Pi → optional postScript.ts
 ```
 
 Install Bun and Pi, then configure and start the worker:
 
 ```bash
 npm install
-mkdir -p "${MATATO_PI_CONFIG:-$HOME/.config/matato-pi}/automations"
-cp extras/automations.json "${MATATO_PI_CONFIG:-$HOME/.config/matato-pi}/automations/config.json"
-# Edit the file: choose a real model and set enabled to true.
+# Edit config/config.json: choose a real model and set enabled to true.
 npm run worker
 ```
 
-The JSON uses camelCase fields (`jobName`, `userPrompt`, `dailySession`, `canOverlap`, `thinkingLevel`, `canLaunchSubAgents`, `useSkill`), unlike the web API. See `extras/automations.json` for a safe, disabled example. `MATATO_PI_AUTOMATIONS_CONFIG` overrides the file path; otherwise it is `$MATATO_PI_CONFIG/automations/config.json`. Five- and six-field cron schedules are supported. The worker reloads edits every five seconds and retains existing schedules if a replacement is invalid. Missing configuration means no jobs; deleting the file stops future runs, and the worker stays running for later edits.
+The JSON uses camelCase fields (`jobName`, `userPrompt`, `dailySession`, `canOverlap`, `thinkingLevel`, `canLaunchSubAgents`, `useSkill`), unlike the web API. The repository's `config/config.json` contains only an `automations` array with a safe, disabled example. This is the default file for both the worker and `/automations`, resolved relative to the installed repository, not the process's working directory or `MATATO_PI_CONFIG`. `MATATO_PI_AUTOMATIONS_CONFIG` explicitly overrides the file path.
+
+To migrate existing jobs, copy only the `automations` array from the old `$MATATO_PI_CONFIG/automations/config.json` into `config/config.json`; the old file is no longer loaded by default. Database and session storage are unchanged.
+
+Five- and six-field cron schedules are supported. The worker reloads edits every five seconds and retains existing schedules if a replacement is invalid. Missing configuration means no jobs; deleting the file stops future runs, and the worker stays running for later edits.
 
 `useSkill: false` runs a prompt without a skill. Skill jobs resolve `~/.pi/agent/skills/<jobName>` before the package's bundled skills and run optional `scripts/preScript.ts` and `scripts/postScript.ts` with Bun. Empty pre-script output skips Pi. Historical configs default to `useSkill: true` and `canOverlap: false`. Set Telegram/Discord credentials in the worker's environment for approved notifications.
 

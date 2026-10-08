@@ -1,7 +1,6 @@
 import { readFile } from "node:fs/promises";
-import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import type { Automation, AutomationConfig } from "./automation.ts";
-import { storagePath } from "./storagePath.ts";
 
 type StoredAutomation = Omit<Automation, "canOverlap" | "useSkill"> &
   Partial<Pick<Automation, "canOverlap" | "useSkill">>;
@@ -9,7 +8,7 @@ type StoredConfig = { automations: Array<StoredAutomation> };
 
 export const automationConfigPath = (): string =>
   process.env.MATATO_PI_AUTOMATIONS_CONFIG ??
-  join(storagePath(), "automations", "config.json");
+  fileURLToPath(new URL("../config/config.json", import.meta.url));
 
 export async function loadAutomationConfig(
   path = automationConfigPath(),
