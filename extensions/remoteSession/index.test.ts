@@ -335,6 +335,60 @@ describe("registerRemoteSession", () => {
   });
 });
 
+describe("registration preparation", () => {
+  test("invalid command is reported before missing session or workspace", async () => {
+    delete process.env.WORKSPACE;
+    const fetchImpl = okFetch();
+    const { ctx, notifications } = context({ sessionFile: undefined });
+    await registerRemoteSession("--host", ctx, fetchImpl);
+    expect(fetchImpl).not.toHaveBeenCalled();
+    expect(notifications).toEqual([
+      { message: expect.stringContaining("Invalid SSH host"), type: "error" },
+    ]);
+  });
+
+  test("reads the session ID after copying and preserves lookup failure handling", async () => {
+    process.env.WORKSPACE = "/workspace";
+    const fetchImpl = okFetch();
+    const { ctx, notifications } = context();
+    const commandRunner = mock<CommandRunner>(() =>
+      Promise.resolve({ stdout: "/home/pi\n", stderr: "" }),
+    );
+    ctx.sessionManager.getSessionId = () => {
+      expect(commandRunner).toHaveBeenCalledTimes(2);
+      throw new Error("session ID unavailable");
+    };
+    await registerRemoteSession(
+      "--host piServer",
+      ctx,
+      fetchImpl,
+      commandRunner,
+    );
+    expect(fetchImpl).not.toHaveBeenCalled();
+    expect(notifications).toEqual([
+      {
+        message:
+          "Could not reach the Matato web app at http://piServer:4000. Is it running?",
+        type: "error",
+      },
+    ]);
+  });
+
+  test("non-Error API failures retain the connectivity fallback", async () => {
+    process.env.WORKSPACE = "/workspace";
+    const { ctx, notifications } = context();
+    const fetchImpl: FetchLike = () => Promise.reject("offline");
+    await registerRemoteSession("", ctx, fetchImpl);
+    expect(notifications).toEqual([
+      {
+        message:
+          "Could not reach the Matato web app at http://localhost:4000. Is it running?",
+        type: "error",
+      },
+    ]);
+  });
+});
+
 describe("relativeProject", () => {
   test("resolves nested directories", () => {
     expect(relativeProject("/workspace/alpha/sub", "/workspace")).toBe(

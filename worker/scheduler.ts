@@ -15,6 +15,35 @@ export type SchedulerOptions = {
 const createSchedule: ScheduleFactory = (pattern, run) =>
   new Cron(pattern, { paused: true, mode: "5-or-6-parts" }, run);
 
+function buildSchedules(
+  automations: Array<Automation>,
+  factory: ScheduleFactory,
+  run: (automation: Automation) => Promise<void>,
+): Map<string, Schedule> {
+  const names = new Set<string>();
+  const schedules = new Map<string, Schedule>();
+  try {
+    for (const automation of automations) {
+      if (names.has(automation.jobName))
+        throw new Error(`Duplicate jobName: ${automation.jobName}`);
+      names.add(automation.jobName);
+      if (!automation.enabled) continue;
+      if (automation.monitor)
+        throw new Error(
+          `Job ${automation.jobName}: monitor is not supported by the standalone worker`,
+        );
+      schedules.set(
+        automation.jobName,
+        factory(automation.schedule, () => run(automation)),
+      );
+    }
+  } catch (error) {
+    for (const schedule of schedules.values()) schedule.stop();
+    throw error;
+  }
+  return schedules;
+}
+
 export function createScheduler(options: SchedulerOptions): {
   replace: (automations: Array<Automation>) => void;
   stop: () => void;
@@ -41,30 +70,11 @@ export function createScheduler(options: SchedulerOptions): {
   return {
     replace(automations) {
       if (stopped) return;
-      const names = new Set<string>();
-      const nextSchedules = new Map<string, Schedule>();
-      try {
-        for (const automation of automations) {
-          if (names.has(automation.jobName))
-            throw new Error(`Duplicate jobName: ${automation.jobName}`);
-          names.add(automation.jobName);
-          if (!automation.enabled) continue;
-          if (automation.monitor)
-            throw new Error(
-              `Job ${automation.jobName}: monitor is not supported by the standalone worker`,
-            );
-          nextSchedules.set(
-            automation.jobName,
-            (options.createSchedule ?? createSchedule)(
-              automation.schedule,
-              () => run(automation),
-            ),
-          );
-        }
-      } catch (error) {
-        for (const schedule of nextSchedules.values()) schedule.stop();
-        throw error;
-      }
+      const nextSchedules = buildSchedules(
+        automations,
+        options.createSchedule ?? createSchedule,
+        run,
+      );
       for (const schedule of schedules.values()) schedule.stop();
       schedules = nextSchedules;
       for (const schedule of schedules.values()) schedule.resume();

@@ -75,7 +75,7 @@ export async function loadAutomations(
   return body.automations.map(fromRecord);
 }
 
-class AutomationBrowser {
+export class AutomationBrowser {
   private selected = 0;
 
   constructor(
@@ -150,11 +150,7 @@ class AutomationBrowser {
     );
     const preview = this.previewLines(rightWidth);
     for (let row = 0; row < rows; row++) {
-      const automation = this.automations[start + row];
-      const selected = start + row === this.selected;
-      const label = automation
-        ? `${selected ? this.theme.fg("accent", "› ") : "  "}${selected ? this.theme.fg("accent", automation.jobName) : automation.jobName}`
-        : "";
+      const label = this.automationLabel(start + row);
       lines.push(this.row(label, preview[row] ?? "", leftWidth, rightWidth));
     }
     lines.push(
@@ -203,6 +199,18 @@ class AutomationBrowser {
     );
   }
 
+  private automationLabel(index: number): string {
+    const automation = this.automations[index];
+    if (!automation) return "";
+    if (index !== this.selected) return `  ${automation.jobName}`;
+    return `${this.theme.fg("accent", "› ")}${this.theme.fg("accent", automation.jobName)}`;
+  }
+
+  private monitoringLabel(automation: Automation): string {
+    if (usesLocalConfig()) return "unavailable in TS worker";
+    return automation.monitor ? "enabled" : "disabled";
+  }
+
   private previewLines(width: number): Array<string> {
     const automation = this.automations[this.selected];
     if (!automation)
@@ -221,7 +229,7 @@ class AutomationBrowser {
       `Model: ${automation.model}`,
       `Reasoning: ${automation.thinkingLevel}`,
       `Sub-agents: ${automation.canLaunchSubAgents ? "allowed" : "not allowed"}`,
-      `Monitoring: ${usesLocalConfig() ? "unavailable in TS worker" : automation.monitor ? "enabled" : "disabled"}`,
+      `Monitoring: ${this.monitoringLabel(automation)}`,
       `Daily session: ${automation.dailySession ? "enabled" : "disabled"}`,
       `Overlapping runs: ${automation.canOverlap ? "allowed" : "blocked"}`,
       `Skill: ${automation.useSkill ? automation.jobName : "none"}`,
@@ -246,6 +254,20 @@ class AutomationBrowser {
   }
 }
 
+async function loadBrowserAutomations(
+  ctx: ExtensionCommandContext,
+): Promise<Array<Automation> | undefined> {
+  try {
+    return await loadAutomations();
+  } catch (error) {
+    ctx.ui.notify(
+      error instanceof Error ? error.message : "Could not read automations.",
+      "error",
+    );
+    return undefined;
+  }
+}
+
 export default function (pi: ExtensionAPI): void {
   pi.registerCommand("automations", {
     description: "Inspect scheduled Matato automations",
@@ -254,34 +276,16 @@ export default function (pi: ExtensionAPI): void {
         ctx.ui.notify("/automations requires interactive TUI mode.", "error");
         return;
       }
-      let automations: Array<Automation>;
-      try {
-        automations = await loadAutomations();
-      } catch (error) {
-        ctx.ui.notify(
-          error instanceof Error
-            ? error.message
-            : "Could not read automations.",
-          "error",
-        );
-        return;
-      }
+      const initialAutomations = await loadBrowserAutomations(ctx);
+      if (!initialAutomations) return;
+      let automations = initialAutomations;
       while (true) {
         const result = await ctx.ui.custom<BrowserResult>(
           (tui, theme, _keybindings, done) =>
             new AutomationBrowser(automations, tui, theme, done),
         );
         if (!result || result.action === "close") return;
-        try {
-          automations = await loadAutomations();
-        } catch (error) {
-          ctx.ui.notify(
-            error instanceof Error
-              ? error.message
-              : "Could not read automations.",
-            "error",
-          );
-        }
+        automations = (await loadBrowserAutomations(ctx)) ?? automations;
       }
     },
   });

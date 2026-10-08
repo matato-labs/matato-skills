@@ -32,6 +32,27 @@ export function discordConfig(): DiscordConfig {
   return { token, guildId, channelIds: [...new Set(channelIds)] };
 }
 
+function discordRequestOptions(
+  config: DiscordConfig,
+  body?: DiscordSendBody,
+): RequestInit {
+  const options: RequestInit = {
+    method: "GET",
+    signal: AbortSignal.timeout(15000),
+    headers: { Authorization: `Bot ${config.token}` },
+  };
+  if (!body) return options;
+  return {
+    ...options,
+    method: "POST",
+    headers: {
+      Authorization: `Bot ${config.token}`,
+      "content-type": "application/json",
+    },
+    body: JSON.stringify(body),
+  };
+}
+
 async function requestDiscord<T>(
   config: DiscordConfig,
   path: string,
@@ -39,15 +60,10 @@ async function requestDiscord<T>(
 ): Promise<T> {
   // Fetch failures can contain the request URL or headers. Never propagate them.
   try {
-    const response = await fetch(`${apiBase}${path}`, {
-      method: body ? "POST" : "GET",
-      signal: AbortSignal.timeout(15000),
-      headers: {
-        Authorization: `Bot ${config.token}`,
-        ...(body ? { "content-type": "application/json" } : {}),
-      },
-      ...(body ? { body: JSON.stringify(body) } : {}),
-    });
+    const response = await fetch(
+      `${apiBase}${path}`,
+      discordRequestOptions(config, body),
+    );
     if (!response.ok) throw new Error("Discord HTTP request failed");
     return (await response.json()) as T;
   } catch (error) {

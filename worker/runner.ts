@@ -75,6 +75,20 @@ async function runScript(
   return (await run("bun", [path], { cwd: skillPath, env, signal })).trim();
 }
 
+function automationPrompt(
+  automation: Automation,
+  skillPath: string | undefined,
+  preScriptOutput: string | null,
+): string {
+  const userPrompt = [
+    automation.userPrompt,
+    ...(preScriptOutput === null
+      ? []
+      : ["", "Pre-script output:", preScriptOutput]),
+  ].join("\n");
+  return skillPath ? `/skill:${automation.jobName} ${userPrompt}` : userPrompt;
+}
+
 export async function runAutomation(
   automation: Automation,
   options: RunnerOptions = {},
@@ -96,15 +110,7 @@ export async function runAutomation(
     ? await runScript(skillPath, "preScript.ts", run, env, options.signal)
     : null;
   if (preScriptOutput === "") return "skipped";
-  const userPrompt = [
-    automation.userPrompt,
-    ...(preScriptOutput === null
-      ? []
-      : ["", "Pre-script output:", preScriptOutput]),
-  ].join("\n");
-  const prompt = skillPath
-    ? `/skill:${automation.jobName} ${userPrompt}`
-    : userPrompt;
+  const prompt = automationPrompt(automation, skillPath, preScriptOutput);
   const output = createPiOutput();
   await run(
     "pi",
