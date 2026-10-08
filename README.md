@@ -129,16 +129,9 @@ npm run lint
 npm test
 ```
 
-Run a fresh Atlas report with a zero-findings gate (requires [uv](https://docs.astral.sh/uv/) and `jq`):
+Atlas CI runs a fresh report over the entire repository on pull requests targeting `main` and pushes to `main`. It fails unless the JSON report contains zero findings, using `--skip-save` to avoid database writes. The workflow checks out Atlas separately so its source is not included in this repository's report.
 
-```bash
-npm run atlas                     # Analyze this repository, including web-app
-npm run atlas -- /path/to/project  # Analyze another folder
-# Override the sibling Atlas Python project location when using a worktree:
-ATLAS_PROJECT=/path/to/atlas/atlas npm run atlas
-```
-
-`ATLAS_PROJECT` defaults to `../atlas/atlas`, the Python project in a sibling `atlas` checkout, relative to the working directory. The command prints Atlas's JSON report and exits nonzero for any findings, analysis failure, or invalid report. It uses `--skip-save` so it never writes to the Atlas database. Local `.atlasignore` rules still apply.
+Because `LeonFelipeCordero/atlas` is private, configure the repository Actions secret `ATLAS_TOKEN` with a fine-grained token granting read-only Contents access to Atlas. The default `GITHUB_TOKEN` cannot read another private repository. Fork pull requests and Dependabot pull requests do not receive ordinary Actions secrets; their Atlas checkout will fail until run in a trusted branch with access to the secret. Do not use `pull_request_target` to run untrusted PR code with this token.
 
 For the web app, install Elixir/Erlang and run:
 
