@@ -1,142 +1,81 @@
 # Matato Pi
 
-Matato Pi extends [Pi](https://github.com/earendil-works/pi) with coding skills, prompts, subagents, scheduled automations, direct Telegram and Discord channels, and an optional web app for remote sessions and automation management.
+Matato Pi is a [Pi](https://github.com/earendil-works/pi) package for coding workflows, change validation, subagents, scheduled automations, and direct Telegram/Discord messages.
 
-It works as a Pi package: Pi loads the extensions, skills, and prompts declared in `package.json`. The web app starts Pi in RPC mode, stores automation and remote-session metadata in SQLite, and keeps Pi JSONL files as the conversation history.
+Pi loads the bundled skills, extensions, and prompt templates from `package.json`. Skills guide the agent; extensions add tools and commands. A standalone Bun worker uses Croner to run Pi prompts or skills on a schedule from `config/config.json`.
 
 ## Install
 
-Install the package in Pi:
+With Pi installed, choose either source:
+
+**GitHub**
 
 ```bash
-pi install /absolute/path/to/matato-pi
+pi install git:github.com/LeonFelipeCordero/matato-pi
 ```
 
-Or install it from Git:
+**Local checkout**
 
 ```bash
-pi -e git:github.com/<owner>/matato-pi
+git clone https://github.com/LeonFelipeCordero/matato-pi.git
+cd matato-pi
+npm ci
+pi install "$PWD"
 ```
 
-Set these variables when using the matching features:
+For an existing checkout, run `npm ci` and `pi install "$PWD"` from its root. Restart Pi or run `/reload` to load the package.
 
-```bash
-export WORKSPACE=/absolute/path/to/projects
-export TELEGRAM_BOT_TOKEN=your-token
-export TELEGRAM_OWNER_ID=your-chat-id
-export DISCORD_BOT_TOKEN=your-discord-bot-token
-export DISCORD_GUILD_ID=your-server-id
-export DISCORD_CHANNEL_IDS=comma-separated-channel-ids
-export TAVILY_API_KEY=your-tavily-api-key
-```
+## Skills
 
-`TAVILY_API_KEY` enables the web-search skill; create a key at [Tavily](https://app.tavily.com). `MATATO_PI_CONFIG` optionally changes the data directory; it defaults to `~/.config/matato-pi`.
+Use `/skill:<name>` or ask the agent for the matching task. Each linked skill documents its requirements and workflow.
 
-## Web app
+| Skill | Purpose |
+| --- | --- |
+| [acceptance-criteria-validation](skills/acceptance-criteria-validation/SKILL.md) | Verify a change against its acceptance criteria. |
+| [agent-pr-comment-resolver](skills/agent-pr-comment-resolver/SKILL.md) | Resolve `AGENT:` feedback on PRs labelled `resolve-comments`. |
+| [browser-testing](skills/browser-testing/SKILL.md) | Smoke-test user flows in local Brave with playwright-cli. |
+| [change-validation](skills/change-validation/SKILL.md) | Coordinate independent change-validation checks. |
+| [coding-session](skills/coding-session/SKILL.md) | Guide coding work in a target project. |
+| [deep-dive](skills/deep-dive/SKILL.md) | Investigate precise codebase questions. |
+| [discord](skills/discord/SKILL.md) | Send approved messages to allowlisted Discord channels. |
+| [explain](skills/explain/SKILL.md) | Explain a topic in depth. |
+| [general-change-validation](skills/general-change-validation/SKILL.md) | Independently review a change. |
+| [github-issues](skills/github-issues/SKILL.md) | Create GitHub issues in configured projects. |
+| [handoff](skills/handoff/SKILL.md) | Capture a compact session handoff. |
+| [interactive-pr-comment-resolver](skills/interactive-pr-comment-resolver/SKILL.md) | Resolve PR comments interactively. |
+| [internals](skills/internals/SKILL.md) | Manage Matato automations, workers, and channel setup. |
+| [mutation-testing-validation](skills/mutation-testing-validation/SKILL.md) | Check test effectiveness through manual mutations. |
+| [notion-cli](skills/notion-cli/SKILL.md) | Manage Notion content with the official `ntn` CLI. |
+| [quality-checks-validation](skills/quality-checks-validation/SKILL.md) | Run a project's quality checks. |
+| [short-term-memory](skills/short-term-memory/SKILL.md) | Inspect previous sessions and logs. |
+| [telegram](skills/telegram/SKILL.md) | Send approved messages to the Telegram owner. |
+| [testing-quality](skills/testing-quality/SKILL.md) | Assess whether tests are meaningful. |
+| [web-search](skills/web-search/SKILL.md) | Look up current information; requires `TAVILY_API_KEY`. |
+| [why](skills/why/SKILL.md) | Explain why code behaves or is designed a certain way. |
 
-The Phoenix app provides remote Pi sessions and automations. Telegram and Discord extensions send directly and do not require the web app.
+## Extensions
 
-```bash
-cd web-app
-WORKSPACE=/absolute/path/to/projects mix setup
-WORKSPACE=/absolute/path/to/projects mix phx.server
-```
+| Extension | Tool or command | Purpose |
+| --- | --- | --- |
+| [automations](extensions/automations/index.ts) | `/automations` | Inspect local automation jobs; scheduling requires the worker. |
+| [discord](extensions/discord/index.ts) | `discord_send_message` | Send directly to allowlisted guild channels. |
+| [remoteSession](extensions/remoteSession/index.ts) | `/remote [name] [--host <sshHost>]` | Register a persisted session with a running Matato server, optionally copying it over SSH. |
+| [subagents](extensions/subagents/index.ts) | `subagent` | Run fresh-context Pi tasks and await results; up to four concurrently. |
+| [telegram](extensions/telegram/index.ts) | `telegram_send_message` | Send directly to the configured owner. |
 
-Open `http://localhost:4000`. Its SQLite database is `$MATATO_PI_CONFIG/matato-pi.sqlite3`.
-
-Set `WEB_APP_TIME_ZONE` to change the application's time zone (default `Europe/Berlin`), for example `WEB_APP_TIME_ZONE=America/New_York mix phx.server`.
-
-### LiveDashboard
-
-LiveDashboard exposes Phoenix, LiveView, Ecto/SQLite, and VM metrics at `/dashboard`, with `/dev/dashboard` also available in development. Destructive dashboard actions are disabled. For remote access, use authenticated TLS ingress and allow WebSocket upgrades for `/dashboard/livewebsocket`.
-
-## API
-
-The web app exposes JSON CRUD endpoints for automations:
-
-```text
-GET, POST                 /api/automations
-GET, PUT, DELETE          /api/automations/:id
-POST                      /api/sessions
-```
-
-`POST /api/sessions` with an empty object starts a general session. With `relative_project`, it registers an external session (see `/remote` below), accepting `name`, `session_file`, and `pi_session_id`.
-
-The API has no built-in authentication. Keep the server private or place authenticated TLS ingress in front of it.
-
-## Remote sessions
-
-The new-session screen offers a general session or a workspace project. General sessions start in `MATATO_PI_CONFIG`, not a repository. Pi requires a working directory, so these are project-independent, not literally folderless.
-
-Run `/remote [name]` in an interactive Pi session to register it in the local web app so it appears in the session list on your phone. Without a name, the project directory name is used. The web app URL is read from `MATATO_PI_WEB_URL` and defaults to `http://localhost:4000`. Ephemeral sessions cannot be registered. Running `/remote` again on the same session updates the existing entry.
-
-To hand a laptop session off to a server, run `/remote [name] --host <sshHost>`, for example `/remote "My session" --host piServer`. Matato creates `~/.pi/agent/sessions` on that SSH host, copies the active session file there, then registers it at `http://<sshHost>:4000`. The remote server must run the Matato web app as the SSH user and allow the laptop to reach port 4000 through the SSH host name. Configure non-default hostnames, users, ports, and a non-interactive identity file in `~/.ssh/config`; `<sshHost>` must be an SSH config host name, not SSH options. If those prerequisites are unavailable, use `/remote [name]` to keep local registration.
-
-A registered session must not be driven from the terminal and the phone at the same time: both write to the same Pi session file, so concurrent use corrupts the conversation history.
-
-## Direct channels
-
-Telegram and Discord are outbound only: no inbox ingestion, polling, or channel cron. Configure the required environment variables in the Pi process that sends messages. Extensions call each channel's API directly; there are no web-app switches or channel settings stored in the database.
-
-Telegram requires `TELEGRAM_BOT_TOKEN` and `TELEGRAM_OWNER_ID`. `telegram_send_message` sends only to that owner, with a 4096-character limit after newline normalization. Discord requires `DISCORD_BOT_TOKEN`, `DISCORD_GUILD_ID`, and comma-separated `DISCORD_CHANNEL_IDS`. `discord_send_message` verifies the allowlisted channel and guild on every send, disables automatic mentions, and accepts an optional `replyTo` message ID. Threads must be explicitly allowlisted; DMs are unsupported.
-
-Missing credentials or invalid destinations block delivery. HTTP requests have a 15-second timeout; an uncertain delivery is not retried automatically. Errors do not expose credentials or raw network details. `MATATO_PI_WEB_URL` is not used for channel sends.
-
-Use the `telegram` and `discord` skills for owner-requested messages or approved notifications. They have no pre/post scripts. Schedule notifications through ordinary user automations, with channel environment variables set in the worker or web-app process so its Pi children inherit them. Review outgoing text for secrets. Neither tool posts Pi's final response automatically.
-
-## Automations
-
-### TypeScript worker (no Elixir required)
-
-The original Croner-based worker is restored from `worker/index.ts` (introduced in `f14f1e3`, removed in `3a90990`). It reads local JSON and runs Pi directly; no web app, database, or HTTP API is needed.
-
-```text
-config/config.json → Croner → optional preScript.ts → Pi → optional postScript.ts
-```
-
-Install Bun and Pi, then configure and start the worker:
-
-```bash
-npm install
-# Edit config/config.json: choose a real model and set enabled to true.
-npm run worker
-```
-
-The JSON uses camelCase fields (`jobName`, `userPrompt`, `dailySession`, `canOverlap`, `thinkingLevel`, `canLaunchSubAgents`, `useSkill`), unlike the web API. The repository's `config/config.json` contains only an `automations` array with a safe, disabled example. This is the default file for both the worker and `/automations`, resolved relative to the installed repository, not the process's working directory or `MATATO_PI_CONFIG`. `MATATO_PI_AUTOMATIONS_CONFIG` explicitly overrides the file path.
-
-To migrate existing jobs, copy only the `automations` array from the old `$MATATO_PI_CONFIG/automations/config.json` into `config/config.json`; the old file is no longer loaded by default. Database and session storage are unchanged.
-
-Five- and six-field cron schedules are supported. The worker reloads edits every five seconds and retains existing schedules if a replacement is invalid. Missing configuration means no jobs; deleting the file stops future runs, and the worker stays running for later edits.
-
-`useSkill: false` runs a prompt without a skill. Skill jobs resolve `~/.pi/agent/skills/<jobName>` before the package's bundled skills and run optional `scripts/preScript.ts` and `scripts/postScript.ts` with Bun. Empty pre-script output skips Pi. Historical configs default to `useSkill: true` and `canOverlap: false`. Set Telegram/Discord credentials in the worker's environment for approved notifications.
-
-Local jobs are independent of web-app automations: SQLite jobs are not automatically imported, and `monitor`/web run history are not supported by the worker; omit `monitor` or set it to false (enabled monitored jobs are rejected). Do not schedule the same job in both runners. `/automations` reads only this local configuration, never the web API. A missing file shows an empty list; press `r` to reload after editing it.
-
-### Web-app automations
-
-Create a standalone automation from the web app or ask your agent to do it. It runs a prompt on a cron schedule using the automation's required `model` and `thinking_level` settings. `use_skill` loads the skill named by `job_name`; optional `scripts/preScript.ts` output is added to the agent context. After Pi completes, optional `scripts/postScript.ts` runs; failure fails the automation. `daily_session` reuses one Pi session per day, `can_overlap` permits concurrent runs, and `monitor` shows the job in the web app. `/automations` in Pi shows only local config jobs, not web-app jobs. Automations send notifications through the same environment-configured extensions as interactive sessions.
-
-## Upgrade
-
-Back up `$MATATO_PI_CONFIG/matato-pi.sqlite3` before migrating. The migration removes bot profiles and the internal message queue, detaches automations from bots, and retires legacy `telegram-inbox`/`discord` skill polling jobs. Other automations and all session metadata/transcript files remain. Historical bot conversations reopen as workspace sessions. Removed profiles, queued messages, and polling jobs cannot be recovered by rolling migrations back. A follow-up migration drops the unused `channel_settings` table; channel sends no longer consult the web app.
+Telegram requires `TELEGRAM_BOT_TOKEN` and `TELEGRAM_OWNER_ID`. Discord requires `DISCORD_BOT_TOKEN`, `DISCORD_GUILD_ID`, and comma-separated `DISCORD_CHANNEL_IDS`. Set these in the sending Pi process; channels are outbound only.
 
 ## Contribute
 
-Install Node dependencies and run the package checks:
+Fork the repository, clone your fork, and create a branch for your change. Install Node.js and Bun, then run from the repository root:
 
 ```bash
-npm install
+npm ci
 npm run check
 npm run lint
 npm test
 ```
 
-For the web app, install Elixir/Erlang and run:
+Add skills in `skills/<name>/SKILL.md`, extensions in `extensions/<name>/index.ts`, and prompt templates in `prompts/`. Follow `AGENTS.md`, add tests for behavior changes, and update this README when adding a skill or extension.
 
-```bash
-cd web-app
-mix setup
-MIX_ENV=test mix precommit
-```
-
-Build a production web release with `cd web-app && bin/deploy`. Set `SECRET_KEY_BASE`, `PHX_HOST`, and `WORKSPACE` before starting it with `MIX_ENV=prod mix phx.server`.
+Open a pull request against `main` with a short summary and the checks you ran. For larger changes, open an issue first to discuss the approach.

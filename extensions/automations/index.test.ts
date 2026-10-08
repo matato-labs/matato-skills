@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type {
@@ -8,7 +8,7 @@ import type {
   Theme,
 } from "@earendil-works/pi-coding-agent";
 import { visibleWidth, type TUI } from "@earendil-works/pi-tui";
-import type { Automation } from "../../src/automation.ts";
+import type { Automation, AutomationConfig } from "../../src/automation.ts";
 import registerAutomations, {
   AutomationBrowser,
   loadAutomations,
@@ -125,9 +125,14 @@ describe("automation browser source", () => {
 
   test("reads the repository config by default", async () => {
     delete process.env.MATATO_PI_AUTOMATIONS_CONFIG;
+    const config = JSON.parse(
+      await readFile(
+        new URL("../../config/config.json", import.meta.url),
+        "utf8",
+      ),
+    ) as AutomationConfig;
     const jobs = await loadAutomations();
-    expect(jobs.map(({ jobName }) => jobName)).toEqual(["dailyReview"]);
-    expect(jobs.every(({ enabled }) => !enabled)).toBe(true);
+    expect(jobs).toEqual(config.automations);
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 
