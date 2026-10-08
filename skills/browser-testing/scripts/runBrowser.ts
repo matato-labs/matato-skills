@@ -30,7 +30,17 @@ type RunOptions = {
   scenario: BrowserScenario;
 };
 
-const parseOptions = (args: Array<string>): RunOptions => {
+const validateApplication = (repo: string, url: string): void => {
+  const parsedUrl = new URL(url);
+  if (!["localhost", "127.0.0.1", "[::1]"].includes(parsedUrl.hostname))
+    throw new Error("Only local application URLs are allowed.");
+  if (!["http:", "https:"].includes(parsedUrl.protocol))
+    throw new Error("The application URL must use HTTP or HTTPS.");
+  if (!existsSync(repo))
+    throw new Error("The repository directory does not exist.");
+};
+
+export const parseOptions = (args: Array<string>): RunOptions => {
   const repo = readFlagValue(args, "repo");
   const url = readFlagValue(args, "url");
   const startCommand = readFlagValue(args, "startCommand");
@@ -39,12 +49,7 @@ const parseOptions = (args: Array<string>): RunOptions => {
     throw new Error(
       "Usage: bun runBrowser.ts --repo PATH --url URL --startCommand COMMAND --scenario FILE",
     );
-  if (!["localhost", "127.0.0.1", "[::1]"].includes(new URL(url).hostname))
-    throw new Error("Only local application URLs are allowed.");
-  if (!["http:", "https:"].includes(new URL(url).protocol))
-    throw new Error("The application URL must use HTTP or HTTPS.");
-  if (!existsSync(repo))
-    throw new Error("The repository directory does not exist.");
+  validateApplication(repo, url);
   const scenario = readScenario(resolve(scenarioPath));
   if (!scenario.steps.some((step) => step.action === "expect"))
     throw new Error(
@@ -104,7 +109,7 @@ const stopApp = async (pid: number): Promise<void> => {
   signalGroup("SIGKILL");
 };
 
-class BrowserRun {
+export class BrowserRun {
   readonly directory = mkdtempSync(join(tmpdir(), "matatoBrowser"));
   readonly session = `matato-${basename(this.directory)}`;
   private commandNumber = 0;
@@ -143,42 +148,55 @@ class BrowserRun {
     for (const [index, step] of scenario.steps.entries()) {
       signal.throwIfAborted();
       console.log(`\nSTEP ${index + 1}: ${JSON.stringify(step)}`);
-      let snapshot = this.snapshot();
+      const snapshot = this.snapshot();
       if (step.action !== "expect") {
         this.command(stepArguments(step, snapshot));
         this.snapshot();
         continue;
       }
-      const deadline = Date.now() + 10000;
-      while (!snapshot.includes(step.text) && Date.now() < deadline) {
-        await pause(250);
-        signal.throwIfAborted();
-        snapshot = this.snapshot();
-      }
-      if (!snapshot.includes(step.text))
-        throw new Error(
-          `Visible outcome not found: ${JSON.stringify(step.text)}`,
-        );
-      console.log(`PASS: visible outcome ${JSON.stringify(step.text)}`);
+      await this.expectVisible(step.text, snapshot, signal);
     }
+  }
+
+  private async expectVisible(
+    text: string,
+    snapshot: string,
+    signal: AbortSignal,
+  ): Promise<void> {
+    const deadline = Date.now() + 10000;
+    while (!snapshot.includes(text) && Date.now() < deadline) {
+      await pause(250);
+      signal.throwIfAborted();
+      snapshot = this.snapshot();
+    }
+    if (!snapshot.includes(text))
+      throw new Error(`Visible outcome not found: ${JSON.stringify(text)}`);
+    console.log(`PASS: visible outcome ${JSON.stringify(text)}`);
+  }
+
+  private requestEvidence(): void {
+    const output = this.command(["requests"]);
+    for (const match of output.matchAll(/^(\d+)\. \[/gm)) {
+      this.command(["request", match[1]]);
+      this.command(["response-body", match[1]]);
+    }
+    this.command(["requests", "--static"]);
   }
 
   evidence(): Array<string> {
     const failures: Array<string> = [];
-    for (const args of [
-      ["screenshot", `--filename=${join(this.directory, "result.png")}`],
-      ["console", "error"],
-      ["requests"],
-    ]) {
+    const collectors = [
+      () =>
+        this.command([
+          "screenshot",
+          `--filename=${join(this.directory, "result.png")}`,
+        ]),
+      () => this.command(["console", "error"]),
+      () => this.requestEvidence(),
+    ];
+    for (const collect of collectors) {
       try {
-        const output = this.command(args);
-        if (args[0] === "requests") {
-          for (const match of output.matchAll(/^(\d+)\. \[/gm)) {
-            this.command(["request", match[1]]);
-            this.command(["response-body", match[1]]);
-          }
-          this.command(["requests", "--static"]);
-        }
+        collect();
       } catch (error) {
         failures.push(error instanceof Error ? error.message : String(error));
       }
@@ -234,7 +252,7 @@ const recordApp = (
   );
 };
 
-const run = async (options: RunOptions): Promise<void> => {
+const checkPrerequisites = async (url: string): Promise<void> => {
   if (
     spawnSync("playwright-cli", ["--version"], { encoding: "utf8" }).status !==
     0
@@ -246,15 +264,47 @@ const run = async (options: RunOptions): Promise<void> => {
     throw new Error(
       "Brave is missing at /usr/bin/brave; do not download a browser.",
     );
-  if (await responds(options.url))
+  if (await responds(url))
     throw new Error(
       "The URL already responds. Use an unused port; never reuse a human/shared server.",
     );
+};
+
+const closeBrowser = (
+  browser: BrowserRun,
+  failures: Array<string>,
+): boolean => {
+  failures.push(...browser.evidence());
+  try {
+    browser.command(["close"]);
+    return true;
+  } catch (error) {
+    failures.push(error instanceof Error ? error.message : String(error));
+    return false;
+  }
+};
+
+const cleanupApp = async (
+  app: ChildProcess | undefined,
+  failures: Array<string>,
+): Promise<boolean> => {
+  if (!app?.pid) return true;
+  try {
+    await stopApp(app.pid);
+    return true;
+  } catch (error) {
+    failures.push(error instanceof Error ? error.message : String(error));
+    return false;
+  }
+};
+
+const run = async (options: RunOptions): Promise<void> => {
+  await checkPrerequisites(options.url);
   const browser = new BrowserRun();
   const failures: Array<string> = [];
   let app: ChildProcess | undefined;
   let opened = false;
-  let cleanupComplete = true;
+  let cleanupComplete: boolean;
   const controller = new AbortController();
   const onSignal = (): void =>
     controller.abort(new Error("Browser run interrupted"));
@@ -277,26 +327,22 @@ const run = async (options: RunOptions): Promise<void> => {
   } catch (error) {
     failures.push(error instanceof Error ? error.message : String(error));
   } finally {
-    if (opened) {
-      failures.push(...browser.evidence());
-      try {
-        browser.command(["close"]);
-      } catch (error) {
-        cleanupComplete = false;
-        failures.push(error instanceof Error ? error.message : String(error));
-      }
-    }
-    if (app?.pid) {
-      try {
-        await stopApp(app.pid);
-      } catch (error) {
-        cleanupComplete = false;
-        failures.push(error instanceof Error ? error.message : String(error));
-      }
-    }
+    const browserClosed = !opened || closeBrowser(browser, failures);
+    const appStopped = await cleanupApp(app, failures);
+    cleanupComplete = browserClosed && appStopped;
     process.removeListener("SIGINT", onSignal);
     process.removeListener("SIGTERM", onSignal);
   }
+  reportRun(options, browser, failures, opened, cleanupComplete);
+};
+
+const reportRun = (
+  options: RunOptions,
+  browser: BrowserRun,
+  failures: Array<string>,
+  opened: boolean,
+  cleanupComplete: boolean,
+): void => {
   const report = {
     result: failures.length ? "FAIL" : "PASS",
     url: options.url,
@@ -321,7 +367,7 @@ const run = async (options: RunOptions): Promise<void> => {
   }
 };
 
-const cleanup = (directory: string): void => {
+export const cleanup = (directory: string): void => {
   const path = realpathSync(directory);
   if (
     dirname(path) !== realpathSync(tmpdir()) ||

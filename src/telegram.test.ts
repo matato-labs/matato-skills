@@ -63,12 +63,15 @@ test("enforces the 4096 limit after newline normalization", async () => {
   );
 });
 
-test("bounds sends without retrying uncertain delivery", async () => {
-  fetchSpy.mockRejectedValueOnce(new DOMException("secret", "TimeoutError"));
-  await expect(send()).rejects.toThrow("delivery is uncertain");
-  expect(fetchSpy).toHaveBeenCalledTimes(1);
-  expect(fetchSpy.mock.calls[0]?.[1]?.signal).toBeInstanceOf(AbortSignal);
-});
+test.each(["TimeoutError", "AbortError"])(
+  "%s bounds sends without retrying uncertain delivery",
+  async (name) => {
+    fetchSpy.mockRejectedValueOnce(new DOMException("secret", name));
+    await expect(send()).rejects.toThrow("delivery is uncertain");
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    expect(fetchSpy.mock.calls[0]?.[1]?.signal).toBeInstanceOf(AbortSignal);
+  },
+);
 
 test("sanitizes HTTP, API, JSON and network errors", async () => {
   const failures = [

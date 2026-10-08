@@ -188,6 +188,12 @@ defmodule WebApp.Sessions.State do
       "thinking_start" -> put_block(state, index, :thinking, "")
       "thinking_delta" -> append_block(state, index, :thinking, event["delta"])
       "thinking_end" -> put_block(state, index, :thinking, event["content"])
+      _ -> updatePartialTool(state, index, event)
+    end
+  end
+
+  defp updatePartialTool(state, index, %{"type" => type} = event) do
+    case type do
       "toolcall_start" -> put_preparing_tool(state, index, event)
       "toolcall_delta" -> append_tool_arguments(state, index, event["delta"])
       "toolcall_end" -> finish_preparing_tool(state, index, event["toolCall"])

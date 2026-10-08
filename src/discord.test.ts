@@ -71,9 +71,14 @@ test("sends directly with bot authorization and no mentions without contacting t
     replyTo: "20",
   });
   expect(fetchSpy).toHaveBeenCalledTimes(2);
-  expect(fetchSpy.mock.calls[0]?.[0]).toBe(
+  expect(fetchSpy.mock.calls[0]).toEqual([
     "https://discord.com/api/v10/channels/123",
-  );
+    {
+      method: "GET",
+      signal: expect.any(AbortSignal),
+      headers: { Authorization: "Bot private-token" },
+    },
+  ]);
   expect(fetchSpy.mock.calls[1]).toEqual([
     "https://discord.com/api/v10/channels/123/messages",
     {
@@ -121,15 +126,28 @@ test("rejects invalid text and reply IDs without network access", async () => {
   expect(fetchSpy).not.toHaveBeenCalled();
 });
 
-test("bounds external requests without retrying uncertain delivery", async () => {
-  fetchSpy
-    .mockResolvedValueOnce(Response.json(channel))
-    .mockRejectedValueOnce(new DOMException("secret", "TimeoutError"));
-  await expect(send()).rejects.toThrow("delivery is uncertain");
-  expect(fetchSpy).toHaveBeenCalledTimes(2);
-  expect(fetchSpy.mock.calls[0]?.[1]?.signal).toBeInstanceOf(AbortSignal);
-  expect(fetchSpy.mock.calls[1]?.[1]?.signal).toBeInstanceOf(AbortSignal);
-});
+test.each(["TimeoutError", "AbortError"])(
+  "%s bounds sends without retrying uncertain delivery",
+  async (name) => {
+    fetchSpy
+      .mockResolvedValueOnce(Response.json(channel))
+      .mockRejectedValueOnce(new DOMException("secret", name));
+    await expect(send()).rejects.toThrow("delivery is uncertain");
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+    expect(fetchSpy.mock.calls[0]?.[1]?.signal).toBeInstanceOf(AbortSignal);
+    expect(fetchSpy.mock.calls[1]?.[1]?.signal).toBeInstanceOf(AbortSignal);
+  },
+);
+
+test.each(["TimeoutError", "AbortError"])(
+  "%s during channel verification prevents sending",
+  async (name) => {
+    fetchSpy.mockRejectedValueOnce(new DOMException("private-token", name));
+    await expect(send()).rejects.toThrow(/^Discord request failed$/);
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    expect(fetchSpy.mock.calls[0]?.[1]?.method).toBe("GET");
+  },
+);
 
 test("never exposes token, API response body or fetch URL in errors", async () => {
   fetchSpy.mockResolvedValueOnce(

@@ -96,6 +96,46 @@ defmodule WebApp.Sessions.CatalogTest do
              ])
   end
 
+  test "normalizes missing metadata and preserves explicit empty values", context do
+    project = Path.join(context.workspace, "alpha")
+
+    [group] =
+      Catalog.groups([
+        %{"id" => "project", "project" => project, "created_at" => "created"},
+        %{
+          "id" => "named",
+          "project" => project,
+          "name" => "Custom title",
+          "updated_at" => "updated",
+          "created_at" => "created"
+        },
+        %{
+          "id" => "empty",
+          "project" => project,
+          "name" => "",
+          "source" => "",
+          "status" => "",
+          "updated_at" => "",
+          "created_at" => "created"
+        }
+      ])
+
+    assert Enum.map(group.sessions, & &1.id) == ["named", "project", "empty"]
+    assert Enum.map(group.sessions, & &1.title) == ["Custom title", "alpha", ""]
+    assert Enum.map(group.sessions, & &1.last_activity) == ["updated", "created", ""]
+    assert Enum.map(group.sessions, & &1.source) == ["web", "web", ""]
+    assert Enum.map(group.sessions, & &1.status) == ["interrupted", "interrupted", ""]
+  end
+
+  test "normalizes projectless sessions without losing their names" do
+    [group] = Catalog.groups([%{"id" => "untitled"}, %{"id" => "named", "name" => "Named"}])
+
+    assert group.key == :others
+    assert group.label == "Others"
+    assert Enum.map(group.sessions, & &1.title) == ["Untitled session", "Named"]
+    assert Enum.all?(group.sessions, &(&1.project_root == nil and &1.last_activity == ""))
+  end
+
   defp session(id, project, created_at, source \\ "web") do
     %{
       "id" => id,

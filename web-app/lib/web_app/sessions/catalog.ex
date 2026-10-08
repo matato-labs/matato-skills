@@ -70,13 +70,16 @@ defmodule WebApp.Sessions.Catalog do
       id: record["id"],
       source: record["source"] || "web",
       status: record["status"] || "interrupted",
-      title: record["name"] || if(project, do: Path.basename(project), else: "Untitled session"),
+      title: record["name"] || projectTitle(project),
       project_root: project,
       project_label: label,
       group_key: group_key,
       last_activity: last_activity
     }
   end
+
+  defp projectTitle(nil), do: "Untitled session"
+  defp projectTitle(project), do: Path.basename(project)
 
   defp sort_runs(runs), do: Enum.sort_by(runs, &{&1.last_activity, &1.id}, :desc)
 

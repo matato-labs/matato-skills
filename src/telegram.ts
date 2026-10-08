@@ -1,14 +1,18 @@
 export const normalizeTelegramText = (text: string): string =>
   text.replaceAll("\\n", "\n");
 
-export async function sendTelegramMessage(input: {
-  chatId: string;
-  text: string;
-}): Promise<void> {
+type TelegramConfig = { token: string; ownerId: string };
+type TelegramMessage = { chatId: string; text: string };
+
+function telegramConfig(): TelegramConfig {
   const token = process.env.TELEGRAM_BOT_TOKEN?.trim();
   const ownerId = process.env.TELEGRAM_OWNER_ID?.trim();
   if (!token) throw new Error("TELEGRAM_BOT_TOKEN is required");
   if (!ownerId) throw new Error("TELEGRAM_OWNER_ID is required");
+  return { token, ownerId };
+}
+
+function telegramText(input: TelegramMessage, ownerId: string): string {
   if (!input.chatId) throw new Error("Telegram chatId is required");
   if (input.chatId !== ownerId)
     throw new Error("Telegram destination must be the configured owner");
@@ -16,6 +20,14 @@ export async function sendTelegramMessage(input: {
   if (!text) throw new Error("Telegram message text is required");
   if (text.length > 4096)
     throw new Error("Telegram text must be at most 4096 characters");
+  return text;
+}
+
+export async function sendTelegramMessage(
+  input: TelegramMessage,
+): Promise<void> {
+  const { token, ownerId } = telegramConfig();
+  const text = telegramText(input, ownerId);
   try {
     const response = await fetch(
       `https://api.telegram.org/bot${token}/sendMessage`,

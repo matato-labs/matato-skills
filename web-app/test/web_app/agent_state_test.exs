@@ -99,6 +99,48 @@ defmodule WebApp.Sessions.StateTest do
     assert state.tool_order == ["call-1"]
   end
 
+  test "starts, appends and replaces text and thinking blocks independently" do
+    for {type, index} <- [{"text", 0}, {"thinking", 1}] do
+      state = partialEvent(State.new(), "#{type}_start", index)
+      assert state.partial.blocks[index].content == ""
+
+      state = partialEvent(state, "#{type}_delta", index, %{"delta" => "draft"})
+      state = partialEvent(state, "#{type}_delta", index, %{"delta" => " more"})
+      assert state.partial.blocks[index].content == "draft more"
+      assert partialEvent(state, "#{type}_delta", index) == state
+
+      state = partialEvent(state, "#{type}_end", index, %{"content" => "final"})
+      assert state.partial.blocks[index].content == "final"
+      assert partialEvent(state, "#{type}_end", index).partial.blocks[index].content == ""
+      assert partialEvent(state, "#{type}_start", index).partial.blocks[index].content == ""
+    end
+  end
+
+  test "finishes a preparing tool using the indexed id and ignores unsupported updates" do
+    initial = State.new()
+    assert partialEvent(initial, "toolcall_delta", 2, %{"delta" => "orphan"}) == initial
+    assert partialEvent(initial, "toolcall_end", 2, %{"toolCall" => %{}}) == initial
+    assert partialEvent(initial, "unsupported", 2) == initial
+
+    state = partialEvent(initial, "toolcall_start", 2, %{"id" => "call", "toolName" => "bash"})
+    assert state.tools["call"].status == :preparing
+    assert state.partial.blocks[2] == %{type: :tool_call, content: "call"}
+
+    state = partialEvent(state, "toolcall_delta", 2, %{"delta" => "draft"})
+    assert state.tools["call"].args == "draft"
+    assert partialEvent(state, "toolcall_delta", 2) == state
+
+    call = %{"name" => "read", "arguments" => %{"path" => "README.md"}}
+    state = partialEvent(state, "toolcall_end", 2, %{"toolCall" => call})
+    assert state.tools["call"].name == "read"
+    assert state.tools["call"].args == inspect(call["arguments"], pretty: true, limit: 100)
+    assert state.tool_order == ["call"]
+    assert partialEvent(state, "unsupported", 2) == state
+
+    explicit = Map.put(call, "id", "call")
+    assert partialEvent(state, "toolcall_end", 99, %{"toolCall" => explicit}) == state
+  end
+
   test "keeps Pi queue updates for reconnecting clients and clears processed messages" do
     state =
       State.apply(State.new(), %{
@@ -258,5 +300,12 @@ defmodule WebApp.Sessions.StateTest do
     assert length(state.tool_order) == 102
     assert Map.has_key?(state.tools, "call-1")
     assert Map.has_key?(state.tools, "call-102")
+  end
+
+  defp partialEvent(state, type, index, fields \\ %{}) do
+    State.apply(state, %{
+      "type" => "message_update",
+      "assistantMessageEvent" => Map.merge(fields, %{"type" => type, "contentIndex" => index})
+    })
   end
 end

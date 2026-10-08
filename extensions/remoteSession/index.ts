@@ -171,23 +171,10 @@ async function registerSession(
   return (await response.json()) as RegistrationResponse;
 }
 
-export async function registerRemoteSession(
-  args: string,
+function sessionRegistration(
+  name: string,
   ctx: RemoteSessionContext,
-  fetchImpl: FetchLike = fetch,
-  commandRunner: CommandRunner = runCommand,
-): Promise<void> {
-  let command: RemoteCommand;
-  try {
-    command = remoteCommand(args);
-  } catch (error) {
-    ctx.ui.notify(
-      error instanceof Error ? error.message : "Invalid command.",
-      "error",
-    );
-    return;
-  }
-
+): Omit<SessionRegistration, "sessionId"> | undefined {
   const sessionFile = ctx.sessionManager.getSessionFile();
   if (!sessionFile) {
     ctx.ui.notify(
@@ -217,35 +204,46 @@ export async function registerRemoteSession(
     return;
   }
 
-  const name = command.name || basename(ctx.cwd);
-  let registeredSessionFile = sessionFile;
-  let targetWebUrl = webUrl;
-  if (command.host) {
-    try {
-      registeredSessionFile = await copySessionFile(
-        command.host,
-        sessionFile,
-        commandRunner,
-      );
-    } catch (error) {
-      ctx.ui.notify(
-        error instanceof Error ? error.message : "Could not copy session file.",
-        "error",
-      );
-      return;
-    }
-    targetWebUrl = `http://${command.host}:4000`;
-  }
+  return {
+    name,
+    project,
+    sessionFile,
+  };
+}
 
+type RegistrationTarget = { sessionFile: string; webUrl: string };
+
+async function registrationTarget(
+  host: string | undefined,
+  sessionFile: string,
+  ctx: RemoteSessionContext,
+  commandRunner: CommandRunner,
+): Promise<RegistrationTarget | undefined> {
+  if (!host) return { sessionFile, webUrl };
+  try {
+    return {
+      sessionFile: await copySessionFile(host, sessionFile, commandRunner),
+      webUrl: `http://${host}:4000`,
+    };
+  } catch (error) {
+    ctx.ui.notify(
+      error instanceof Error ? error.message : "Could not copy session file.",
+      "error",
+    );
+    return undefined;
+  }
+}
+
+async function submitRegistration(
+  registration: Omit<SessionRegistration, "sessionId">,
+  targetWebUrl: string,
+  ctx: RemoteSessionContext,
+  fetchImpl: FetchLike,
+): Promise<void> {
   let body: RegistrationResponse;
   try {
     body = await registerSession(
-      {
-        name,
-        project,
-        sessionFile: registeredSessionFile,
-        sessionId: ctx.sessionManager.getSessionId(),
-      },
+      { ...registration, sessionId: ctx.sessionManager.getSessionId() },
       targetWebUrl,
       fetchImpl,
     );
@@ -265,8 +263,48 @@ export async function registerRemoteSession(
   }
 
   ctx.ui.notify(
-    `Registered remote session "${name}". Open it at ${targetWebUrl}/sessions/${body.session.id}`,
+    `Registered remote session "${registration.name}". Open it at ${targetWebUrl}/sessions/${body.session.id}`,
     "info",
+  );
+}
+
+export async function registerRemoteSession(
+  args: string,
+  ctx: RemoteSessionContext,
+  fetchImpl: FetchLike = fetch,
+  commandRunner: CommandRunner = runCommand,
+): Promise<void> {
+  let command: RemoteCommand;
+  try {
+    command = remoteCommand(args);
+  } catch (error) {
+    ctx.ui.notify(
+      error instanceof Error ? error.message : "Invalid command.",
+      "error",
+    );
+    return;
+  }
+
+  const registration = sessionRegistration(
+    command.name || basename(ctx.cwd),
+    ctx,
+  );
+  if (!registration) return;
+  const target = await registrationTarget(
+    command.host,
+    registration.sessionFile,
+    ctx,
+    commandRunner,
+  );
+  if (!target) return;
+  await submitRegistration(
+    {
+      ...registration,
+      sessionFile: target.sessionFile,
+    },
+    target.webUrl,
+    ctx,
+    fetchImpl,
   );
 }
 
