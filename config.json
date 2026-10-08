@@ -1,0 +1,40 @@
+{
+  "automations": [
+    {
+      "jobName": "coding-session",
+      "enabled": true,
+      "schedule": "*/5 * * * *",
+      "userPrompt": "Run the coding-session skill\nDo not contact the user",
+      "dailySession": false,
+      "canOverlap": false,
+      "model": "gpt-6-sol",
+      "thinkingLevel": "medium",
+      "canLaunchSubAgents": false,
+      "useSkill": true
+    },
+    {
+      "jobName": "change-validation",
+      "enabled": true,
+      "schedule": "*/5 * * * *",
+      "userPrompt": "Run the change-validation skill\nDo not contact the user",
+      "dailySession": false,
+      "canOverlap": false,
+      "model": "gpt-6-sol",
+      "thinkingLevel": "medium",
+      "canLaunchSubAgents": true,
+      "useSkill": true
+    },
+    {
+      "jobName": "agent-pr-comment-resolver",
+      "enabled": true,
+      "schedule": "*/5 * * * *",
+      "userPrompt": "Run the agent PR comment resolver skill\nDo not contact the user",
+      "dailySession": false,
+      "canOverlap": false,
+      "model": "gpt-6-sol",
+      "thinkingLevel": "medium",
+      "canLaunchSubAgents": false,
+      "useSkill": true
+    } 
+  ]
+}
