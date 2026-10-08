@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type {
@@ -18,14 +18,11 @@ const originalFetch = globalThis.fetch;
 const fetchImpl = mock<
   (...args: Parameters<typeof fetch>) => ReturnType<typeof fetch>
 >(() => Promise.reject(new Error("The automation browser must not use HTTP.")));
-const originalConfig = process.env.MATATO_PI_CONFIG;
 const originalAutomations = process.env.MATATO_PI_AUTOMATIONS_CONFIG;
 const directories: Array<string> = [];
 
 afterEach(async () => {
   globalThis.fetch = originalFetch;
-  if (originalConfig === undefined) delete process.env.MATATO_PI_CONFIG;
-  else process.env.MATATO_PI_CONFIG = originalConfig;
   if (originalAutomations === undefined)
     delete process.env.MATATO_PI_AUTOMATIONS_CONFIG;
   else process.env.MATATO_PI_AUTOMATIONS_CONFIG = originalAutomations;
@@ -91,8 +88,10 @@ function commandContext(
 
 describe("automation browser source", () => {
   beforeEach(async () => {
-    delete process.env.MATATO_PI_AUTOMATIONS_CONFIG;
-    process.env.MATATO_PI_CONFIG = await temporaryDirectory();
+    process.env.MATATO_PI_AUTOMATIONS_CONFIG = join(
+      await temporaryDirectory(),
+      "config.json",
+    );
     fetchImpl.mockClear();
     globalThis.fetch = Object.assign(fetchImpl, {
       preconnect: originalFetch.preconnect,
@@ -124,14 +123,11 @@ describe("automation browser source", () => {
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 
-  test("reads the default local file", async () => {
-    const directory = process.env.MATATO_PI_CONFIG!;
-    await mkdir(join(directory, "automations"));
-    await writeFile(
-      join(directory, "automations", "config.json"),
-      JSON.stringify({ automations: [automation] }),
-    );
-    expect(await loadAutomations()).toEqual([automation]);
+  test("reads the repository config by default", async () => {
+    delete process.env.MATATO_PI_AUTOMATIONS_CONFIG;
+    const jobs = await loadAutomations();
+    expect(jobs.map(({ jobName }) => jobName)).toEqual(["dailyReview"]);
+    expect(jobs.every(({ enabled }) => !enabled)).toBe(true);
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 
@@ -144,7 +140,7 @@ describe("automation browser source", () => {
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 
-  test("a missing default config returns no jobs without HTTP", async () => {
+  test("a missing local config returns no jobs without HTTP", async () => {
     expect(await loadAutomations()).toEqual([]);
     expect(fetchImpl).not.toHaveBeenCalled();
   });
