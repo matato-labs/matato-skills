@@ -1,21 +1,23 @@
-## Rules
+## Answer Rules
 
-- Write short and to the point narrative instead of bullet points or enumerations, use them only when the content requires it (e.g. listing steps)
+- Write short, to-the-point narratives instead of bullet points or enumerations. Use them only when the content requires it (e.g., listing steps).
 - Make any answer concise. Sacrifice grammar for the sake of concision.
 
-## Coding
+## Coding Rules
 
 - When writing or reviewing code, follow the YAGNI principle and prefer one-line solutions when they stay readable.
-- When a file is to large over 600 lines, it must be split
-- Do not implement large functions that passes 100 lines or reach 4 nested levels
+- When a file exceeds 600 lines, it must be split.
+- Do not implement large functions that exceed 100 lines or reach 4 levels of nesting.
+- **NEVER** change the README unless the user tells you to do so.
+- Never make changes you were not asked to make. Write only the code strictly necessary to meet the acceptance criteria. This includes not adding extra validations, overly defensive code, extra functionality, etc.
 
-## Plans
+## Planning Rules
 
 - Use diagrams, charts, and code samples.
-- Explain files to be touch.
-- Explain the package structure if the change is large
+- Explain which files will be touched.
+- Explain the package structure if the change is large.
 
-## When spawning subagents
+## Rules for Spawning Subagents
 
 - Use gpt-6-luna at high effort for documentation lookup, codebase mapping, extraction, classification, and simple audits. Raise to xhigh only when the task requires judgment beyond a clear rubric.
 - Use gpt-6.1-sol at medium effort for isolated implementation with clear acceptance criteria, multi-file changes, debugging, or non-obvious test failures.
