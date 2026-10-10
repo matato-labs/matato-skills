@@ -7,7 +7,7 @@ description: Use after a runnable frontend or user-flow change to perform one fo
 
 Read the target repository's project manifest (`package.json`, `mix.exs`, etc.), start scripts, and existing E2E conventions first. Choose its actual start command and an unused local port. Never invent a framework-specific command or reuse a running human/shared server.
 
-Use `scripts/runBrowser.ts` for all browser smoke checks. It manages the app process group, readiness (60 seconds), a unique named session, Brave configuration, fresh snapshots, interactions, assertions, screenshot, console errors, network requests and response bodies, and cleanup on success, failure, SIGINT, or SIGTERM. It never installs dependencies or browsers, attaches to human sessions, or closes other browser sessions. `bun`, global `playwright-cli`, and `/usr/bin/brave` must already exist; report missing tools as blockers.
+Use `scripts/runBrowser.ts` for all browser smoke checks. It manages the app process group, readiness (60 seconds), a unique named session, Brave configuration, fresh snapshots, interactions, assertions, screenshot, console errors, network requests and response bodies, and cleanup on success, failure, SIGINT, or SIGTERM. It detects the installed CLI interface from help: dedicated session commands or the newer `playwright-cli cli` subcommand. It never installs or downgrades tools or browsers, attaches to human sessions, or closes other browser sessions. `bun`, global `playwright-cli`, and `/usr/bin/brave` must already exist; report missing or unsupported tools as blockers.
 
 ## Run
 

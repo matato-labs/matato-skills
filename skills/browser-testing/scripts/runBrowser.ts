@@ -109,16 +109,26 @@ const stopApp = async (pid: number): Promise<void> => {
   signalGroup("SIGKILL");
 };
 
+export const browserCommandPrefix = (help: string): Array<string> => {
+  if (help.includes("Usage: playwright-cli -s=<session>")) return [];
+  if (/^\s+cli\s+run playwright cli commands/m.test(help)) return ["cli"];
+  throw new Error(
+    "The installed playwright-cli does not expose browser session commands.",
+  );
+};
+
 export class BrowserRun {
   readonly directory = mkdtempSync(join(tmpdir(), "matatoBrowser"));
   readonly session = `matato-${basename(this.directory)}`;
   private commandNumber = 0;
   private snapshotNumber = 0;
 
+  constructor(private readonly commandPrefix: Array<string> = []) {}
+
   command(args: Array<string>): string {
     const result = spawnSync(
       "playwright-cli",
-      [`-s=${this.session}`, ...args],
+      [...this.commandPrefix, `-s=${this.session}`, ...args],
       {
         cwd: this.directory,
         encoding: "utf8",
@@ -129,7 +139,9 @@ export class BrowserRun {
     const output = `${result.stdout ?? ""}${result.stderr ?? ""}`;
     const path = join(this.directory, `command${++this.commandNumber}.log`);
     writeFileSync(path, output);
-    console.log(`\n$ playwright-cli ${args.join(" ")}\n${output}`);
+    console.log(
+      `\n$ playwright-cli ${[...this.commandPrefix, ...args].join(" ")}\n${output}`,
+    );
     if (result.error) throw result.error;
     if (result.status !== 0 || /### Error\b/.test(output))
       throw new Error(`Browser command failed; inspect ${path}`);
@@ -252,14 +264,13 @@ const recordApp = (
   );
 };
 
-const checkPrerequisites = async (url: string): Promise<void> => {
-  if (
-    spawnSync("playwright-cli", ["--version"], { encoding: "utf8" }).status !==
-    0
-  )
+const checkPrerequisites = async (url: string): Promise<Array<string>> => {
+  const cli = spawnSync("playwright-cli", ["--help"], { encoding: "utf8" });
+  if (cli.status !== 0)
     throw new Error(
       "playwright-cli is missing; do not install it during a task.",
     );
+  const prefix = browserCommandPrefix(cli.stdout);
   if (!existsSync("/usr/bin/brave"))
     throw new Error(
       "Brave is missing at /usr/bin/brave; do not download a browser.",
@@ -268,6 +279,7 @@ const checkPrerequisites = async (url: string): Promise<void> => {
     throw new Error(
       "The URL already responds. Use an unused port; never reuse a human/shared server.",
     );
+  return prefix;
 };
 
 const closeBrowser = (
@@ -299,8 +311,8 @@ const cleanupApp = async (
 };
 
 const run = async (options: RunOptions): Promise<void> => {
-  await checkPrerequisites(options.url);
-  const browser = new BrowserRun();
+  const prefix = await checkPrerequisites(options.url);
+  const browser = new BrowserRun(prefix);
   const failures: Array<string> = [];
   let app: ChildProcess | undefined;
   let opened = false;

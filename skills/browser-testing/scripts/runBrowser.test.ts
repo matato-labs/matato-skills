@@ -2,7 +2,13 @@ import { afterEach, describe, expect, spyOn, test } from "bun:test";
 import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { BrowserRun, cleanup, parseOptions } from "./runBrowser.ts";
+import * as childProcess from "node:child_process";
+import {
+  BrowserRun,
+  browserCommandPrefix,
+  cleanup,
+  parseOptions,
+} from "./runBrowser.ts";
 
 const directories: Array<string> = [];
 const browserRun = (): BrowserRun => {
@@ -37,6 +43,49 @@ const scenarioArgs = (): Array<string> => {
 afterEach(() => {
   for (const directory of directories.splice(0))
     rmSync(directory, { recursive: true, force: true });
+});
+
+describe("browser CLI interface", () => {
+  test("uses dedicated session commands without a subcommand", () => {
+    expect(
+      browserCommandPrefix(
+        "Usage: playwright-cli -s=<session> <command> [args] [options]",
+      ),
+    ).toEqual([]);
+  });
+
+  test("uses the current Playwright cli subcommand instead of passing session flags to its top level", () => {
+    const prefix = browserCommandPrefix(
+      "Usage: npx playwright [options] [command]\n  cli                                    run playwright cli commands from terminal",
+    );
+    expect(prefix).toEqual(["cli"]);
+    const browser = new BrowserRun(prefix);
+    directories.push(browser.directory);
+    const command = spyOn(childProcess, "spawnSync").mockReturnValue({
+      pid: 1,
+      output: [null, Buffer.from("snapshot saved"), Buffer.from("")],
+      stdout: Buffer.from("snapshot saved"),
+      stderr: Buffer.from(""),
+      status: 0,
+      signal: null,
+    });
+    try {
+      browser.command(["snapshot"]);
+      expect(command).toHaveBeenCalledWith(
+        "playwright-cli",
+        ["cli", `-s=${browser.session}`, "snapshot"],
+        expect.objectContaining({ cwd: browser.directory }),
+      );
+    } finally {
+      command.mockRestore();
+    }
+  });
+
+  test("rejects an unrelated CLI before starting an app or browser", () => {
+    expect(() => browserCommandPrefix("Usage: unrelated tool")).toThrow(
+      "does not expose browser session commands",
+    );
+  });
 });
 
 describe("browser runner options", () => {
