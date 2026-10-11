@@ -21,10 +21,12 @@ description: Use the bundled web-search scripts for fast factual lookups and cur
 ## Runtime
 
 - Run commands from this skill directory.
-- The scripts use `TAVILY_API_KEY` from the environment.
-- To set it up, create a Tavily account at https://app.tavily.com, generate an API key, and persist it with `the Matato configuration command or your shell environment`.
+- Search uses SearXNG at `http://127.0.0.1:8888` by default; no API key is needed.
+- Set `SEARXNG_URL` to override the endpoint. From another Tailscale device, use `http://leon.tail3cac52.ts.net:8888` (or `http://100.89.9.39:8888`). This service is tailnet-only, not public.
+- Docker setup and Tailscale commands are in `extras/searxng/setup.md` in the Matato repository. The instance must enable the JSON search format.
 - Use `bun scripts/searchWeb.ts --query "focused query" --depthMode quick --maxResults 5` for search results.
-- Use `bun scripts/fetchPageContent.ts --url "https://example.com"` when full page content is needed from a specific result.
+- Use `bun scripts/fetchPageContent.ts --url "https://example.com"` when full page content is needed from a specific result. This fetches the URL directly and returns raw HTML or text, not Tavily-style extracted article text; it does not execute JavaScript.
+- Results contain SearXNG snippets in `content`; `rawContent` is empty. `depthMode` caps results at 4/8/12 for quick/think/deep, rather than selecting a provider search-depth mode.
 - Do not rely on project source code, project package scripts, or project dependencies.
 
 ## Constraints
