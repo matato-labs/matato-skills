@@ -8,19 +8,14 @@ type SearchInput = {
 
 type FetchPageContentInput = { url: string };
 
-type TavilySearchResult = {
+type SearxngSearchResult = {
   title: string;
   url: string;
-  content: string;
-  raw_content?: string;
+  content?: string;
   score: number;
 };
 
-type TavilySearchResponse = { error?: string; results?: TavilySearchResult[] };
-type TavilyExtractResponse = {
-  error?: string;
-  results?: Array<{ raw_content: string }>;
-};
+type SearxngSearchResponse = { results: Array<SearxngSearchResult> };
 
 const depthResultLimits: Record<DepthMode, number> = {
   quick: 4,
@@ -28,48 +23,35 @@ const depthResultLimits: Record<DepthMode, number> = {
   deep: 12,
 };
 
-const resolveDepthResultLimit = (
-  depthMode: DepthMode,
-  requestedLimit: number,
-) => Math.min(Math.max(1, requestedLimit), depthResultLimits[depthMode]);
-
-const resolveSearchDepth = (depthMode: DepthMode) =>
-  depthMode === "quick" ? "basic" : "advanced";
-
 const normalizeUrl = (urlValue: string) => {
-  const rawValue = urlValue.trim();
-  if (!rawValue) return "";
-
   try {
-    return new URL(rawValue).toString();
+    const url = new URL(urlValue.trim());
+    return url.protocol === "http:" || url.protocol === "https:"
+      ? url.toString()
+      : "";
   } catch {
     return "";
   }
 };
 
-const isHighValueResult = (result: TavilySearchResult) =>
-  result.title.trim().length > 0 &&
-  normalizeUrl(result.url).length > 0 &&
-  (result.content.trim().length > 0 ||
-    (result.raw_content ?? "").trim().length > 0);
-
 const normalizeSearchResults = (
-  results: TavilySearchResult[],
+  results: Array<SearxngSearchResult>,
   maxResults: number,
 ) => {
   const seenUrls = new Set<string>();
   const normalizedResults = [];
 
   for (const result of results) {
-    const normalizedUrl = normalizeUrl(result.url);
-    if (!isHighValueResult(result) || seenUrls.has(normalizedUrl)) continue;
+    const url = normalizeUrl(result.url);
+    const title = result.title.trim();
+    if (!title || !url || seenUrls.has(url)) continue;
 
-    seenUrls.add(normalizedUrl);
+    seenUrls.add(url);
     normalizedResults.push({
-      title: result.title.trim(),
-      url: normalizedUrl,
-      content: result.content.trim(),
-      rawContent: (result.raw_content ?? "").trim(),
+      title,
+      url,
+      content: (result.content ?? "").trim(),
+      rawContent: "",
       score: result.score,
     });
     if (normalizedResults.length >= maxResults) break;
@@ -78,73 +60,35 @@ const normalizeSearchResults = (
   return normalizedResults;
 };
 
-const ensureTavilyApiKey = () => {
-  const resolvedApiKey = (process.env.TAVILY_API_KEY ?? "").trim();
-  if (!resolvedApiKey) throw new Error("TAVILY_API_KEY is required");
-  return resolvedApiKey;
-};
-
-const runTavilySearch = async (
-  apiKey: string,
-  input: SearchInput,
-  maxResults: number,
-) => {
-  const response = await fetch("https://api.tavily.com/search", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      query: input.query,
-      search_depth: resolveSearchDepth(input.depthMode),
-      max_results: maxResults,
-      include_raw_content: true,
-      topic: "general",
-    }),
-  });
-  return response.json() as Promise<TavilySearchResponse>;
-};
-
-const runTavilyExtract = async (
-  apiKey: string,
-  input: FetchPageContentInput,
-) => {
-  const response = await fetch("https://api.tavily.com/extract", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({ urls: [input.url], extract_depth: "basic" }),
-  });
-  return response.json() as Promise<TavilyExtractResponse>;
-};
-
 export const searchWeb = async (input: SearchInput) => {
   const query = input.query.trim();
   if (!query) throw new Error("query is required");
 
-  const maxResults = resolveDepthResultLimit(input.depthMode, input.maxResults);
-  const rawResponse = await runTavilySearch(
-    ensureTavilyApiKey(),
-    { ...input, query },
-    maxResults,
+  const maxResults = Math.min(
+    Math.max(1, input.maxResults),
+    depthResultLimits[input.depthMode],
   );
-  if (rawResponse.error) throw new Error(rawResponse.error);
+  const baseUrl = process.env.SEARXNG_URL?.trim() || "http://127.0.0.1:8888";
+  const url = new URL("search", `${baseUrl.replace(/\/$/, "")}/`);
+  url.searchParams.set("q", query);
+  url.searchParams.set("format", "json");
+  url.searchParams.set("categories", "general");
 
-  return {
-    query,
-    results: normalizeSearchResults(rawResponse.results ?? [], maxResults),
-  };
+  const response = await fetch(url, { signal: AbortSignal.timeout(30_000) });
+  if (!response.ok)
+    throw new Error(`SearXNG search failed: HTTP ${response.status}`);
+  const body = (await response.json()) as SearxngSearchResponse;
+
+  return { query, results: normalizeSearchResults(body.results, maxResults) };
 };
 
 export const fetchPageContent = async (input: FetchPageContentInput) => {
   const url = normalizeUrl(input.url);
   if (!url) throw new Error("url is invalid");
 
-  const rawResponse = await runTavilyExtract(ensureTavilyApiKey(), { url });
-  if (rawResponse.error) throw new Error(rawResponse.error);
+  const response = await fetch(url, { signal: AbortSignal.timeout(30_000) });
+  if (!response.ok)
+    throw new Error(`Page fetch failed: HTTP ${response.status}`);
 
-  return { url, content: rawResponse.results?.[0]?.raw_content.trim() ?? "" };
+  return { url, content: (await response.text()).trim() };
 };
