@@ -14,7 +14,6 @@ import {
 import { Container, Markdown, Spacer, Text } from "@earendil-works/pi-tui";
 import { Type } from "typebox";
 
-const MAX_CONCURRENT_SUBAGENTS = 4;
 const MAX_BATCH_SIZE = 16;
 
 interface SubagentTask {
@@ -123,26 +122,11 @@ function runPi(
   });
 }
 
-export async function runBounded<T, R>(
+export async function runConcurrent<T, R>(
   tasks: Array<T>,
-  limit: number,
   run: (task: T, index: number) => Promise<R>,
 ): Promise<Array<R>> {
-  const results: Array<R> = new Array(tasks.length);
-  let nextIndex = 0;
-
-  const worker = async (): Promise<void> => {
-    while (nextIndex < tasks.length) {
-      const index = nextIndex;
-      nextIndex += 1;
-      results[index] = await run(tasks[index], index);
-    }
-  };
-
-  await Promise.all(
-    Array.from({ length: Math.min(limit, tasks.length) }, () => worker()),
-  );
-  return results;
+  return Promise.all(tasks.map(run));
 }
 
 function processError(
@@ -366,10 +350,10 @@ export default function (pi: ExtensionAPI) {
     name: "subagent",
     label: "Subagent",
     description:
-      "Launch one fresh-context Pi subagent or a bounded batch of independent subagents, wait for every task, and return each outcome.",
+      "Launch one fresh-context Pi subagent or a batch of independent subagents concurrently, wait for every task, and return each outcome.",
     promptSnippet: "Launch and await fresh-context Pi subagents",
     promptGuidelines: [
-      "Use prompt for one task, or tasks for independent tasks. A batch runs at most four subagents concurrently and reports every task outcome.",
+      "Use prompt for one task, or tasks for independent tasks. A batch runs all subagents concurrently and reports every task outcome.",
       "Immediately before calling subagent, write a brief assistant text update saying that you are launching the subagent or subagents and will wait for them to finish.",
       "Wait for all requested subagent results before continuing, then report what each returned or did.",
     ],
@@ -409,7 +393,7 @@ export default function (pi: ExtensionAPI) {
               minItems: 1,
               maxItems: MAX_BATCH_SIZE,
               description:
-                "Independent tasks. At most four child Pi processes run concurrently.",
+                "Independent tasks. All child Pi processes run concurrently.",
             },
           ),
         },
@@ -438,10 +422,8 @@ export default function (pi: ExtensionAPI) {
         tempDirs,
         update,
       };
-      const completedTasks = await runBounded(
-        prepared.tasks,
-        prepared.batch ? MAX_CONCURRENT_SUBAGENTS : 1,
-        (task) => runSubagentTask(task, settings),
+      const completedTasks = await runConcurrent(prepared.tasks, (task) =>
+        runSubagentTask(task, settings),
       );
 
       details.status = "finished";
