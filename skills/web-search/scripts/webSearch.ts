@@ -8,14 +8,17 @@ type SearchInput = {
 
 type FetchPageContentInput = { url: string };
 
-type SearxngSearchResult = {
+type FirecrawlSearchResult = {
   title: string;
   url: string;
-  content?: string;
-  score: number;
+  description?: string;
 };
 
-type SearxngSearchResponse = { results: Array<SearxngSearchResult> };
+type FirecrawlResponse<Data> =
+  { success: true; data: Data } | { success: false; error: string };
+
+type SearchData = { web?: Array<FirecrawlSearchResult> };
+type ScrapeData = { markdown?: string };
 
 const depthResultLimits: Record<DepthMode, number> = {
   quick: 4,
@@ -35,7 +38,7 @@ const normalizeUrl = (urlValue: string) => {
 };
 
 const normalizeSearchResults = (
-  results: Array<SearxngSearchResult>,
+  results: Array<FirecrawlSearchResult>,
   maxResults: number,
 ) => {
   const seenUrls = new Set<string>();
@@ -50,14 +53,38 @@ const normalizeSearchResults = (
     normalizedResults.push({
       title,
       url,
-      content: (result.content ?? "").trim(),
+      content: (result.description ?? "").trim(),
       rawContent: "",
-      score: result.score,
     });
     if (normalizedResults.length >= maxResults) break;
   }
 
   return normalizedResults;
+};
+
+const requestFirecrawl = async <Data>(
+  endpoint: "search" | "scrape",
+  input:
+    | { query: string; limit: number; sources: Array<"web"> }
+    | {
+        url: string;
+        formats: Array<"markdown">;
+      },
+): Promise<Data> => {
+  const baseUrl = process.env.FIRECRAWL_URL?.trim() || "http://127.0.0.1:8888";
+  const url = new URL(`v2/${endpoint}`, `${baseUrl.replace(/\/$/, "")}/`);
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+    signal: AbortSignal.timeout(90_000),
+  });
+  if (!response.ok)
+    throw new Error(`Firecrawl ${endpoint} failed: HTTP ${response.status}`);
+  const body = (await response.json()) as FirecrawlResponse<Data>;
+  if (!body.success)
+    throw new Error(`Firecrawl ${endpoint} failed: ${body.error}`);
+  return body.data;
 };
 
 export const searchWeb = async (input: SearchInput) => {
@@ -68,27 +95,22 @@ export const searchWeb = async (input: SearchInput) => {
     Math.max(1, input.maxResults),
     depthResultLimits[input.depthMode],
   );
-  const baseUrl = process.env.SEARXNG_URL?.trim() || "http://127.0.0.1:8888";
-  const url = new URL("search", `${baseUrl.replace(/\/$/, "")}/`);
-  url.searchParams.set("q", query);
-  url.searchParams.set("format", "json");
-  url.searchParams.set("categories", "general");
+  const data = await requestFirecrawl<SearchData>("search", {
+    query,
+    limit: maxResults,
+    sources: ["web"],
+  });
 
-  const response = await fetch(url, { signal: AbortSignal.timeout(30_000) });
-  if (!response.ok)
-    throw new Error(`SearXNG search failed: HTTP ${response.status}`);
-  const body = (await response.json()) as SearxngSearchResponse;
-
-  return { query, results: normalizeSearchResults(body.results, maxResults) };
+  return { query, results: normalizeSearchResults(data.web ?? [], maxResults) };
 };
 
 export const fetchPageContent = async (input: FetchPageContentInput) => {
   const url = normalizeUrl(input.url);
   if (!url) throw new Error("url is invalid");
 
-  const response = await fetch(url, { signal: AbortSignal.timeout(30_000) });
-  if (!response.ok)
-    throw new Error(`Page fetch failed: HTTP ${response.status}`);
-
-  return { url, content: (await response.text()).trim() };
+  const data = await requestFirecrawl<ScrapeData>("scrape", {
+    url,
+    formats: ["markdown"],
+  });
+  return { url, content: (data.markdown ?? "").trim() };
 };
