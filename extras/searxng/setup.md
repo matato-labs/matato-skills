@@ -35,6 +35,17 @@ docker compose --project-directory ~/.local/share/matato/searxng ps
 tailscale serve status
 ```
 
+Brave web search is disabled because it repeatedly returned HTTP 429 on this instance. Autocomplete is disabled to avoid extra upstream requests. Engine failures back off for 60–600 seconds; access-denied and rate-limit responses suspend engines for 15 minutes, and CAPTCHAs for two hours. Engine-specific suspension overrides still apply (the pinned DuckDuckGo engine uses zero seconds for its CAPTCHA response). Other default engines remain available; this reduces failures, not guarantees against upstream blocks.
+
+The web-search script caches non-empty responses for five minutes under `${XDG_CACHE_HOME:-~/.cache}/matato/webSearch`, keyed by endpoint and query. Repeated queries reuse results across result limits and depth modes, including separate CLI invocations. Cached snippets and URLs remain on disk after expiry; delete that directory to remove them. Errors and empty responses are not cached.
+
+To apply repository configuration changes to an existing installation:
+
+```sh
+cp extras/searxng/settings.yml ~/.local/share/matato/searxng/settings.yml
+docker compose --project-directory ~/.local/share/matato/searxng up -d --force-recreate
+```
+
 Search engines can independently fail or rate-limit requests; inspect the response's `unresponsive_engines` field if results are sparse. The skill uses search snippets and fetches page HTML directly when requested; SearXNG is not an article extraction service.
 
 ## Stop

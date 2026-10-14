@@ -26,6 +26,7 @@ description: Use the bundled web-search scripts for fast factual lookups and cur
 - Docker setup and Tailscale commands are in `extras/searxng/setup.md` in the Matato repository. The instance must enable the JSON search format.
 - Use `bun scripts/searchWeb.ts --query "focused query" --depthMode quick --maxResults 5` for search results.
 - Use `bun scripts/fetchPageContent.ts --url "https://example.com"` when full page content is needed from a specific result. This fetches the URL directly and returns raw HTML or text, not Tavily-style extracted article text; it does not execute JavaScript.
+- Non-empty search responses are cached on disk for five minutes, keyed by endpoint and query, to reduce upstream requests across CLI invocations. Cache location: `${XDG_CACHE_HOME:-~/.cache}/matato/webSearch`; delete it to force fresh results or remove stored snippets. Errors and empty responses are not cached.
 - Results contain SearXNG snippets in `content`; `rawContent` is empty. `depthMode` caps results at 4/8/12 for quick/think/deep, rather than selecting a provider search-depth mode.
 - Do not rely on project source code, project package scripts, or project dependencies.
 
