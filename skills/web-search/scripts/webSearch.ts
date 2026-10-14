@@ -1,3 +1,8 @@
+import { createHash } from "node:crypto";
+import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
+import { homedir } from "node:os";
+import { join } from "node:path";
+
 type DepthMode = "quick" | "think" | "deep";
 
 type SearchInput = {
@@ -60,6 +65,41 @@ const normalizeSearchResults = (
   return normalizedResults;
 };
 
+const fetchSearchResults = async (url: URL) => {
+  const cacheDirectory = join(
+    process.env.XDG_CACHE_HOME || join(homedir(), ".cache"),
+    "matato",
+    "webSearch",
+  );
+  const cachePath = join(
+    cacheDirectory,
+    `${createHash("sha256").update(url.toString()).digest("hex")}.json`,
+  );
+  try {
+    const cachedFile = await stat(cachePath);
+    if (Date.now() - cachedFile.mtimeMs < 300_000)
+      return JSON.parse(
+        await readFile(cachePath, "utf8"),
+      ) as SearxngSearchResponse;
+  } catch {
+    // A missing or unreadable cache must not prevent a search.
+  }
+
+  const response = await fetch(url, { signal: AbortSignal.timeout(30_000) });
+  if (!response.ok)
+    throw new Error(`SearXNG search failed: HTTP ${response.status}`);
+  const body = (await response.json()) as SearxngSearchResponse;
+  if (!body.results.length) return body;
+
+  try {
+    await mkdir(cacheDirectory, { recursive: true, mode: 0o700 });
+    await writeFile(cachePath, JSON.stringify(body), { mode: 0o600 });
+  } catch {
+    // Cache writes are best effort; return the upstream results regardless.
+  }
+  return body;
+};
+
 export const searchWeb = async (input: SearchInput) => {
   const query = input.query.trim();
   if (!query) throw new Error("query is required");
@@ -74,11 +114,7 @@ export const searchWeb = async (input: SearchInput) => {
   url.searchParams.set("format", "json");
   url.searchParams.set("categories", "general");
 
-  const response = await fetch(url, { signal: AbortSignal.timeout(30_000) });
-  if (!response.ok)
-    throw new Error(`SearXNG search failed: HTTP ${response.status}`);
-  const body = (await response.json()) as SearxngSearchResponse;
-
+  const body = await fetchSearchResults(url);
   return { query, results: normalizeSearchResults(body.results, maxResults) };
 };
 

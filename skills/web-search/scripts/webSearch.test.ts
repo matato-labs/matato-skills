@@ -1,10 +1,23 @@
-import { afterEach, describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { mkdtemp, readdir, rm, utimes, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { fetchPageContent, searchWeb } from "./webSearch.ts";
 
 const originalFetch = globalThis.fetch;
 const originalUrl = process.env.SEARXNG_URL;
+const originalCacheHome = process.env.XDG_CACHE_HOME;
+let cacheHome = "";
 
-afterEach(() => {
+beforeEach(async () => {
+  cacheHome = await mkdtemp(join(tmpdir(), "webSearch"));
+  process.env.XDG_CACHE_HOME = cacheHome;
+});
+
+afterEach(async () => {
+  await rm(cacheHome, { recursive: true, force: true });
+  if (originalCacheHome === undefined) delete process.env.XDG_CACHE_HOME;
+  else process.env.XDG_CACHE_HOME = originalCacheHome;
   globalThis.fetch = originalFetch;
   if (originalUrl === undefined) delete process.env.SEARXNG_URL;
   else process.env.SEARXNG_URL = originalUrl;
@@ -102,6 +115,64 @@ describe("SearXNG helpers", () => {
     ).toHaveLength(2);
   });
 
+  test("reuses disk results across depths and refreshes expired entries", async () => {
+    let requests = 0;
+    setFetch(async () => {
+      requests += 1;
+      return Response.json({ results: searchResults });
+    });
+    const input = {
+      query: "cached query",
+      depthMode: "quick",
+      maxResults: 12,
+    } as const;
+    expect((await searchWeb(input)).results).toHaveLength(4);
+    expect(
+      (await searchWeb({ ...input, depthMode: "deep" })).results,
+    ).toHaveLength(12);
+    expect(requests).toBe(1);
+
+    const directory = join(cacheHome, "matato", "webSearch");
+    const [file] = await readdir(directory);
+    const expiredTime = new Date(Date.now() - 301_000);
+    await utimes(join(directory, file!), expiredTime, expiredTime);
+    await searchWeb(input);
+    expect(requests).toBe(2);
+
+    await writeFile(join(directory, file!), "broken JSON");
+    await searchWeb(input);
+    expect(requests).toBe(3);
+  });
+
+  test("keeps query and endpoint caches separate", async () => {
+    let requests = 0;
+    setFetch(async () => {
+      requests += 1;
+      return Response.json({ results: searchResults });
+    });
+    const input = {
+      query: "first",
+      depthMode: "quick",
+      maxResults: 1,
+    } as const;
+    await searchWeb(input);
+    await searchWeb({ ...input, query: "second" });
+    process.env.SEARXNG_URL = "http://other.example:8888";
+    await searchWeb(input);
+    expect(requests).toBe(3);
+  });
+
+  test("still searches when the cache directory is unwritable", async () => {
+    const blockedPath = join(cacheHome, "blocked");
+    await writeFile(blockedPath, "not a directory");
+    process.env.XDG_CACHE_HOME = blockedPath;
+    setFetch(async () => Response.json({ results: searchResults }));
+    expect(
+      (await searchWeb({ query: "query", depthMode: "quick", maxResults: 1 }))
+        .results,
+    ).toHaveLength(1);
+  });
+
   test("rejects empty queries and HTTP errors", async () => {
     setFetch(async () => new Response("Forbidden", { status: 403 }));
     await expect(
@@ -113,11 +184,19 @@ describe("SearXNG helpers", () => {
   });
 
   test("returns empty results without fabricating evidence", async () => {
-    setFetch(async () => Response.json({ results: [] }));
-    expect(
-      (await searchWeb({ query: "query", depthMode: "quick", maxResults: 5 }))
-        .results,
-    ).toEqual([]);
+    let requests = 0;
+    setFetch(async () => {
+      requests += 1;
+      return Response.json({ results: [] });
+    });
+    const input = {
+      query: "query",
+      depthMode: "quick",
+      maxResults: 5,
+    } as const;
+    expect((await searchWeb(input)).results).toEqual([]);
+    expect((await searchWeb(input)).results).toEqual([]);
+    expect(requests).toBe(2);
   });
 
   test("fetches page HTML directly and rejects invalid URLs and HTTP errors", async () => {

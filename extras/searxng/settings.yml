@@ -1,9 +1,20 @@
 use_default_settings: true
 
 search:
+  autocomplete: ""
+  ban_time_on_fail: 60
+  max_ban_time_on_fail: 600
+  suspended_times:
+    SearxEngineAccessDenied: 900
+    SearxEngineCaptcha: 7200
+    SearxEngineTooManyRequests: 900
   formats:
     - html
     - json
+
+engines:
+  - name: brave
+    disabled: true
 
 server:
   limiter: false
