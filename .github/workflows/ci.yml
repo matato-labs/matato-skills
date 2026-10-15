@@ -3,9 +3,6 @@ name: Pi CI
 on:
   pull_request:
     branches: [main]
-    paths-ignore:
-      - web-app/**
-      - .github/workflows/elixir-ci.yml
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
