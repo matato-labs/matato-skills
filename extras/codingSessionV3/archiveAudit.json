@@ -1,0 +1,17 @@
+{
+  "members": 1669,
+  "patches": 72,
+  "uncompressedBytes": 217068185,
+  "archiveBytes": 19204744,
+  "sha256": "1c5645449f90a062019e592f8134dc95d72dd1ea80c794844c391308e71fe3dd",
+  "credentialPatternMatches": 0,
+  "memberHashesVerified": true,
+  "excluded": [
+    "Ponytail checkout/profile",
+    "worktrees and review source copies",
+    "dependency binaries",
+    "credentials",
+    "raw chat sessions"
+  ],
+  "replay": "Non-hermetic; see evaluation.md for pinned sources and local dependencies."
+}
