@@ -13,14 +13,13 @@ type SearchInput = {
 
 type FetchPageContentInput = { url: string };
 
-type SearxngSearchResult = {
+type BraveSearchResult = {
   title: string;
   url: string;
-  content?: string;
-  score: number;
+  description?: string;
 };
 
-type SearxngSearchResponse = { results: Array<SearxngSearchResult> };
+type BraveSearchResponse = { web?: { results: Array<BraveSearchResult> } };
 
 const depthResultLimits: Record<DepthMode, number> = {
   quick: 4,
@@ -40,13 +39,13 @@ const normalizeUrl = (urlValue: string) => {
 };
 
 const normalizeSearchResults = (
-  results: Array<SearxngSearchResult>,
+  results: Array<BraveSearchResult>,
   maxResults: number,
 ) => {
   const seenUrls = new Set<string>();
   const normalizedResults = [];
 
-  for (const result of results) {
+  for (const [index, result] of results.entries()) {
     const url = normalizeUrl(result.url);
     const title = result.title.trim();
     if (!title || !url || seenUrls.has(url)) continue;
@@ -55,9 +54,9 @@ const normalizeSearchResults = (
     normalizedResults.push({
       title,
       url,
-      content: (result.content ?? "").trim(),
+      content: (result.description ?? "").trim(),
       rawContent: "",
-      score: result.score,
+      score: 1 / (index + 1),
     });
     if (normalizedResults.length >= maxResults) break;
   }
@@ -65,7 +64,7 @@ const normalizeSearchResults = (
   return normalizedResults;
 };
 
-const fetchSearchResults = async (url: URL) => {
+const fetchSearchResults = async (url: URL, token: string) => {
   const cacheDirectory = join(
     process.env.XDG_CACHE_HOME || join(homedir(), ".cache"),
     "matato",
@@ -73,23 +72,26 @@ const fetchSearchResults = async (url: URL) => {
   );
   const cachePath = join(
     cacheDirectory,
-    `${createHash("sha256").update(url.toString()).digest("hex")}.json`,
+    `${createHash("sha256").update(`${token}\n${url}`).digest("hex")}.json`,
   );
   try {
     const cachedFile = await stat(cachePath);
     if (Date.now() - cachedFile.mtimeMs < 300_000)
       return JSON.parse(
         await readFile(cachePath, "utf8"),
-      ) as SearxngSearchResponse;
+      ) as BraveSearchResponse;
   } catch {
     // A missing or unreadable cache must not prevent a search.
   }
 
-  const response = await fetch(url, { signal: AbortSignal.timeout(30_000) });
+  const response = await fetch(url, {
+    headers: { Accept: "application/json", "X-Subscription-Token": token },
+    signal: AbortSignal.timeout(30_000),
+  });
   if (!response.ok)
-    throw new Error(`SearXNG search failed: HTTP ${response.status}`);
-  const body = (await response.json()) as SearxngSearchResponse;
-  if (!body.results.length) return body;
+    throw new Error(`Brave search failed: HTTP ${response.status}`);
+  const body = (await response.json()) as BraveSearchResponse;
+  if (!body.web?.results.length) return body;
 
   try {
     await mkdir(cacheDirectory, { recursive: true, mode: 0o700 });
@@ -104,18 +106,22 @@ export const searchWeb = async (input: SearchInput) => {
   const query = input.query.trim();
   if (!query) throw new Error("query is required");
 
+  const token = process.env.BRAVE_API_TOKEN?.trim();
+  if (!token) throw new Error("BRAVE_API_TOKEN is required");
+
   const maxResults = Math.min(
     Math.max(1, input.maxResults),
     depthResultLimits[input.depthMode],
   );
-  const baseUrl = process.env.SEARXNG_URL?.trim() || "http://127.0.0.1:8888";
-  const url = new URL("search", `${baseUrl.replace(/\/$/, "")}/`);
+  const url = new URL("https://api.search.brave.com/res/v1/web/search");
   url.searchParams.set("q", query);
-  url.searchParams.set("format", "json");
-  url.searchParams.set("categories", "general");
+  url.searchParams.set("count", "12");
 
-  const body = await fetchSearchResults(url);
-  return { query, results: normalizeSearchResults(body.results, maxResults) };
+  const body = await fetchSearchResults(url, token);
+  return {
+    query,
+    results: normalizeSearchResults(body.web?.results ?? [], maxResults),
+  };
 };
 
 export const fetchPageContent = async (input: FetchPageContentInput) => {
