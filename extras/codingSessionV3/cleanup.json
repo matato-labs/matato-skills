@@ -1,0 +1,328 @@
+{
+  "removedWorktrees": [
+    {
+      "path": "/tmp/codingSessionV3/worktrees/finalOne/candidateThree/elixirGameVocabulary",
+      "patchSha256": "215857ba1f0c021536a4e9359730f0c091cd82d7333bb6460bf52ba045bf27aa"
+    },
+    {
+      "path": "/tmp/codingSessionV3/worktrees/finalOne/candidateThree/elixirQuantityBoundaries",
+      "patchSha256": "6a9655f669ac178a8627d71a43e2b3afa9c03ec444a3cff4667090fbcfbd5490"
+    },
+    {
+      "path": "/tmp/codingSessionV3/worktrees/finalOne/candidateThree/memoryReferenceResolution",
+      "patchSha256": "b084e1f56eb9c336f59fd2402f65b5105cbac1908cdfee7a1b096565386a7c98"
+    },
+    {
+      "path": "/tmp/codingSessionV3/worktrees/finalOne/candidateThree/pythonLiteralDatabasePaths",
+      "patchSha256": "12e1e6eec22136073d60cb2efba4e62ce8af65823357131aa1cd2d6702e6b943"
+    },
+    {
+      "path": "/tmp/codingSessionV3/worktrees/finalOne/candidateThree/pythonUnicodeGraphFind",
+      "patchSha256": "dd27f428af107c98a5bbb153a39ff81d9e71bee1b36069ac77fa8c619dc60ba5"
+    },
+    {
+      "path": "/tmp/codingSessionV3/worktrees/finalOne/candidateThree/sessionTreeConfinement",
+      "patchSha256": "a90ac1df3fa3f634d5e0d221b8323ecc9d5279af75ce31e431930f44dd371784"
+    },
+    {
+      "path": "/tmp/codingSessionV3/worktrees/finalOne/main/elixirGameVocabulary",
+      "patchSha256": "32da526945210267edde0c079062c2772725c4da18eafdcfa252a7f3c809220c"
+    },
+    {
+      "path": "/tmp/codingSessionV3/worktrees/finalOne/main/elixirQuantityBoundaries",
+      "patchSha256": "fbf7b1e0639ef468851743fb004cf9c6af7bc4c0e0fbba2618c82ff949744d49"
+    },
+    {
+      "path": "/tmp/codingSessionV3/worktrees/finalOne/main/memoryReferenceResolution",
+      "patchSha256": "a0393609948db857edfa19b282b70c5e475f597af243b5c8d6007c3a5ee53363"
+    },
+    {
+      "path": "/tmp/codingSessionV3/worktrees/finalOne/main/pythonLiteralDatabasePaths",
+      "patchSha256": "da72da699ac8a12d5fb419e188db9a1ffd7e2d197fe003f12bced45445cad991"
+    },
+    {
+      "path": "/tmp/codingSessionV3/worktrees/finalOne/main/pythonUnicodeGraphFind",
+      "patchSha256": "4d8937c1e4e0c600ad102caad7f916b24f86509f234a04d64d204968ed5a8ae8"
+    },
+    {
+      "path": "/tmp/codingSessionV3/worktrees/finalOne/main/sessionTreeConfinement",
+      "patchSha256": "c4b1f1e7e17f0bfaed7f580af48d363372dcb088c1fdef4796cea49cf44cf3a4"
+    },
+    {
+      "path": "/tmp/codingSessionV3/worktrees/finalOne/ponytail/elixirGameVocabulary",
+      "patchSha256": "f46ce22b3130ff7945a1a3cdd1477b22abc8f02bc4bcdc59f5570d9b8bb22e08"
+    },
+    {
+      "path": "/tmp/codingSessionV3/worktrees/finalOne/ponytail/elixirQuantityBoundaries",
+      "patchSha256": "97fb78630cc60ad0849abf9188f942ce71ad7c170f3661ed4a4baa82ea8cf1f6"
+    },
+    {
+      "path": "/tmp/codingSessionV3/worktrees/finalOne/ponytail/memoryReferenceResolution",
+      "patchSha256": "d4c9224a702d3018934871fab49874473e4b9e174ea9ded396b83c13a7e62bb2"
+    },
+    {
+      "path": "/tmp/codingSessionV3/worktrees/finalOne/ponytail/pythonLiteralDatabasePaths",
+      "patchSha256": "52819cae664cc8f01923f330079eb53c78cace9bea8226559eee48dc8482c2b8"
+    },
+    {
+      "path": "/tmp/codingSessionV3/worktrees/finalOne/ponytail/pythonUnicodeGraphFind",
+      "patchSha256": "40bc4edb9b3539bd27c1ab4a75e8f2ca3bee65c1ab0f4c27ff842eb1d4117ce9"
+    },
+    {
+      "path": "/tmp/codingSessionV3/worktrees/finalOne/ponytail/sessionTreeConfinement",
+      "patchSha256": "1f8c2306bcab159f5efd351c032a46b2a200a92fc2e2bda6496d61377511b39e"
+    },
+    {
+      "path": "/tmp/codingSessionV3/worktrees/finalOne/pr/elixirGameVocabulary",
+      "patchSha256": "05a35478b8c67571e419c0b812d7b88a41ea5374eed921e1cf7fe814b04bd234"
+    },
+    {
+      "path": "/tmp/codingSessionV3/worktrees/finalOne/pr/elixirQuantityBoundaries",
+      "patchSha256": "ab903dbaafd9a7e8b5fc176ac79c255cb6facf4b7c67a50266c39c7f0ebff55e"
+    },
+    {
+      "path": "/tmp/codingSessionV3/worktrees/finalOne/pr/memoryReferenceResolution",
+      "patchSha256": "0f791f1d5ee427d4f695d0d4dffb9896661628b2678a90854df4044f487bebe8"
+    },
+    {
+      "path": "/tmp/codingSessionV3/worktrees/finalOne/pr/pythonLiteralDatabasePaths",
+      "patchSha256": "16d6f26679a830ae64b0ff1eb3b1a214d74b87658ca3daeeabcfcadca5c01670"
+    },
+    {
+      "path": "/tmp/codingSessionV3/worktrees/finalOne/pr/pythonUnicodeGraphFind",
+      "patchSha256": "d2062c8a8eb292f1f0a8694cd1f7ee7436c5d0db7c7e9f2586fb755570b0f162"
+    },
+    {
+      "path": "/tmp/codingSessionV3/worktrees/finalOne/pr/sessionTreeConfinement",
+      "patchSha256": "de0f8b1f05489f43ad781fc800329fa9073455dc43144541439be292c97f9d38"
+    },
+    {
+      "path": "/tmp/codingSessionV3/worktrees/finalTwo/candidateThree/elixirGameVocabulary",
+      "patchSha256": "5c1f20264053e0e8d229cf6320bf1425619f0dd63d9305f2d059988e9520a8c0"
+    },
+    {
+      "path": "/tmp/codingSessionV3/worktrees/finalTwo/candidateThree/elixirQuantityBoundaries",
+      "patchSha256": "45afd3b6ba299f2a53fa8316f73458bfc12f54ce1018484ad723489e5c6c9129"
+    },
+    {
+      "path": "/tmp/codingSessionV3/worktrees/finalTwo/candidateThree/memoryReferenceResolution",
+      "patchSha256": "0ad9d092f890404ae8bbee3f3d0153b38c4d01a1d9f12d5b777bfe612acc7dc3"
+    },
+    {
+      "path": "/tmp/codingSessionV3/worktrees/finalTwo/candidateThree/pythonLiteralDatabasePaths",
+      "patchSha256": "94cab677b291b94f8320644b81cd252fc486bfebfe2b707c8e33d0b44f842c12"
+    },
+    {
+      "path": "/tmp/codingSessionV3/worktrees/finalTwo/candidateThree/pythonUnicodeGraphFind",
+      "patchSha256": "ee5317d0ed333bb98771460aadf4fe29f75f6a2c474f0529875d3b89c6e1fa96"
+    },
+    {
+      "path": "/tmp/codingSessionV3/worktrees/finalTwo/candidateThree/sessionTreeConfinement",
+      "patchSha256": "2df430c880cb8f59dba5989a1639606b7d262a6a4897c5e27709d600553a259e"
+    },
+    {
+      "path": "/tmp/codingSessionV3/worktrees/finalTwo/main/elixirGameVocabulary",
+      "patchSha256": "c68f153b8b45e7c191c7ebc579a2f11c4c934f117504c778713e7f6e8a58315b"
+    },
+    {
+      "path": "/tmp/codingSessionV3/worktrees/finalTwo/main/elixirQuantityBoundaries",
+      "patchSha256": "578608df54adca7bd702d19867d67579f0a42e0d70e2d0cf8b5e565f479289ec"
+    },
+    {
+      "path": "/tmp/codingSessionV3/worktrees/finalTwo/main/memoryReferenceResolution",
+      "patchSha256": "910c53ec4141e36ae91baf48cdce77a11a76041ee8e5b7934b82296200a64dde"
+    },
+    {
+      "path": "/tmp/codingSessionV3/worktrees/finalTwo/main/pythonLiteralDatabasePaths",
+      "patchSha256": "70433a6da6d20831ef5bf3bd7acba8fc7fe6f36a17dd589a186182930d52f32c"
+    },
+    {
+      "path": "/tmp/codingSessionV3/worktrees/finalTwo/main/pythonUnicodeGraphFind",
+      "patchSha256": "3bf7dbcf54b946650c5905800d50190efd27a816110dc0277d635a2539bd6e24"
+    },
+    {
+      "path": "/tmp/codingSessionV3/worktrees/finalTwo/main/sessionTreeConfinement",
+      "patchSha256": "be7639fe2bf2641fb8bc1c34a60934edbeb3182d532a95974dd832d34ee8f7fd"
+    },
+    {
+      "path": "/tmp/codingSessionV3/worktrees/finalTwo/ponytail/elixirGameVocabulary",
+      "patchSha256": "44d2bf195a071c1ba1fd2fab5dae5af6cac7e851380d62971adaac64496ca61b"
+    },
+    {
+      "path": "/tmp/codingSessionV3/worktrees/finalTwo/ponytail/elixirQuantityBoundaries",
+      "patchSha256": "16f64b58b004ac874535dc53f3a3bf4d1c5ba24ef49b73b6fd5e8fc4e089a533"
+    },
+    {
+      "path": "/tmp/codingSessionV3/worktrees/finalTwo/ponytail/memoryReferenceResolution",
+      "patchSha256": "3c4e60bfc3c02cc7ff41928e0647fe0ccd5e03edb091066e6a50b26cd38873fb"
+    },
+    {
+      "path": "/tmp/codingSessionV3/worktrees/finalTwo/ponytail/pythonLiteralDatabasePaths",
+      "patchSha256": "068ee96e3dda400621eaa3102ee18dfce2d09fdb101b83513452cb66e269ae96"
+    },
+    {
+      "path": "/tmp/codingSessionV3/worktrees/finalTwo/ponytail/pythonUnicodeGraphFind",
+      "patchSha256": "b8ca0a100c1ce3dee98b2c92ea13e19f69c99e651e2cbf31403c8b4e60b2e509"
+    },
+    {
+      "path": "/tmp/codingSessionV3/worktrees/finalTwo/ponytail/sessionTreeConfinement",
+      "patchSha256": "f2970765b98eeb0968586413d98f477fc1a2b07d119eb73b8b9c21ddfc97d913"
+    },
+    {
+      "path": "/tmp/codingSessionV3/worktrees/finalTwo/pr/elixirGameVocabulary",
+      "patchSha256": "fbc4a739f50aef9483a87011f74ea4a9a7ca8ee9313f3755eca608990c64f531"
+    },
+    {
+      "path": "/tmp/codingSessionV3/worktrees/finalTwo/pr/elixirQuantityBoundaries",
+      "patchSha256": "4fbe6b408620ce296970c46d3eb366c67b6c6692b87159b709985854835c3cd4"
+    },
+    {
+      "path": "/tmp/codingSessionV3/worktrees/finalTwo/pr/memoryReferenceResolution",
+      "patchSha256": "238ce1ac72462d6c254560e219acd73210cfff43b10fc12da836df4321d07608"
+    },
+    {
+      "path": "/tmp/codingSessionV3/worktrees/finalTwo/pr/pythonLiteralDatabasePaths",
+      "patchSha256": "5a4c705c568dc5a6a6041bc0ba678cb0e1ea229ec35f887d0f80be7c48d3f8da"
+    },
+    {
+      "path": "/tmp/codingSessionV3/worktrees/finalTwo/pr/pythonUnicodeGraphFind",
+      "patchSha256": "9adb13ae3e6bf81cd34bce93717260de748f375a13d90e68f146cabaca265f7e"
+    },
+    {
+      "path": "/tmp/codingSessionV3/worktrees/finalTwo/pr/sessionTreeConfinement",
+      "patchSha256": "50f9cfa6c53fe85eb4119906ab7b00f93d827f73c1142b835ba1afea350fedac"
+    },
+    {
+      "path": "/tmp/codingSessionV3/worktrees/tuningOne/candidateOne/elixirQuantityBoundaries",
+      "patchSha256": "fd38d9489b4832b137ff6d2fdd3a9443ddfb2f5240512af5a7ccf6cd8fe151e6"
+    },
+    {
+      "path": "/tmp/codingSessionV3/worktrees/tuningOne/candidateOne/memoryReferenceResolution",
+      "patchSha256": "d901739af0e01067faaa06a36ed519400e4691622583c609700fe115afb22486"
+    },
+    {
+      "path": "/tmp/codingSessionV3/worktrees/tuningOne/candidateOne/pythonUnicodeGraphFind",
+      "patchSha256": "96e5d1ff392bc8b13a0088aa4b52d40e702a79f94e8c385ec3b2ba2fb3918143"
+    },
+    {
+      "path": "/tmp/codingSessionV3/worktrees/tuningOne/main/elixirQuantityBoundaries",
+      "patchSha256": "d20c04706352f8dd12f8d317ee817ca3756121212d65fd2eab6b653a6ea96a79"
+    },
+    {
+      "path": "/tmp/codingSessionV3/worktrees/tuningOne/main/memoryReferenceResolution",
+      "patchSha256": "aa384135c33ef354b677c688267b9df4a4cf72ceea403538373e0e7d2fe9988a"
+    },
+    {
+      "path": "/tmp/codingSessionV3/worktrees/tuningOne/main/pythonUnicodeGraphFind",
+      "patchSha256": "de250d48973737dd1ea0dd4d91d4c2db5f4922b188f094b1217ab58e5d60e7bb"
+    },
+    {
+      "path": "/tmp/codingSessionV3/worktrees/tuningOne/ponytail/elixirQuantityBoundaries",
+      "patchSha256": "cf61530b30e3e42fbdc33bfae365d677b57f081a93a65f96022da06532f39113"
+    },
+    {
+      "path": "/tmp/codingSessionV3/worktrees/tuningOne/ponytail/memoryReferenceResolution",
+      "patchSha256": "78696347750d1dad8300592ace4a2167860973e8e7acda771c545eeecd041736"
+    },
+    {
+      "path": "/tmp/codingSessionV3/worktrees/tuningOne/ponytail/pythonUnicodeGraphFind",
+      "patchSha256": "f44646c62e517f93f38dfc14207a0840952b734c9a0dba5b4ae79090598152ea"
+    },
+    {
+      "path": "/tmp/codingSessionV3/worktrees/tuningOne/pr/elixirQuantityBoundaries",
+      "patchSha256": "ac952122952665fee8443191134e730c1bf6bb12000350c1613fdef51bb005c0"
+    },
+    {
+      "path": "/tmp/codingSessionV3/worktrees/tuningOne/pr/memoryReferenceResolution",
+      "patchSha256": "5cb0c1cd62ef49ed21cb6b7a8912f5e2f4b9ce16a8d74db709a31bc3397cefbf"
+    },
+    {
+      "path": "/tmp/codingSessionV3/worktrees/tuningOne/pr/pythonUnicodeGraphFind",
+      "patchSha256": "7ba1be95ddee9203386dfa60b31fc365ff84f8edc6c76448b99fb1d6ec4be1a6"
+    },
+    {
+      "path": "/tmp/codingSessionV3/worktrees/tuningTwo/candidateTwo/elixirQuantityBoundaries",
+      "patchSha256": "72ca4a18277555dd564d76ba2e373cdda4e30fa3b7be12f52d304b9569a3005f"
+    },
+    {
+      "path": "/tmp/codingSessionV3/worktrees/tuningTwo/candidateTwo/memoryReferenceResolution",
+      "patchSha256": "a2dd62c43b1dcd62294f22bb559c2b518a548db7b8f55780719876ac2983a3ed"
+    },
+    {
+      "path": "/tmp/codingSessionV3/worktrees/tuningTwo/candidateTwo/pythonUnicodeGraphFind",
+      "patchSha256": "a8e98c40d6e1c7361d82608daa4397d0148d2fcd32ca81000f2193cfc9b75988"
+    },
+    {
+      "path": "/tmp/codingSessionV3/worktrees/tuningTwo/main/elixirQuantityBoundaries",
+      "patchSha256": "44eb9498eda6f4570ee0486ff69f1cc2421e757cbab94d5ecf6416c14d50e5df"
+    },
+    {
+      "path": "/tmp/codingSessionV3/worktrees/tuningTwo/main/memoryReferenceResolution",
+      "patchSha256": "03b25140824cf7d580b86c2fb0e0e9ed4de7135392f27b85242d5124c8c10486"
+    },
+    {
+      "path": "/tmp/codingSessionV3/worktrees/tuningTwo/main/pythonUnicodeGraphFind",
+      "patchSha256": "7eb846b8109464181a9b03e682212cb280d69b650087d6d2703e2d960c9fee6e"
+    },
+    {
+      "path": "/tmp/codingSessionV3/worktrees/tuningTwo/ponytail/elixirQuantityBoundaries",
+      "patchSha256": "8378b31bf6a42b2dd90027e0262932cd9c0b607f453276182352c04b12ab8e69"
+    },
+    {
+      "path": "/tmp/codingSessionV3/worktrees/tuningTwo/ponytail/memoryReferenceResolution",
+      "patchSha256": "a2af569172924109467ba59f9aebf3f9421cb9e3126771c147d618541aee0c35"
+    },
+    {
+      "path": "/tmp/codingSessionV3/worktrees/tuningTwo/ponytail/pythonUnicodeGraphFind",
+      "patchSha256": "c693aa5097e59c0624bad5920afb4599483d8d414587e05e7d36e5493f6cec91"
+    },
+    {
+      "path": "/tmp/codingSessionV3/worktrees/tuningTwo/pr/elixirQuantityBoundaries",
+      "patchSha256": "487bf17a2a703a2be9fcf36cb8c0c840daef19e32e96966a6fa281842ffedc36"
+    },
+    {
+      "path": "/tmp/codingSessionV3/worktrees/tuningTwo/pr/memoryReferenceResolution",
+      "patchSha256": "6ef0ec13ace00951fad41bde4fcda4af8ac991ddeea14e4228a687151a56a051"
+    },
+    {
+      "path": "/tmp/codingSessionV3/worktrees/tuningTwo/pr/pythonUnicodeGraphFind",
+      "patchSha256": "0df5879a9d24b8eebe3efb1a965908561522cb37323717fb2351ef9ce6202d81"
+    }
+  ],
+  "worktreeCount": 72,
+  "removedPonytailCheckout": "/tmp/codingSessionV3/ponytail",
+  "ponytailCommit": "84740e3d344b69b4a133201fa519eb37a62a2b2a",
+  "removedPonytailProfiles": [
+    "/tmp/codingSessionV3/profiles/ponytail.md",
+    "/tmp/necessaryEvaluation/versions/ponytail.md"
+  ],
+  "profileSha256": "ba68ff26239c3c3b05b2a9a47ee0d9a6b93a69639a2555ec87a5d44bffaf2f0c",
+  "sourceCheckouts": {
+    "/home/leon/workspace/projects/atlas": {
+      "status": "",
+      "head": "835be1ac26bfb0b0003a01a741afed21bd550278"
+    },
+    "/home/leon/workspace/projects/beer-game-elixir": {
+      "status": "",
+      "head": "141c8d40764677e3df348183491fdebe3f5ff3e4"
+    },
+    "/home/leon/workspace/projects/matato": {
+      "status": "",
+      "head": "4f2b75f73087b5f2c60995629c591dc91a591567"
+    }
+  },
+  "retained": "Historical comparison patches/results and sealed prior evidence archives; no active Ponytail installation.",
+  "activePackageCheck": "pi list: matato-pi and pi-rtk-optimizer only",
+  "checkedActiveLocations": [
+    "~/.pi/agent",
+    "~/.agents",
+    "~/.claude",
+    "~/.codex",
+    "~/.config/opencode"
+  ],
+  "preexistingUnrelatedChanges": [
+    "matato-pi: ?? web-app/",
+    "quick-note: M components/tasks/task-shared.test.ts",
+    "personal-blog: ?? PRODUCT.md"
+  ]
+}
