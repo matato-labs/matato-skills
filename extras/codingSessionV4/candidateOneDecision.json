@@ -1,0 +1,11 @@
+{
+  "candidate": "candidateOne",
+  "basis": "reuseAblation byte-identical; only common-lifetime sentence removed from V3",
+  "bytes": 2593,
+  "sha256": "c48c5c93987dc825611c74bcd2eb060109b9f07dc5243ed528a0f389122840b9",
+  "decision": "Narrow causal hypothesis unestablished. Removal prevents blanket instruction but no fresh implementation mechanism/quality win shown. Four-arm tuning will assess complete outputs. No persona/presentation claims.",
+  "priorReview": "reviews/ablationOne/review.md",
+  "priorObjections": "TS native omits new shared tests; supplemental direct runs close ablation only. Every subsequent reviewer must discover changed tests. Frozen launcher unchanged.",
+  "reserveBriefsOpened": false,
+  "runtimeChanged": false
+}

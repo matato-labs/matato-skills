@@ -1,0 +1,12 @@
+{
+  "scope": "Post-audit supporting verifier/scanner sources, approval, exact command logs and detailed proofs; main experiment archive unchanged",
+  "members": 33,
+  "secretPatternFindings": [],
+  "scanner": "Independent scanInputs.py pattern set, parent-executed supplementary proof scan",
+  "allMemberHashesVerified": true,
+  "archiveSha256": "76acefef669e90751bffd55797dfdfdbb3ece3d0638e922e4e27fe9746b8984c",
+  "excluded": [
+    "__pycache__"
+  ],
+  "independentMainAudit": "../archiveAudit.json"
+}

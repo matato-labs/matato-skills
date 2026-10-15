@@ -1,0 +1,11 @@
+# Historical inspection before V4
+
+Inspected committed V3 evaluation.md and results.json, local sharedFinal/review.md and both finalOne memory production patches. Confirmed PR114 merged at 28732233110979cc67c1f835c2995d42c6819a33 via gh; PR112 CLOSED with mergedAt null, head 36df53c5bb793a2029f69c2b28c622e73e8c7363. Current T3 worktree starts clean at merged V3. No historical artifacts changed.
+
+V3 is NOT a proven quality winner: production churn 104/105 versus Ponytail98/104, combined better but bytes worse and supplemental correctness/consumer failures. Candidate memory hoisted room-ID Set through resolver signature/call-site (44 production churn); Ponytail built it locally (39 first draw,37 second). No measured performance benefit. Some residual formatting/assignment/comment differences are not algorithmic improvement. Existing facilities were already shared by all arms. Ecto changes identical. No grammatical/persona cause established.
+
+V4 first ablation removes only the exact sentence 'Share reusable results at their common lifetime. ' from merged V3. Everything else byte-identical. 2642 ->2593 bytes. Candidate not yet chosen. Default/full upstream Ponytail pinned at 84740e3d344b69b4a133201fa519eb37a62a2b2a and profile sha256 ba68ff26239c3c3b05b2a9a47ee0d9a6b93a69639a2555ec87a5d44bffaf2f0c,3492 bytes. Upstream HEAD independently matches that pin.
+
+T3 capabilities: pi provider, openai-codex/gpt-6.1-sol high available. Installed CLI is Pi1.1.0, not V3's recorded1.2.0; all V4 arms will use identical installed version. V4 conclusions compare within V4, not raw historical task totals. No persona/presentation experiment planned unless a distinct controlled question warrants budget; do not attribute combined wording changes causally.
+
+Tracked original-project heads/status/edited-file hashes and untracked inventories recorded in originalProjects.json. Quick-note has a pre-existing test edit; personal-blog has a pre-existing untracked file; matato-pi root contains many pre-existing untracked artifacts. None are benchmark targets without separate pinned-copy setup. Atlas/Matato originals clean. Historical evidence is non-hermetic: paths/dependency binaries omitted, implementation worktrees removed. Existing supporting artifacts used only read-only for inspection.

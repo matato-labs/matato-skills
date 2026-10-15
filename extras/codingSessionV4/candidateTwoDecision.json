@@ -1,0 +1,15 @@
+{
+  "candidate": "candidateTwo",
+  "revision": 2,
+  "bytes": 2630,
+  "hypothesis": "Explicit preference for an obvious expression, and restricting signature changes solely to hoist cheap work, may avoid unnecessary control flow/plumbing while retaining required contracts. This is NOT a measured performance claim.",
+  "changesFromCandidateOne": ["Add two concrete economy imperatives after native-contract reuse", "Read repository instructions becomes Follow repository instructions", "Shorten frontmatter description to remain under2642bytes; no runtime references or scripts"],
+  "factorsHeld": ["prose layout", "no persona", "no numbered presentation experiment", "same complete test/safety/integration instructions", "same task/base/model/reasoning/tools/checks/budgets"],
+  "causalLimit": "Composite wording revision after exposed tuning examples. No causal attribution to grammar/persona/presentation or individual changed clause. Reviewer found no supported wording mechanism; this is the last pragmatic hypothesis, not a proven inference.",
+  "priorFindings": "Ablation narrow reuse mechanism unestablished/mixed, TS identical/Python cosmetic. TuningOne candidate production26added/38churn vs Ponytail23/34; combined392/440 vs478/527 does not rescue production. Candidate production growth179B worse. Atlas snapshot-first instruction compliance deficient in v3/v2/candidate and earlier ablation; Ponytail follows it. Preserve all results and carry this static qualification symmetrically.",
+  "priorResponse": "Do not manually repair any output or feed snapshot recipes to selected arms. All arms already receive identical repo instructions. No test-budget reduction, safeguard removal, implementation pattern recipe or task-specific hint added.",
+  "unresolved": ["same-or-better production gate", "snapshot-first instruction compliance", "TS native excludes new shared tests; reviewers must collect independently", "one Ponytail timing-sensitive native rerun failure retained with all-arm diagnostics", "repeated complete paired/reserve validation"],
+  "next": "Complete fresh four-arm tuningTwo, independent review, then freeze candidateTwo regardless of favorable or unfavorable metrics. No third revision or favorable resampling.",
+  "reserveBriefsOpened": false,
+  "runtimeChanged": false
+}
