@@ -1,36 +1,21 @@
 ---
 name: coding-session
-description: Write or change code using the least code and complexity needed to fully satisfy the requirements, without sacrificing readability. Use for implementation, bug fixes and requested refactoring in any language or environment, especially to prevent LLM overengineering, unnecessary abstractions and speculative behavior.
+description: Implement and fix code with the smallest readable change that fully meets the request. Use for implementation, bug fixes and requested refactoring in any language or environment.
 disable-model-invocation: true
 ---
 
 # Coding session
 
-Implement the whole requirement, not every idea it suggests. Every addition must pay for an observable requirement, necessary integration or concrete regression risk. Fewer lines are useful only when behavior stays correct and readable.
+Read the request, repository instructions, affected code and existing tests. Find the shared cause and the callers, types, exports, configuration and fixtures the change must reach. Preserve existing acceptance guarantees. Ask only about ambiguity that changes correctness; do not create an extra specification unless requested.
 
-## Establish the boundary
+Change existing code first. Prefer an existing project facility, then a standard library or platform operation, then an installed dependency, before direct implementation. Read the actual contract; when uncertain, probe the production call shape, options and callbacks. Check consumption limits, omission versus explicit values, ordering, partial results, error identity and ownership. Reuse authoritative types, schemas, defaults and semantic policy across callers and extension points, not merely similarly named APIs. Preserve field presence for sparse updates. Keep native values native; count adapters as part of the solution.
 
-Read the request, affected source and repository instructions. Identify the required behavior, existing behavior that must survive, and the callers, tests, fixtures, exports or configuration that actually need to change. For a bug, find the shared cause and its callers before editing. Ask only about ambiguity that changes correctness; otherwise choose the smallest complete interpretation.
+Keep trust-boundary validation, security, synchronization, accessibility, data-loss protections and required cleanup. Preserve failure, replacement and recovery behavior, including precedence. Trust established internal guarantees rather than duplicating them. Do not trade these contracts for a shorter diff.
 
-Do not turn this into a new specification, framework or planning document unless requested. A requirement already satisfied needs no implementation.
+Add only behavior and integration the request needs. Keep existing layers and readable expressions; extract shared work or clarify genuinely difficult logic, not speculative flexibility. No unrelated cleanup, wrappers, conversions, dependencies or new configuration. Comments explain non-obvious constraints. Ask of each addition: what requirement or concrete regression fails without it?
 
-## Choose less code
+For required efficiency work, identify the expensive operation and its unit across the whole caller path. Share reusable results rather than intermediates every consumer must transform again; keep consumer-specific outcomes separate and bound sharing lifetime. Compare repeated transformations, copies and retained data as well as boundary calls. Fewer lines or a native API alone proves no resource saving.
 
-Try, in order: no change; changing existing code; an existing project facility; a standard library or platform operation; an installed dependency; direct code. Respect the project's established interfaces and layers. Reuse contracts as well as functions: types, schemas, defaults, validation and error handling. When two required consumers need the same contract, share its existing definition rather than creating parallel declarations or rewriting unrelated fields. Defaults are part of that contract: keep one authoritative definition, not a second set of placeholder defaults. Use existing field-presence facilities for sparse updates rather than rebuilding the model. Extract only the common part actually used now. Check reuse semantics: a similar name is not enough; preserve distinctions such as omitted versus explicitly empty values.
+Read maintained coverage before adding tests. Extend existing fixtures and parameterize equivalent cases. Add focused maintained regressions for real failures and changed contracts, including interactions with distinct risk; use a persistent executable self-check if no test framework exists. Keep meaningful assertions and necessary integration coverage. External probes supplement, never replace, needed repository regressions. Avoid duplicating setup or re-testing platform guarantees that the change does not threaten.
 
-First try changing the existing expression or condition. Do not expand a simple return into several branches or locals when one readable expression keeps the contract. Use guard clauses to remove nesting, not to multiply equivalent exits. Do not compress several responsibilities into a clever one-liner. A helper earns its place through actual reuse or by making necessary logic easier to understand, not by giving one expression a name. Do not add a dependency for a few lines.
-
-Preserve observable distinctions: absent versus empty values, ownership and mutation, ordering, error behavior and public contracts. Keep required copying, validation at untrusted boundaries, synchronization, security, accessibility and protection against data loss. Trust established internal types and guarantees; do not validate them again without a concrete failure they cannot prevent. Recovery, fallback and alternate paths must obey the same required precedence and error contracts as the normal path. Reuse that policy, not a second one.
-
-## Make each addition justify itself
-
-While implementing, ask of each statement, branch, helper, type, option, file, comment and dependency: **What required behavior fails if this is removed?** Keep it only for that behavior, required integration or a concrete regression risk. Apply the same question to generated scaffolding and test setup. A helper or comment may prevent a concrete misreading of necessary logic; speculative future maintenance is not a justification.
-
-Remove invented configurability, fallback behavior, wrappers, conversions, state and defensive checks. Do not add support for inputs, environments or future callers the task does not require. Keep native values in their existing form. Do not bundle nearby cleanup or broaden a bug fix into a rewrite. A comment explains a non-obvious constraint, never narrates the code.
-
-## Finish the smallest complete change
-
-Update every affected integration, not just the obvious function. For new non-trivial behavior, add a focused regression in the existing test framework, or a tiny executable self-check when none exists. Exercise required behaviors in combination where paths interact, not just each requirement in isolation. Reuse fixtures and parameterize equivalent cases instead of copying setup or building a test framework. Add cases for the new failure and distinct contracts it could break; do not re-prove already-covered behavior or exhaust a platform's entire input space. Preserve meaningful assertions; test fewer things only when they are genuinely outside the requirement, not to shrink the diff.
-
-Run the relevant checks. Inspect the whole diff, including caller and test churn, and remove anything without a necessity argument. Do not claim a smaller solution by moving complexity elsewhere, squeezing formatting or deleting safeguards. Do not claim an unrun check passed. Report the change, checks actually run and any remaining limitation briefly; no ceremony
-or unsolicited audit report. Stop when the requirement is met.
+Run relevant checks and inspect the complete source and test diff. Remove only unjustified additions, not coverage or safeguards to improve counts. Stop when the complete requirement is met. Briefly report the change, checks actually run and remaining limits; do not claim unmeasured savings.

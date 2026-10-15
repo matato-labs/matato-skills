@@ -1,0 +1,229 @@
+{
+  "outcome": "Overall superiority not established; retain negative comparisons.",
+  "caseImplementations": 70,
+  "freshImplementationAgents": 14,
+  "researchAgents": 2,
+  "reviewAgents": 5,
+  "harness": {
+    "piVersion": "1.2.0",
+    "model": "openai-codex/gpt-6.1-sol",
+    "reasoning": "high",
+    "globalContextIndependentlyDisabled": false
+  },
+  "skill": {
+    "original": {
+      "bytes": 5121,
+      "words": 740,
+      "lines": 36
+    },
+    "delivered": {
+      "bytes": 3161,
+      "words": 422,
+      "lines": 21
+    }
+  },
+  "rounds": [
+    {
+      "phase": "original",
+      "arms": [
+        {
+          "variant": "ponytailInitial",
+          "caseCount": 3,
+          "sourceChurn": 77,
+          "testChurn": 179,
+          "combinedChurn": 256,
+          "sourceNetGrowth": 27,
+          "combinedNetGrowth": 202
+        },
+        {
+          "variant": "codingInitial",
+          "caseCount": 3,
+          "sourceChurn": 80,
+          "testChurn": 252,
+          "combinedChurn": 332,
+          "sourceNetGrowth": 30,
+          "combinedNetGrowth": 278
+        }
+      ]
+    },
+    {
+      "phase": "contractRewrite",
+      "arms": [
+        {
+          "variant": "ponytailFinal",
+          "caseCount": 4,
+          "sourceChurn": 100,
+          "testChurn": 237,
+          "combinedChurn": 337,
+          "sourceNetGrowth": 38,
+          "combinedNetGrowth": 253
+        },
+        {
+          "variant": "codingFinal",
+          "caseCount": 4,
+          "sourceChurn": 115,
+          "testChurn": 229,
+          "combinedChurn": 344,
+          "sourceNetGrowth": 39,
+          "combinedNetGrowth": 240
+        }
+      ]
+    },
+    {
+      "phase": "reusableResultRewrite",
+      "arms": [
+        {
+          "variant": "ponytailThird",
+          "caseCount": 4,
+          "sourceChurn": 93,
+          "testChurn": 279,
+          "combinedChurn": 372,
+          "sourceNetGrowth": 33,
+          "combinedNetGrowth": 284
+        },
+        {
+          "variant": "codingThird",
+          "caseCount": 4,
+          "sourceChurn": 112,
+          "testChurn": 253,
+          "combinedChurn": 365,
+          "sourceNetGrowth": 38,
+          "combinedNetGrowth": 243
+        }
+      ]
+    },
+    {
+      "phase": "frozen",
+      "arms": [
+        {
+          "variant": "ponytailFrozen",
+          "caseCount": 6,
+          "sourceChurn": 117,
+          "testChurn": 263,
+          "combinedChurn": 380,
+          "sourceNetGrowth": 25,
+          "combinedNetGrowth": 270
+        },
+        {
+          "variant": "codingFrozen",
+          "caseCount": 6,
+          "sourceChurn": 136,
+          "testChurn": 410,
+          "combinedChurn": 546,
+          "sourceNetGrowth": 36,
+          "combinedNetGrowth": 424
+        }
+      ]
+    },
+    {
+      "phase": "frozenReplication",
+      "arms": [
+        {
+          "variant": "ponytailReplication",
+          "caseCount": 6,
+          "sourceChurn": 118,
+          "testChurn": 270,
+          "combinedChurn": 388,
+          "sourceNetGrowth": 28,
+          "combinedNetGrowth": 292
+        },
+        {
+          "variant": "codingReplication",
+          "caseCount": 6,
+          "sourceChurn": 123,
+          "testChurn": 318,
+          "combinedChurn": 441,
+          "sourceNetGrowth": 29,
+          "combinedNetGrowth": 325
+        }
+      ]
+    },
+    {
+      "phase": "compact",
+      "arms": [
+        {
+          "variant": "ponytailCompact",
+          "caseCount": 6,
+          "sourceChurn": 120,
+          "testChurn": 492,
+          "combinedChurn": 612,
+          "sourceNetGrowth": 32,
+          "combinedNetGrowth": 504
+        },
+        {
+          "variant": "codingCompact",
+          "caseCount": 6,
+          "sourceChurn": 137,
+          "testChurn": 499,
+          "combinedChurn": 636,
+          "sourceNetGrowth": 39,
+          "combinedNetGrowth": 522
+        }
+      ]
+    },
+    {
+      "phase": "compactReplication",
+      "arms": [
+        {
+          "variant": "ponytailCompactRepeat",
+          "caseCount": 6,
+          "sourceChurn": 125,
+          "testChurn": 382,
+          "combinedChurn": 507,
+          "sourceNetGrowth": 35,
+          "combinedNetGrowth": 397
+        },
+        {
+          "variant": "codingCompactRepeat",
+          "caseCount": 6,
+          "sourceChurn": 135,
+          "testChurn": 604,
+          "combinedChurn": 739,
+          "sourceNetGrowth": 29,
+          "combinedNetGrowth": 609
+        }
+      ]
+    }
+  ],
+  "finalAcceptance": {
+    "candidates": 24,
+    "frozenChecks": "all pass",
+    "nativeChecks": "focused checks pass",
+    "crossChecks": "20/24 pass; 2 private-helper compile mismatches, 2 additional decode-contract failures",
+    "negativeControls": "all seven original/additional checks fail on bases as expected"
+  },
+  "resourceObservations": {
+    "sameFileNodes": 100,
+    "decodeCalls": {
+      "ponytail": 100,
+      "codingSession": 1
+    },
+    "eightDistinctFilesTracedPeakBytes": {
+      "ponytail": 15857529,
+      "codingSession": 22317955
+    },
+    "latencySpeedupMeasured": false,
+    "globalSqlDeduplication": false
+  },
+  "evidence": {
+    "file": "evidence.tar.gz",
+    "sha256": "80709e049bbf97447a5282db2c5074e1363a56f64e15bdb30961df6d587b9acc",
+    "ponytailSourceOrProfileIncluded": false
+  },
+  "ponytail": {
+    "url": "https://github.com/DietrichGebert/ponytail",
+    "commit": "84740e3d344b69b4a133201fa519eb37a62a2b2a",
+    "profilePath": "skills/ponytail/SKILL.md",
+    "profileSha256": "ba68ff26239c3c3b05b2a9a47ee0d9a6b93a69639a2555ec87a5d44bffaf2f0c",
+    "mode": "full",
+    "license": "MIT"
+  },
+  "cleanup": {
+    "upstreamCheckoutRemoved": true,
+    "temporaryProfileRemoved": true,
+    "activeSkillOrPackageFound": false,
+    "checkedConfigurationsHavePonytailReference": false,
+    "disposableWorktreesRemoved": 79,
+    "originalProjectSourceChanged": false
+  }
+}
