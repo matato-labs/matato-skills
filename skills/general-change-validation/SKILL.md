@@ -16,18 +16,11 @@ Check that the code uses strong types. Try to avoid weak types such as `unknown`
 
 Always prefer safeguards at the start of a function. Use them to handle edge cases and return early instead of using complex if-else statements or nested logic.
 
-## YAGNI
-
-Follow the YAGNI principle and prefer one-line solutions when they are readable.
-
 ## Logging and monitoring
 
 Check that the code uses the correct log level for each situation. If the project supports monitoring through metrics, traces, or other tools, check that the code follows the repository's standards.
 
 ## Typechecks and lint
 
-Make sure typechecks and linting pass, the project compiles/builds, and all tests pass.
+Make sure typechecks and linting pass, the project compiles/builds, and all tests pass. All CI checks are green and passing.
 
-## Architecture
-
-Check that the code has a simple architecture with no complex sequences of calls in both directions between components and no tight coupling. Introduce new components only when they are essential.

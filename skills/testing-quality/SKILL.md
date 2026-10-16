@@ -1,7 +1,6 @@
 ---
 name: testing-quality
 description: Run $testing-quality when a change is complete and you want to check that its tests are meaningful.
-disable-model-invocation: true
 ---
 
 ## Testing
