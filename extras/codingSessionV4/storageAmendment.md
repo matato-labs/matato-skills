@@ -1,7 +1,0 @@
-# Future-draw storage amendment
-
-After candidateTwo was frozen, independent tuningTwo incident review confirmed /tmp per-user tmpfs quota exhaustion (EDQUOT), not a valid production comparison. Filesystem free-space output overstated effective UID allowance. No failed output is repaired or retried; no skill revision follows this incident. Old launchers/results remain frozen and partial/unavailable records stay explicit.
-
-Future finalOne/finalTwo use owned on-disk writable storage under /home/leon/.cache/codingSessionV4Owned while preserving logical /tmp sandbox paths, matched model/profile/tools/time/concurrency settings and read-only original source/dependency mounts. The coordinator must preflight every task with frozen launchers, document path/ledger/hash preservation, and keep existing private credentials/raw streams outside publication. No original project, historical evidence, quota or system mount configuration is changed.
-
-This is an environment change versus tuning draws and a replay dependency, not a prompt effect. It applies to every final arm equally. Existing19 reservations plus two16-run draws would total51 (52 requested identities including the unreserved failed attempt); the practical52-request budget is unchanged. Validity must still be checked, not inferred from the relocation. Candidate hash remains6efa072c53b7e83aae7a17f4f60a45efd113cd8dc927c1c1ebf815ec3cd25643,2630bytes.
