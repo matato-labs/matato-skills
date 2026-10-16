@@ -1,0 +1,18 @@
+{
+  "candidate": "profiles/candidateTwo.md",
+  "sha256": "da4417ae2056ad54ea7a4e287d71f5ac0e5386b3c064f877a5df3dbdc58485d9",
+  "frozenAt": "2026-10-16T15:50:18.574945+00:00",
+  "holdoutReadByParent": false,
+  "developmentOutcome": "Not superior: TS production ties and cost/time regress; Bash production ties/resource tradeoffs; Python both invalid600sec. No tuning/deployment on this evidence.",
+  "holdoutOrders": {
+    "holdoutOne": [
+      "candidateTwo",
+      "ponytail"
+    ],
+    "holdoutTwo": [
+      "ponytail",
+      "candidateTwo"
+    ]
+  },
+  "stop": "No third revision, no resampling, no prompt changes after this freeze. Preserve failing outputs."
+}

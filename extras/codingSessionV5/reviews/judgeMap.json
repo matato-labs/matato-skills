@@ -1,0 +1,98 @@
+{
+  "cellc71e252fec": {
+    "identity": "holdoutOne/SKILL.ba68ff26239c.native.9d07b1e583f4/holdoutOne",
+    "arm": "ponytail",
+    "draw": "holdoutOne",
+    "case": "holdoutOne"
+  },
+  "cell83929a2dc0": {
+    "identity": "holdoutOne/SKILL.da4417ae2056.native.1a7ad9329802/holdoutOne",
+    "arm": "candidateTwo",
+    "draw": "holdoutOne",
+    "case": "holdoutOne"
+  },
+  "cell60758b0de7": {
+    "identity": "holdoutTwo/SKILL.ba68ff26239c.native.9d07b1e583f4/holdoutOne",
+    "arm": "ponytail",
+    "draw": "holdoutTwo",
+    "case": "holdoutOne"
+  },
+  "cella73068f2d4": {
+    "identity": "holdoutTwo/SKILL.da4417ae2056.native.1a7ad9329802/holdoutOne",
+    "arm": "candidateTwo",
+    "draw": "holdoutTwo",
+    "case": "holdoutOne"
+  },
+  "cellb311f7aaf3": {
+    "identity": "initialReady/SKILL.b167b64db50c.native.cece4418f5a2/installerDownloadFailures",
+    "arm": "ponytailNarrative",
+    "draw": "initialReady",
+    "case": "installerDownloadFailures"
+  },
+  "cell6c5a73c787": {
+    "identity": "initialReady/SKILL.b167b64db50c.native.cece4418f5a2/navigationUnseenEdgeBudget",
+    "arm": "ponytailNarrative",
+    "draw": "initialReady",
+    "case": "navigationUnseenEdgeBudget"
+  },
+  "cellc200983daf": {
+    "identity": "initialReady/SKILL.b167b64db50c.native.cece4418f5a2/workspaceCheckoutRoots",
+    "arm": "ponytailNarrative",
+    "draw": "initialReady",
+    "case": "workspaceCheckoutRoots"
+  },
+  "cell2c67dd55cc": {
+    "identity": "initialReady/SKILL.ba68ff26239c.native.9d07b1e583f4/installerDownloadFailures",
+    "arm": "ponytail",
+    "draw": "initialReady",
+    "case": "installerDownloadFailures"
+  },
+  "cellafc7ef4a3e": {
+    "identity": "initialReady/SKILL.ba68ff26239c.native.9d07b1e583f4/navigationUnseenEdgeBudget",
+    "arm": "ponytail",
+    "draw": "initialReady",
+    "case": "navigationUnseenEdgeBudget"
+  },
+  "celld98e3fa93e": {
+    "identity": "initialReady/SKILL.ba68ff26239c.native.9d07b1e583f4/workspaceCheckoutRoots",
+    "arm": "ponytail",
+    "draw": "initialReady",
+    "case": "workspaceCheckoutRoots"
+  },
+  "cell5a77fca968": {
+    "identity": "revisionTwo/SKILL.ba68ff26239c.native.9d07b1e583f4/installerDownloadFailures",
+    "arm": "ponytail",
+    "draw": "revisionTwo",
+    "case": "installerDownloadFailures"
+  },
+  "cella323676220": {
+    "identity": "revisionTwo/SKILL.ba68ff26239c.native.9d07b1e583f4/navigationUnseenEdgeBudget",
+    "arm": "ponytail",
+    "draw": "revisionTwo",
+    "case": "navigationUnseenEdgeBudget"
+  },
+  "cell75f973f62f": {
+    "identity": "revisionTwo/SKILL.ba68ff26239c.native.9d07b1e583f4/workspaceCheckoutRoots",
+    "arm": "ponytail",
+    "draw": "revisionTwo",
+    "case": "workspaceCheckoutRoots"
+  },
+  "celld150049679": {
+    "identity": "revisionTwo/SKILL.da4417ae2056.native.1a7ad9329802/installerDownloadFailures",
+    "arm": "candidateTwo",
+    "draw": "revisionTwo",
+    "case": "installerDownloadFailures"
+  },
+  "cellbf1eb78be3": {
+    "identity": "revisionTwo/SKILL.da4417ae2056.native.1a7ad9329802/navigationUnseenEdgeBudget",
+    "arm": "candidateTwo",
+    "draw": "revisionTwo",
+    "case": "navigationUnseenEdgeBudget"
+  },
+  "cellccff66517a": {
+    "identity": "revisionTwo/SKILL.da4417ae2056.native.1a7ad9329802/workspaceCheckoutRoots",
+    "arm": "candidateTwo",
+    "draw": "revisionTwo",
+    "case": "workspaceCheckoutRoots"
+  }
+}

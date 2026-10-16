@@ -1,0 +1,578 @@
+{
+  "study": "codingSessionV5",
+  "comparison": "candidateOne vs exact Ponytail, revisionOne only",
+  "scope": "Development workspaceRoots and unseenEdges only; no holdout, no models, no installs, no raw private/auth access.",
+  "budget": {
+    "maximumRelevantMutantsTotal": 4,
+    "baselineAndEachMutantTimeoutSeconds": 120,
+    "selected": 4,
+    "executed": 4,
+    "selectedButNotExecuted": 0
+  },
+  "counts": {
+    "killed": 4,
+    "survived": 0,
+    "invalid": 0,
+    "timeout": 0,
+    "inconclusive": 0,
+    "skippedAmongSelected": 0
+  },
+  "selectedSampleScore": {
+    "definition": "killed / (killed + survived); invalid/timeouts/inconclusive/skipped excluded",
+    "numerator": 4,
+    "denominator": 4,
+    "value": 1.0,
+    "byArm": {
+      "candidateOne": {
+        "killed": 2,
+        "survived": 0,
+        "denominator": 2,
+        "value": 1.0
+      },
+      "ponytail": {
+        "killed": 2,
+        "survived": 0,
+        "denominator": 2,
+        "value": 1.0
+      }
+    }
+  },
+  "interpretation": "Both arms catch both matched plausible regressions, including newly authored behavioral assertions. Tie in this small purposive sample; no superiority, equivalence, full coverage or all-metric claim. Existing tests also kill both operators; does not isolate incremental value of added tests.",
+  "tool": {
+    "provenance": "/home/leon/.cache/codingSessionV5/mutations/toolProvenance.json",
+    "catalog": "/home/leon/.cache/codingSessionV5/mutations/atlasRules.json",
+    "help": "/home/leon/.cache/codingSessionV5/mutations/atlasHelp.stdout",
+    "mode": "fresh entire disposable project analysis; no --saved/index/DB",
+    "cli": "uv run --no-sync --offline --project /home/leon/.t3/worktrees/atlas/t3-969945f4/atlas atlas mutations -f PROJECT",
+    "temporaryConfig": {
+      "mutations": {
+        "rules": [
+          "comparison.strict-not-equal-to-strict-equal",
+          "comparison.greater-equal-to-greater",
+          "arithmetic.add-to-subtract"
+        ]
+      }
+    },
+    "scannerSetupAttempts": "scan.* retain initial failed read-only interpreter-alias mount attempts (exit 2). scanTwo.* succeeded after binding alias and adding --no-sync --offline; not test outcomes."
+  },
+  "executionBoundary": "Existing sandboxTrial.Sandbox/shell/execute, bubblewrap --unshare-all, explicit read-only offline dependency mounts, writable disposable target/runtime only, no auth/config mounts. Each command process group killed in finally; each source restored in finally.",
+  "reproduction": "Copied every tracked and nonignored untracked path (including exact uncommitted patches/tests/snapshots and TS node_modules symlink), preserved bytes/modes/symlink spelling and copied owned .git. No ignored environments copied. Full inventories outside project; temporary atlas.json removed at end.",
+  "targets": [
+    {
+      "arm": "candidateOne",
+      "case": "ts",
+      "source": "/home/leon/.cache/codingSessionV5/harness/runs/revisionOne/SKILL.7f02836af76a.native.b6950eb46f87/workspaceCheckoutRoots/workspace",
+      "workspace": "/home/leon/.cache/codingSessionV5/mutations/candidateOne/ts/project",
+      "base": "7754bba086197ba0acce343dc62c560e6fcede0d",
+      "profileSha256": "7f02836af76a1594bf8e22fcdbc951915998b77d30d7e86e304072dab5809a47",
+      "status": " M src/workspaceRepos.test.ts\n M src/workspaceRepos.ts\n?? node_modules\n",
+      "patchSha256": "fe3c6ec746b05f3f288338eddac53f54b6bde91267bfe93d43448b7dee5d1c0e",
+      "snapshot": "/home/leon/.cache/codingSessionV5/mutations/candidateOne/ts/snapshot.json",
+      "targetPatch": "/home/leon/.cache/codingSessionV5/mutations/candidateOne/ts/target.patch",
+      "freshScan": {
+        "exit": 0,
+        "timedOut": false,
+        "seconds": 2.518,
+        "timeoutSeconds": 120,
+        "stdout": "/home/leon/.cache/codingSessionV5/mutations/candidateOne/ts/scanTwo.stdout",
+        "stderr": "/home/leon/.cache/codingSessionV5/mutations/candidateOne/ts/scanTwo.stderr"
+      },
+      "generatedManifests": 60
+    },
+    {
+      "arm": "candidateOne",
+      "case": "py",
+      "source": "/home/leon/.cache/codingSessionV5/harness/runs/revisionOne/SKILL.7f02836af76a.native.b6950eb46f87/navigationUnseenEdgeBudget/workspace",
+      "workspace": "/home/leon/.cache/codingSessionV5/mutations/candidateOne/py/project",
+      "base": "d403b16a2b68a07a11cc22679677bb2fd00dc8a4",
+      "profileSha256": "7f02836af76a1594bf8e22fcdbc951915998b77d30d7e86e304072dab5809a47",
+      "status": " M atlas/src/atlas/services/navigation_walk.py\n M atlas/tests/coffee_navigation.py\n M atlas/tests/snapshots/coffee/python/navigation.json\n",
+      "patchSha256": "050db805d7e6c4e7d0a9a3dac3c0d161ecfe4fbfa0ac64d27abcc9c3e9ed7f06",
+      "snapshot": "/home/leon/.cache/codingSessionV5/mutations/candidateOne/py/snapshot.json",
+      "targetPatch": "/home/leon/.cache/codingSessionV5/mutations/candidateOne/py/target.patch",
+      "freshScan": {
+        "exit": 0,
+        "timedOut": false,
+        "seconds": 15.395,
+        "timeoutSeconds": 120,
+        "stdout": "/home/leon/.cache/codingSessionV5/mutations/candidateOne/py/scanTwo.stdout",
+        "stderr": "/home/leon/.cache/codingSessionV5/mutations/candidateOne/py/scanTwo.stderr"
+      },
+      "generatedManifests": 347
+    },
+    {
+      "arm": "ponytail",
+      "case": "ts",
+      "source": "/home/leon/.cache/codingSessionV5/harness/runs/revisionOne/SKILL.ba68ff26239c.native.9d07b1e583f4/workspaceCheckoutRoots/workspace",
+      "workspace": "/home/leon/.cache/codingSessionV5/mutations/ponytail/ts/project",
+      "base": "7754bba086197ba0acce343dc62c560e6fcede0d",
+      "profileSha256": "ba68ff26239c3c3b05b2a9a47ee0d9a6b93a69639a2555ec87a5d44bffaf2f0c",
+      "status": " M src/workspaceRepos.test.ts\n M src/workspaceRepos.ts\n?? node_modules\n",
+      "patchSha256": "bec8a551bd979bf0dbed98352ed31026825cddf83f09dcf2a1cfe117e6b694ec",
+      "snapshot": "/home/leon/.cache/codingSessionV5/mutations/ponytail/ts/snapshot.json",
+      "targetPatch": "/home/leon/.cache/codingSessionV5/mutations/ponytail/ts/target.patch",
+      "freshScan": {
+        "exit": 0,
+        "timedOut": false,
+        "seconds": 2.419,
+        "timeoutSeconds": 120,
+        "stdout": "/home/leon/.cache/codingSessionV5/mutations/ponytail/ts/scanTwo.stdout",
+        "stderr": "/home/leon/.cache/codingSessionV5/mutations/ponytail/ts/scanTwo.stderr"
+      },
+      "generatedManifests": 60
+    },
+    {
+      "arm": "ponytail",
+      "case": "py",
+      "source": "/home/leon/.cache/codingSessionV5/harness/runs/revisionOne/SKILL.ba68ff26239c.native.9d07b1e583f4/navigationUnseenEdgeBudget/workspace",
+      "workspace": "/home/leon/.cache/codingSessionV5/mutations/ponytail/py/project",
+      "base": "d403b16a2b68a07a11cc22679677bb2fd00dc8a4",
+      "profileSha256": "ba68ff26239c3c3b05b2a9a47ee0d9a6b93a69639a2555ec87a5d44bffaf2f0c",
+      "status": " M atlas/src/atlas/services/navigation_walk.py\n M atlas/tests/coffee_navigation.py\n M atlas/tests/snapshots/coffee/python/navigation.json\n",
+      "patchSha256": "17418dbbe9f07888013ef5ef89261d206afea0a416ecce2ba854ace66a598512",
+      "snapshot": "/home/leon/.cache/codingSessionV5/mutations/ponytail/py/snapshot.json",
+      "targetPatch": "/home/leon/.cache/codingSessionV5/mutations/ponytail/py/target.patch",
+      "freshScan": {
+        "exit": 0,
+        "timedOut": false,
+        "seconds": 15.094,
+        "timeoutSeconds": 120,
+        "stdout": "/home/leon/.cache/codingSessionV5/mutations/ponytail/py/scanTwo.stdout",
+        "stderr": "/home/leon/.cache/codingSessionV5/mutations/ponytail/py/scanTwo.stderr"
+      },
+      "generatedManifests": 348
+    }
+  ],
+  "mutants": [
+    {
+      "arm": "candidateOne",
+      "case": "ts",
+      "manifest": {
+        "id": "877d38524f85b7a6fe23960b651bc37fc3b032b00e37120b848660803a97e3ba",
+        "candidateId": "0ababbff68fef839e380c4f9fbfce9490100d6e5ab1bb86919d6bcf774500fd0",
+        "sourceHash": "2a56059cb3bb21d6fa17323bd0737cac2ae1bb319f6da55bbdb5ddf363b673e3",
+        "ruleId": "comparison.strict-not-equal-to-strict-equal",
+        "ruleVersion": 1,
+        "language": "typescript",
+        "path": "src/workspaceRepos.ts",
+        "span": {
+          "startByte": 1748,
+          "endByte": 1751,
+          "startLine": 65,
+          "startColumn": 38,
+          "endLine": 65,
+          "endColumn": 41
+        },
+        "originalText": "!==",
+        "originalBytes": "IT09",
+        "replacement": "===",
+        "replacementBytes": "PT09"
+      },
+      "relevance": "Changed physical checkout-root guard: !== to === rejects valid child roots and admits ordinary folders inheriting a parent origin. Maintained real Git fixtures should fail listWorkspaceRepos().toEqual on incorrect rows, including new checkout/symlink coverage.",
+      "expectedOutcome": "semantic assertion failure",
+      "manifestFile": "/home/leon/.cache/codingSessionV5/mutations/candidateOne/ts/selectedManifest.json",
+      "verification": {
+        "manifestIdentityVerified": true,
+        "fullHashVerified": true,
+        "spanBytesVerified": true,
+        "constructedBytesVerified": true,
+        "originalHash": "2a56059cb3bb21d6fa17323bd0737cac2ae1bb319f6da55bbdb5ddf363b673e3",
+        "mutatedHash": "060834f89c04bbcb746f05aa46cabdeb19627cebbcd16b906c334736646b9809",
+        "diff": "/home/leon/.cache/codingSessionV5/mutations/candidateOne/ts/mutant.diff"
+      },
+      "execution": {
+        "exit": 1,
+        "timedOut": false,
+        "seconds": 0.114,
+        "timeoutSeconds": 120,
+        "stdout": "/home/leon/.cache/codingSessionV5/mutations/candidateOne/ts/mutant.stdout",
+        "stderr": "/home/leon/.cache/codingSessionV5/mutations/candidateOne/ts/mutant.stderr",
+        "command": "bun test src/workspaceRepos.test.ts",
+        "cwd": "/home/leon/.cache/codingSessionV5/mutations/candidateOne/ts/project"
+      },
+      "outcome": "killed",
+      "restoration": {
+        "restoredHash": "2a56059cb3bb21d6fa17323bd0737cac2ae1bb319f6da55bbdb5ddf363b673e3",
+        "sourceHashMatches": true,
+        "entireTargetInventoryMatches": true
+      },
+      "classification": {
+        "basis": "semantic assertion failure, not syntax/type/compile failure",
+        "ownedTest": "lists only immediate checkout roots",
+        "ownedAssertion": "src/workspaceRepos.test.ts:90",
+        "observable": "expect(received).toEqual(expected): ordinary folder inherits parent origin instead of valid child row",
+        "log": "/home/leon/.cache/codingSessionV5/mutations/candidateOne/ts/mutant.stderr",
+        "tests": {
+          "passed": 1,
+          "failed": 4,
+          "skipped": 0
+        },
+        "existingCoverageAlsoKills": "requires WORKSPACE and lists only repositories with origin remotes"
+      },
+      "baseline": {
+        "exit": 0,
+        "timedOut": false,
+        "seconds": 0.114,
+        "timeoutSeconds": 120,
+        "stdout": "/home/leon/.cache/codingSessionV5/mutations/candidateOne/ts/baseline.stdout",
+        "stderr": "/home/leon/.cache/codingSessionV5/mutations/candidateOne/ts/baseline.stderr",
+        "command": "bun test src/workspaceRepos.test.ts",
+        "cwd": "/home/leon/.cache/codingSessionV5/mutations/candidateOne/ts/project",
+        "tests": {
+          "passed": 5,
+          "failed": 0,
+          "skipped": 0
+        }
+      }
+    },
+    {
+      "arm": "candidateOne",
+      "case": "py",
+      "manifest": {
+        "id": "e8b84f30ad6038f00782ce9b988b68eb67e2fd2eebdcefddcdb1d38064799974",
+        "candidateId": "0c4afe2082de00cf043ede9580487ba5bc1f4182cbccc57ad9656ecc09a26aa9",
+        "sourceHash": "1fe527bf222a6d17945a494f6736555a15840bd5b5fe4acd41370ef94d903f23",
+        "ruleId": "arithmetic.add-to-subtract",
+        "ruleVersion": 1,
+        "language": "python",
+        "path": "atlas/src/atlas/services/navigation_walk.py",
+        "span": {
+          "startByte": 1971,
+          "endByte": 1972,
+          "startLine": 46,
+          "startColumn": 123,
+          "endLine": 46,
+          "endColumn": 124
+        },
+        "originalText": "+",
+        "originalBytes": "Kw==",
+        "replacement": "-",
+        "replacementBytes": "LQ=="
+      },
+      "relevance": "Changed finite adjacency request: max_edges + 1 to max_edges - 1 underfetches distinct evidence and removes overflow lookahead. Production-indexed coffee navigation assertions should detect missing ordered edges or false completion/truncation; bounded graph tests may also reject lost evidence. Directly probes the changed expression, not unrelated arithmetic.",
+      "expectedOutcome": "semantic assertion failure",
+      "manifestFile": "/home/leon/.cache/codingSessionV5/mutations/candidateOne/py/selectedManifest.json",
+      "verification": {
+        "manifestIdentityVerified": true,
+        "fullHashVerified": true,
+        "spanBytesVerified": true,
+        "constructedBytesVerified": true,
+        "originalHash": "1fe527bf222a6d17945a494f6736555a15840bd5b5fe4acd41370ef94d903f23",
+        "mutatedHash": "219455a1162e0293b7a3f83e3ccba06502d11a723829caf1aa2d8366be32abfd",
+        "diff": "/home/leon/.cache/codingSessionV5/mutations/candidateOne/py/mutant.diff"
+      },
+      "execution": {
+        "exit": 1,
+        "timedOut": false,
+        "seconds": 40.522,
+        "timeoutSeconds": 120,
+        "stdout": "/home/leon/.cache/codingSessionV5/mutations/candidateOne/py/mutant.stdout",
+        "stderr": "/home/leon/.cache/codingSessionV5/mutations/candidateOne/py/mutant.stderr",
+        "command": "export PYTHONPATH=\"$PWD/atlas/src:$PWD/atlas\" TREE_SITTER_LANGUAGE_PACK_LIBS_DIR=/home/leon/.cache/tree-sitter-language-pack/v1.20.0/libs; cd atlas && /home/leon/workspace/projects/atlas/atlas/.venv/bin/python -B -m pytest -v -p no:cacheprovider --tb=short tests/test_graph_navigation.py tests/test_coffee_navigation_snapshots.py",
+        "cwd": "/home/leon/.cache/codingSessionV5/mutations/candidateOne/py/project"
+      },
+      "outcome": "killed",
+      "restoration": {
+        "restoredHash": "1fe527bf222a6d17945a494f6736555a15840bd5b5fe4acd41370ef94d903f23",
+        "sourceHashMatches": true,
+        "entireTargetInventoryMatches": true
+      },
+      "classification": {
+        "basis": "semantic assertion failure, not syntax/type/compile failure",
+        "ownedTest": "test_coffee_navigation_matches_snapshot[python]",
+        "ownedAssertion": "tests/coffee_navigation.py:308",
+        "observable": "inheritance_budget(1): len(context[\"edges\"]) == budget and path evidence equality",
+        "log": "/home/leon/.cache/codingSessionV5/mutations/candidateOne/py/mutant.stdout",
+        "tests": {
+          "passed": 57,
+          "failed": 2,
+          "skipped": 0
+        },
+        "existingCoverageAlsoKills": "test_context_cutoffs[maxEdges]: assert payload[\"truncated\"] is False"
+      },
+      "baseline": {
+        "exit": 0,
+        "timedOut": false,
+        "seconds": 40.675,
+        "timeoutSeconds": 120,
+        "stdout": "/home/leon/.cache/codingSessionV5/mutations/candidateOne/py/baseline.stdout",
+        "stderr": "/home/leon/.cache/codingSessionV5/mutations/candidateOne/py/baseline.stderr",
+        "command": "export PYTHONPATH=\"$PWD/atlas/src:$PWD/atlas\" TREE_SITTER_LANGUAGE_PACK_LIBS_DIR=/home/leon/.cache/tree-sitter-language-pack/v1.20.0/libs; cd atlas && /home/leon/workspace/projects/atlas/atlas/.venv/bin/python -B -m pytest -v -p no:cacheprovider --tb=short tests/test_graph_navigation.py tests/test_coffee_navigation_snapshots.py",
+        "cwd": "/home/leon/.cache/codingSessionV5/mutations/candidateOne/py/project",
+        "tests": {
+          "passed": 59,
+          "failed": 0,
+          "skipped": 0
+        }
+      }
+    },
+    {
+      "arm": "ponytail",
+      "case": "ts",
+      "manifest": {
+        "id": "eff0357360e2d72f29bbe7499e4b2d203c7a0efe211dce4c54a5d6591a294429",
+        "candidateId": "3f22f226132594aeef4e7012faea6fc06e5732763b4e9470ef10c79d8a54b936",
+        "sourceHash": "3e64155ecaf8cfd7b8fb5305fd86aadbedd41062d001beb04876212283e6cb83",
+        "ruleId": "comparison.strict-not-equal-to-strict-equal",
+        "ruleVersion": 1,
+        "language": "typescript",
+        "path": "src/workspaceRepos.ts",
+        "span": {
+          "startByte": 1760,
+          "endByte": 1763,
+          "startLine": 65,
+          "startColumn": 42,
+          "endLine": 65,
+          "endColumn": 45
+        },
+        "originalText": "!==",
+        "originalBytes": "IT09",
+        "replacement": "===",
+        "replacementBytes": "PT09"
+      },
+      "relevance": "Changed physical checkout-root guard: !== to === rejects valid child roots and admits ordinary folders inheriting a parent origin. Maintained real Git fixtures should fail listWorkspaceRepos().toEqual on incorrect rows, including new checkout/symlink coverage.",
+      "expectedOutcome": "semantic assertion failure",
+      "manifestFile": "/home/leon/.cache/codingSessionV5/mutations/ponytail/ts/selectedManifest.json",
+      "verification": {
+        "manifestIdentityVerified": true,
+        "fullHashVerified": true,
+        "spanBytesVerified": true,
+        "constructedBytesVerified": true,
+        "originalHash": "3e64155ecaf8cfd7b8fb5305fd86aadbedd41062d001beb04876212283e6cb83",
+        "mutatedHash": "207ff14abea744aaf8cc884de5a5549900fc8297ab542367dc9f5fbfaa293002",
+        "diff": "/home/leon/.cache/codingSessionV5/mutations/ponytail/ts/mutant.diff"
+      },
+      "execution": {
+        "exit": 1,
+        "timedOut": false,
+        "seconds": 0.114,
+        "timeoutSeconds": 120,
+        "stdout": "/home/leon/.cache/codingSessionV5/mutations/ponytail/ts/mutant.stdout",
+        "stderr": "/home/leon/.cache/codingSessionV5/mutations/ponytail/ts/mutant.stderr",
+        "command": "bun test src/workspaceRepos.test.ts",
+        "cwd": "/home/leon/.cache/codingSessionV5/mutations/ponytail/ts/project"
+      },
+      "outcome": "killed",
+      "restoration": {
+        "restoredHash": "3e64155ecaf8cfd7b8fb5305fd86aadbedd41062d001beb04876212283e6cb83",
+        "sourceHashMatches": true,
+        "entireTargetInventoryMatches": true
+      },
+      "classification": {
+        "basis": "semantic assertion failure, not syntax/type/compile failure",
+        "ownedTest": "lists only immediate checkout roots",
+        "ownedAssertion": "src/workspaceRepos.test.ts:96",
+        "observable": "expect(received).toEqual(expected): ordinary folder inherits parent origin instead of valid child row",
+        "log": "/home/leon/.cache/codingSessionV5/mutations/ponytail/ts/mutant.stderr",
+        "tests": {
+          "passed": 1,
+          "failed": 5,
+          "skipped": 0
+        },
+        "existingCoverageAlsoKills": "requires WORKSPACE and lists only repositories with origin remotes"
+      },
+      "baseline": {
+        "exit": 0,
+        "timedOut": false,
+        "seconds": 0.114,
+        "timeoutSeconds": 120,
+        "stdout": "/home/leon/.cache/codingSessionV5/mutations/ponytail/ts/baseline.stdout",
+        "stderr": "/home/leon/.cache/codingSessionV5/mutations/ponytail/ts/baseline.stderr",
+        "command": "bun test src/workspaceRepos.test.ts",
+        "cwd": "/home/leon/.cache/codingSessionV5/mutations/ponytail/ts/project",
+        "tests": {
+          "passed": 6,
+          "failed": 0,
+          "skipped": 0
+        }
+      }
+    },
+    {
+      "arm": "ponytail",
+      "case": "py",
+      "manifest": {
+        "id": "c76543055babdd313500194cd39de6749d141f6a35f4cf4571645a31fd77a192",
+        "candidateId": "adf49494289f5631dc17f76a84e750a5b7f5d3a8db66a899b1fe5d4962313e02",
+        "sourceHash": "c8bbd62d64b674c0a59a3127c1e4677d77bb5d200514ef4813047df8dc4bc0b2",
+        "ruleId": "arithmetic.add-to-subtract",
+        "ruleVersion": 1,
+        "language": "python",
+        "path": "atlas/src/atlas/services/navigation_walk.py",
+        "span": {
+          "startByte": 1972,
+          "endByte": 1973,
+          "startLine": 46,
+          "startColumn": 123,
+          "endLine": 46,
+          "endColumn": 124
+        },
+        "originalText": "+",
+        "originalBytes": "Kw==",
+        "replacement": "-",
+        "replacementBytes": "LQ=="
+      },
+      "relevance": "Changed finite adjacency request: max_edges + 1 to max_edges - 1 underfetches distinct evidence and removes overflow lookahead. Production-indexed coffee navigation assertions should detect missing ordered edges or false completion/truncation; bounded graph tests may also reject lost evidence. Directly probes the changed expression, not unrelated arithmetic.",
+      "expectedOutcome": "semantic assertion failure",
+      "manifestFile": "/home/leon/.cache/codingSessionV5/mutations/ponytail/py/selectedManifest.json",
+      "verification": {
+        "manifestIdentityVerified": true,
+        "fullHashVerified": true,
+        "spanBytesVerified": true,
+        "constructedBytesVerified": true,
+        "originalHash": "c8bbd62d64b674c0a59a3127c1e4677d77bb5d200514ef4813047df8dc4bc0b2",
+        "mutatedHash": "f5e52d7f99c73f9cb08c8f50424552e78fd4d9102869087b48a3f8e4a7c808ed",
+        "diff": "/home/leon/.cache/codingSessionV5/mutations/ponytail/py/mutant.diff"
+      },
+      "execution": {
+        "exit": 1,
+        "timedOut": false,
+        "seconds": 61.72,
+        "timeoutSeconds": 120,
+        "stdout": "/home/leon/.cache/codingSessionV5/mutations/ponytail/py/mutant.stdout",
+        "stderr": "/home/leon/.cache/codingSessionV5/mutations/ponytail/py/mutant.stderr",
+        "command": "export PYTHONPATH=\"$PWD/atlas/src:$PWD/atlas\" TREE_SITTER_LANGUAGE_PACK_LIBS_DIR=/home/leon/.cache/tree-sitter-language-pack/v1.20.0/libs; cd atlas && /home/leon/workspace/projects/atlas/atlas/.venv/bin/python -B -m pytest -v -p no:cacheprovider --tb=short tests/test_graph_navigation.py tests/test_coffee_navigation_snapshots.py",
+        "cwd": "/home/leon/.cache/codingSessionV5/mutations/ponytail/py/project"
+      },
+      "outcome": "killed",
+      "restoration": {
+        "restoredHash": "c8bbd62d64b674c0a59a3127c1e4677d77bb5d200514ef4813047df8dc4bc0b2",
+        "sourceHashMatches": true,
+        "entireTargetInventoryMatches": true
+      },
+      "classification": {
+        "basis": "semantic assertion failure, not syntax/type/compile failure",
+        "ownedTest": "test_coffee_navigation_matches_snapshot[python]",
+        "ownedAssertion": "tests/coffee_navigation.py:334",
+        "observable": "exact_import_budgets(): omitted[\"truncated\"] and len(omitted[\"edges\"]) == budget - 1",
+        "log": "/home/leon/.cache/codingSessionV5/mutations/ponytail/py/mutant.stdout",
+        "tests": {
+          "passed": 57,
+          "failed": 2,
+          "skipped": 0
+        },
+        "existingCoverageAlsoKills": "test_context_cutoffs[maxEdges]: assert payload[\"truncated\"] is False"
+      },
+      "baseline": {
+        "exit": 0,
+        "timedOut": false,
+        "seconds": 42.764,
+        "timeoutSeconds": 120,
+        "stdout": "/home/leon/.cache/codingSessionV5/mutations/ponytail/py/baseline.stdout",
+        "stderr": "/home/leon/.cache/codingSessionV5/mutations/ponytail/py/baseline.stderr",
+        "command": "export PYTHONPATH=\"$PWD/atlas/src:$PWD/atlas\" TREE_SITTER_LANGUAGE_PACK_LIBS_DIR=/home/leon/.cache/tree-sitter-language-pack/v1.20.0/libs; cd atlas && /home/leon/workspace/projects/atlas/atlas/.venv/bin/python -B -m pytest -v -p no:cacheprovider --tb=short tests/test_graph_navigation.py tests/test_coffee_navigation_snapshots.py",
+        "cwd": "/home/leon/.cache/codingSessionV5/mutations/ponytail/py/project",
+        "tests": {
+          "passed": 59,
+          "failed": 0,
+          "skipped": 0
+        }
+      }
+    }
+  ],
+  "candidateAccounting": {
+    "generatedManifestsAcrossFourFreshScans": 815,
+    "selected": 4,
+    "unselectedManifests": 811,
+    "additionalRecognizedRelevantNotExecuted": 2,
+    "note": "Unselected is not a test outcome or exhaustive relevance classification. Excluded test/fixture code, unrelated production operators, exit-code/result-filter comparisons and traversal list concatenation/depth/node/distance changes. No arbitrary edits substituted."
+  },
+  "additionalRelevantNotExecuted": [
+    {
+      "arm": "candidateOne",
+      "manifest": {
+        "id": "e5cdf8314b77096f6026a352c9053c47d33531eb2c8988347c5a4e718cd196cb",
+        "candidateId": "c777ffb60adf9d334295510a506fc9d59d13cdc1b4bac0696417f5f30713e926",
+        "sourceHash": "1fe527bf222a6d17945a494f6736555a15840bd5b5fe4acd41370ef94d903f23",
+        "ruleId": "comparison.greater-equal-to-greater",
+        "ruleVersion": 1,
+        "language": "python",
+        "path": "atlas/src/atlas/services/navigation_walk.py",
+        "span": {
+          "startByte": 2115,
+          "endByte": 2117,
+          "startLine": 50,
+          "startColumn": 37,
+          "endLine": 50,
+          "endColumn": 39
+        },
+        "originalText": ">=",
+        "originalBytes": "Pj0=",
+        "replacement": ">",
+        "replacementBytes": "Pg=="
+      },
+      "outcome": "skipped",
+      "reason": "Relevant maxEdges cutoff comparison; not selected because four-mutant total exhausted. Changed adjacency arithmetic received priority over this unchanged guard."
+    },
+    {
+      "arm": "ponytail",
+      "manifest": {
+        "id": "14b0fac0f697e11b9c2f9253b958fc1ed757ddca05e844ea57767c2e660a7a1d",
+        "candidateId": "aab05a2fc3349f975da8122acdb87d4d5258b2278598328d23a8e5e7cbb40088",
+        "sourceHash": "c8bbd62d64b674c0a59a3127c1e4677d77bb5d200514ef4813047df8dc4bc0b2",
+        "ruleId": "comparison.greater-equal-to-greater",
+        "ruleVersion": 1,
+        "language": "python",
+        "path": "atlas/src/atlas/services/navigation_walk.py",
+        "span": {
+          "startByte": 2116,
+          "endByte": 2118,
+          "startLine": 50,
+          "startColumn": 37,
+          "endLine": 50,
+          "endColumn": 39
+        },
+        "originalText": ">=",
+        "originalBytes": "Pj0=",
+        "replacement": ">",
+        "replacementBytes": "Pg=="
+      },
+      "outcome": "skipped",
+      "reason": "Relevant maxEdges cutoff comparison; not selected because four-mutant total exhausted. Changed adjacency arithmetic received priority over this unchanged guard."
+    }
+  ],
+  "omitted": {
+    "downloadFailures": "Bash absent from catalog languages; no supported relevant candidates; no hand mutations."
+  },
+  "limits": [
+    "Only two operator sites per arm, not exhaustive fault coverage.",
+    "No full importer/dashboard/type/lint/policy/acceptance rerun; focused maintained tests only.",
+    "No repeated timing/flakiness study; elapsed times descriptive, not performance metrics.",
+    "Python failure stops each coffee scenario at its first assertion; later assertions not all reached under mutant.",
+    "No original study metrics/gates rewritten or deployment conclusion drawn."
+  ],
+  "restoration": [
+    {
+      "arm": "candidateOne",
+      "case": "ts",
+      "temporaryConfigRestored": true,
+      "disposableInventoryAndFileModesMatchOriginalTarget": true,
+      "originalWorkspaceInventoryStatusAndPatchUnchanged": true,
+      "originalEvidencePatchHashUnchanged": true
+    },
+    {
+      "arm": "candidateOne",
+      "case": "py",
+      "temporaryConfigRestored": true,
+      "disposableInventoryAndFileModesMatchOriginalTarget": true,
+      "originalWorkspaceInventoryStatusAndPatchUnchanged": true,
+      "originalEvidencePatchHashUnchanged": true
+    },
+    {
+      "arm": "ponytail",
+      "case": "ts",
+      "temporaryConfigRestored": true,
+      "disposableInventoryAndFileModesMatchOriginalTarget": true,
+      "originalWorkspaceInventoryStatusAndPatchUnchanged": true,
+      "originalEvidencePatchHashUnchanged": true
+    },
+    {
+      "arm": "ponytail",
+      "case": "py",
+      "temporaryConfigRestored": true,
+      "disposableInventoryAndFileModesMatchOriginalTarget": true,
+      "originalWorkspaceInventoryStatusAndPatchUnchanged": true,
+      "originalEvidencePatchHashUnchanged": true
+    }
+  ],
+  "evidenceRoot": "/home/leon/.cache/codingSessionV5/mutations"
+}

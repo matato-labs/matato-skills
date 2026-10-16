@@ -1,0 +1,26 @@
+{
+  "note": "Concurrent external repository/toolchain changes observed; frozen task commits and perrun Pi invocation evidence retained. No resets or restoration of external changes.",
+  "repositories": {
+    "matato-pi": {
+      "currentHead": "0ead6bdcec3f53342b3ccb5718e3b2824ba86df1",
+      "trackedDiffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "status": "?? extras/codingSessionV5/\n"
+    },
+    "atlas": {
+      "currentHead": "d403b16a2b68a07a11cc22679677bb2fd00dc8a4",
+      "trackedDiffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "status": ""
+    },
+    "dotfiles": {
+      "currentHead": "a372e3293f2efad088b7719a693127042d26a1af",
+      "trackedDiffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "status": ""
+    }
+  },
+  "tools": {
+    "node": "v26.12.0",
+    "bun": "1.4.3",
+    "pi": "1.2.0"
+  },
+  "liveSkillSha256": "6efa072c53b7e83aae7a17f4f60a45efd113cd8dc927c1c1ebf815ec3cd25643"
+}

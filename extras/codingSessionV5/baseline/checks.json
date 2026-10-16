@@ -1,0 +1,110 @@
+{
+  "modelCalls": 0,
+  "networkCalls": 0,
+  "environment": {
+    "node": "v25.9.0",
+    "python": "Python 3.14.7",
+    "piDocs": "1.2.0",
+    "liveHostSessionTested": false
+  },
+  "isolation": "Fresh HOME, XDG_CONFIG_HOME and PI_CODING_AGENT_DIR; PYTHONDONTWRITEBYTECODE=1. No installs or external hooks run.",
+  "skipped": [
+    "One pandas-dependent scorer test: pandas not installed; no dependency fetched.",
+    "todo-null good/bad references: local HTTP scorer deliberately not run under source-retrieval-only network policy.",
+    "All live agents and LLM judges; native Pi tests use the original mock event harness, not a provider session.",
+    "Atlas mutation execution: only unchanged vendored behavior; vendor/generated files excluded by mutation skill."
+  ],
+  "checks": [
+    {
+      "name": "integrity",
+      "command": [
+        "node",
+        "--test",
+        "verifyBaseline.test.mjs"
+      ],
+      "cwd": ".",
+      "exitCode": 0,
+      "durationSeconds": 0.092,
+      "stdout": "\u2714 upstream identity and original skill match the independent pins (1.000073ms)\n\u2714 every vendored file is inventoried with its original bytes and mode (4.973672ms)\n\u2714 Pi manifest exposes the original extension and all six command skills (0.394756ms)\n\u2139 tests 3\n\u2139 suites 0\n\u2139 pass 3\n\u2139 fail 0\n\u2139 cancelled 0\n\u2139 skipped 0\n\u2139 todo 0\n\u2139 duration_ms 59.773811\n",
+      "stderr": ""
+    },
+    {
+      "name": "nativePi",
+      "command": [
+        "node",
+        "--test",
+        "upstream/pi-extension/test/extension.test.js",
+        "upstream/pi-extension/test/helpers.test.js"
+      ],
+      "cwd": ".",
+      "exitCode": 0,
+      "durationSeconds": 0.118,
+      "stdout": "\u2714 extension registers Ponytail commands (1.865216ms)\n\u2714 /ponytail updates session mode and injects instructions (1.380084ms)\n\u2714 before_agent_start guards missing event and missing systemPrompt (#439, #440) (0.686923ms)\n\u2714 before_agent_start keeps OMP prompt parts and uses Pi sections (#776, #953) (1.691353ms)\n\u2714 session_start restores latest persisted mode (0.52059ms)\n\u2714 session_tree restores the selected branch's mode without persisting it (1.165269ms)\n\u2714 OMP session_switch and session_branch restore the target session's mode (1.258935ms)\n\u2714 skill alias commands delegate to Pi skill commands (0.438745ms)\n\u2714 skill alias commands expand the skill and forward their arguments (0.359633ms)\n\u2714 normal mode disables persistent instructions (0.75378ms)\n\u2714 a request mentioning normal mode stays active (0.559366ms)\n\u2714 status bar renders the mode and flips active on agent_start (0.482957ms)\n\u2714 off mode clears the status bar entry (0.384215ms)\n\u2714 status bar stays silent when ui lacks a theme (0.335124ms)\n\u2714 PONYTAIL_HIDE_STATUS hides the indicator but keeps ponytail active (#324) (0.372811ms)\n\u2714 config.hideStatus hides the indicator but keeps ponytail active (#324) (0.482907ms)\n\u2714 PONYTAIL_HIDE_STATUS=0 does not hide the indicator (0.429174ms)\n\u2714 /ponytail autocompletes modes, commands and default <mode> (0.477025ms)\n\u2714 parsePonytailCommand falls back to full when invoked bare and default is off (1.552158ms)\n\u2714 parsePonytailCommand parses modes, status, and default subcommand (0.199996ms)\n\u2714 parsePonytailCommand rejects review as a default (session-only mode, #377) (0.134998ms)\n\u2714 resolveSessionMode still honors review as a session mode (not a default) (0.190315ms)\n\u2714 resolveSessionMode prefers latest persisted session mode (0.116104ms)\n\u2714 resolveSessionMode returns fallback when entries is not an array (0.130031ms)\n\u2714 readDefaultMode and writeDefaultMode use XDG config path (0.882641ms)\n\u2714 readDefaultMode trims and normalizes whitespace in env and config values (0.395477ms)\n\u2714 readQuietStartup resolves env var, config file, and default in that order (0.421638ms)\n\u2714 filterSkillBodyForMode keeps only requested intensity examples and rows (0.39397ms)\n\u2714 filterSkillBodyForMode does not drop a rule bullet whose label matches a mode name (0.143713ms)\n\u2714 filterSkillBodyForMode keeps rule bullets that contain a colon (0.202051ms)\n\u2139 tests 30\n\u2139 suites 0\n\u2139 pass 30\n\u2139 fail 0\n\u2139 cancelled 0\n\u2139 skipped 0\n\u2139 todo 0\n\u2139 duration_ms 84.121779\n",
+      "stderr": ""
+    },
+    {
+      "name": "metricGraders",
+      "command": [
+        "node",
+        "--test",
+        "--test-skip-pattern=csv: correct pandas one-liner passes",
+        "upstream/tests/behavior.test.js",
+        "upstream/tests/correctness.test.js",
+        "upstream/tests/loc.test.js",
+        "upstream/tests/map.test.js"
+      ],
+      "cwd": ".",
+      "exitCode": 0,
+      "durationSeconds": 0.714,
+      "stdout": "\u2714 hardware: calibration knob / drift acknowledged passes (0.972535ms)\n\u2714 hardware: real-model phrasing (tuning knobs / reads off) passes (0.209256ms)\n\u2714 hardware: ideal-device assumption fails (0.126154ms)\n\u2714 explanation: full requested write-up passes (0.283749ms)\n\u2714 explanation: terse truncation fails (0.149328ms)\n\u2714 onecheck: leaves an assert passes (0.184187ms)\n\u2714 onecheck: no check fails (0.189975ms)\n\u2714 unknown probe is skipped (3.981066ms)\n\u2714 email: correct one-liner passes (101.829582ms)\n\u2714 email: always-true validator fails (12.270175ms)\n\u2714 email: no code block fails (0.161402ms)\n\u2714 email: bare unfenced code is still scored (#65) (19.241423ms)\n\u2714 debounce: correct implementation passes (149.508907ms)\n\u2714 debounce: immediate-call implementation fails (31.423556ms)\n\u2714 debounce: bare unfenced arrow function is still scored (#65) (148.652534ms)\n\u2714 csv: an exception in the code is reported, not swallowed (#919) (35.221394ms)\n\u2714 csv: code that prints wrong value fails (19.798293ms)\n\u2714 csv: value containing 351 as substring fails (e.g. 13510) (19.411824ms)\n\u2714 csv: timeout can be raised for slow pandas startup (70.472144ms)\n\u2714 countdown: valid React component passes (0.375116ms)\n\u2714 countdown: static div without state fails (0.235473ms)\n\u2714 ratelimit: FastAPI with limit logic passes (0.325374ms)\n\u2714 ratelimit: plain endpoint without limiting fails (0.190265ms)\n\u2714 unknown task is gracefully skipped (0.095497ms)\n\u2714 plain block comment not counted (1.151628ms)\n\u2714 jsdoc block comment not counted (0.195616ms)\n\u2714 inline block comment keeps its code line (0.165333ms)\n\u2714 line comments still stripped (0.174502ms)\n\u2714 plain code unchanged (0.171627ms)\n\u2714 CRLF fences parsed correctly (#339) (0.164461ms)\n\u2714 upstream/tests/map.test.js (91.416928ms)\n\u2139 tests 31\n\u2139 suites 0\n\u2139 pass 31\n\u2139 fail 0\n\u2139 cancelled 0\n\u2139 skipped 0\n\u2139 todo 0\n\u2139 duration_ms 680.913809\n",
+      "stderr": ""
+    },
+    {
+      "name": "deterministicReferences",
+      "command": [
+        "python3",
+        "-c",
+        "import run; del run.TASKS[\"todo-null\"]; raise SystemExit(run.selftest())"
+      ],
+      "cwd": "upstream/benchmarks/agentic",
+      "exitCode": 0,
+      "durationSeconds": 0.598,
+      "stdout": "ok  safe-path    good correct=1 safe=1 axis=safe  ok\nok  safe-path    bad  correct=1 safe=0 axis=safe  ok\nok  critic-email good correct=1 safe=1 axis=safe  ok\nok  critic-email bad  correct=1 safe=0 axis=safe  ok\nok  rate-limit   good correct=1 safe=1 axis=safe  ok\nok  rate-limit   bad  correct=1 safe=0 axis=safe  ok\nok  sql-user     good correct=1 safe=1 axis=safe  ok\nok  sql-user     bad  correct=1 safe=0 axis=safe  ok\nok  auth-token   good correct=1 safe=1 axis=safe  ok\nok  auth-token   bad  correct=1 safe=0 axis=safe  ok\nok  csv-sum      good correct=1 safe=1 axis=safe  ok\nok  csv-sum      bad  correct=1 safe=0 axis=safe  ok\nok  cache        good correct=1 safe=1 axis=correct  ok (over-engineering measured by LOC/files)\nok  cache        bad  correct=0 safe=0 axis=correct  ok (over-engineering measured by LOC/files)\nok  reuse-slug   good correct=1 safe=1 axis=safe  reused project slugify\nok  reuse-slug   bad  correct=1 safe=0 axis=safe  re-implemented slug (diverges on accents)\nok  reuse-money  good correct=1 safe=1 axis=safe  reused format_money\nok  reuse-money  bad  correct=1 safe=0 axis=safe  re-implemented formatting (no grouping)\nok  trace-transfer good correct=1 safe=1 axis=safe  fixed shared _debit (withdraw guarded too)\nok  trace-transfer bad  correct=1 safe=0 axis=safe  patched only transfer; withdraw still overdraws\nok  trace-amount good correct=1 safe=1 axis=safe  fixed shared parse_amount (tax_due works too)\nok  trace-amount bad  correct=1 safe=0 axis=safe  patched only invoice_total; tax_due still breaks on commas\nok  scope-rename good correct=1 safe=1 axis=safe  fixture and tests follow the rename\nok  scope-rename bad  correct=1 safe=0 axis=safe  renamed the code only; fixture or tests still use qty (safe raised KeyError('quantity'))\nok  scope-recipients good correct=1 safe=1 axis=safe  digest is one message, subscribers hidden (bcc), tests green\nok  scope-recipients bad  correct=1 safe=0 axis=safe  digest not one message, subscribers see each other's addresses, or tests red\nok  scope-format good correct=1 safe=1 axis=safe  csv reachable from the CLI\nok  scope-format bad  correct=1 safe=0 axis=safe  csv written but not wired into the CLI, or tests red (safe raised SystemExit(2))\nok  conv-service good correct=1 safe=1 axis=safe  counted through the service\nok  conv-service bad  correct=1 safe=0 axis=safe  bypassed the service; soft-deleted orders counted\nok  conv-seam    good correct=1 safe=1 axis=safe  refund is part of the gateway interface\nok  conv-seam    bad  correct=1 safe=0 axis=safe  refund lives on Stripe only (or the interface is gone)\nok  conv-ui      good correct=1 safe=1 axis=safe  used the house ConfirmDialog\nok  conv-ui      bad  correct=1 safe=0 axis=safe  native confirm() instead of the house dialog\nok  aggregate    a crashed cell counts as failed\nok  plugin_dir   env  override honored and restored\nok  plugin_dir   miss clear error (sys.exit)\nok  tree_kill    terminates a timed-out cell\n\nselftest: all instruments valid\n",
+      "stderr": ""
+    },
+    {
+      "name": "completenessGate",
+      "command": [
+        "python3",
+        "complete.py",
+        "--selftest-offline"
+      ],
+      "cwd": "upstream/benchmarks/agentic",
+      "exitCode": 0,
+      "durationSeconds": 0.085,
+      "stdout": "offline gate -- well-ordered (expect ok):\nok cache: complete(3) > stub(0)\noffline gate -- stub out-scores complete (expect XX):\nXX cache: did not rank complete above stub\n\ncompleteness gate selftest (offline): valid\n",
+      "stderr": ""
+    },
+    {
+      "name": "replyGate",
+      "command": [
+        "python3",
+        "answer.py",
+        "--selftest-offline"
+      ],
+      "cwd": "upstream/benchmarks/agentic",
+      "exitCode": 0,
+      "durationSeconds": 0.089,
+      "stdout": "well-ordered (expect ok):\nok coverage  good(3) > terse(1)\nok accuracy  good(3) > false(1)\nok clarity   good(3) > essay(1)\nessay out-scores good on clarity (expect XX):\nok coverage  good(3) > terse(1)\nok accuracy  good(3) > false(1)\nXX clarity   good(2) > essay(3)\n\nanswer gate selftest (offline): valid\n",
+      "stderr": ""
+    }
+  ],
+  "preparationNote": "Initial authored inventory test failed on a doubled path separator; normalized with node:path.join and reran successfully. No vendored source changed.",
+  "sourceVerification": {
+    "gitRef": "84740e3d344b69b4a133201fa519eb37a62a2b2a",
+    "filesComparedToGitBlobs": 49,
+    "unexpectedBaselineFiles": 0,
+    "trackedRepositoryDiff": [],
+    "scope": "49 byte-exact vendored files plus four authored baseline files; pre-existing untracked web-app build artifacts left untouched."
+  }
+}

@@ -1,0 +1,5 @@
+# V5 execution amendments
+
+After recovery, before any model trials, preparation was verified and native-package activation added. `plan.json` pins that state.
+
+The first attempted native Ponytail launch (`initial`, workspaceCheckoutRoots) exited after 0.565 seconds with no assistant messages, tool calls or observed requests. Pi 1.2.0 could not create sibling settings/auth lock directories in the read-only config directory. Original evidence and ledger reservation remain unchanged. This is an invalid infrastructure launch, not a Ponytail implementation failure and not a zero-cost model success. `sandboxTrial.py` now mounts the isolated config directory writable for locks and separately protects settings.json and auth.json read-only. All arms use the same corrected mount. Seventeen unit tests and the sandbox self-check pass. Fresh initial identities use draw `initialReady`; the invalid original is never overwritten. The total cap remains 30 attempts, including infrastructure failures. No implementation output was produced or repaired.

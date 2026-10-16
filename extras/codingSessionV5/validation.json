@@ -1,0 +1,209 @@
+{
+  "status": "validatedWithInheritedAtlasFailures",
+  "researchSourceChecks": [
+    {
+      "label": "harnessUnit",
+      "argv": [
+        "python3",
+        "/home/leon/workspace/projects/matato-pi/extras/codingSessionV5/scripts/unitTests.py"
+      ],
+      "cwd": "/home/leon/workspace/projects/matato-pi",
+      "exit": 0,
+      "seconds": 3.123,
+      "log": "/home/leon/.cache/codingSessionV5/finalValidation/harnessUnit.log",
+      "sha256": "37acebd0951e52d7836be40d262e3dbcb542579b657a9fce0e9463b67a35eb7f"
+    },
+    {
+      "label": "summaryUnit",
+      "argv": [
+        "python3",
+        "/home/leon/workspace/projects/matato-pi/extras/codingSessionV5/scripts/summaryTests.py"
+      ],
+      "cwd": "/home/leon/workspace/projects/matato-pi",
+      "exit": 0,
+      "seconds": 0.215,
+      "log": "/home/leon/.cache/codingSessionV5/finalValidation/summaryUnit.log",
+      "sha256": "787b86692746825cec814b598d347290c29dbe02b588cd5d024c2987b135b3f9"
+    },
+    {
+      "label": "harnessIsolation",
+      "argv": [
+        "python3",
+        "/home/leon/workspace/projects/matato-pi/extras/codingSessionV5/scripts/selfCheck.py"
+      ],
+      "cwd": "/home/leon/workspace/projects/matato-pi",
+      "exit": 0,
+      "seconds": 3.824,
+      "log": "/home/leon/.cache/codingSessionV5/finalValidation/harnessIsolation.log",
+      "sha256": "ce4d701ace8f87088d84b37a4e831aa9005671a5a5692e3eb2e4a9c1a6ffaed3"
+    },
+    {
+      "label": "upstreamNative",
+      "argv": [
+        "node",
+        "--test",
+        "/home/leon/workspace/projects/matato-pi/extras/codingSessionV5/baseline/verifyBaseline.test.mjs",
+        "/home/leon/workspace/projects/matato-pi/extras/codingSessionV5/baseline/upstream/pi-extension/test/extension.test.js",
+        "/home/leon/workspace/projects/matato-pi/extras/codingSessionV5/baseline/upstream/pi-extension/test/helpers.test.js"
+      ],
+      "cwd": "/home/leon/workspace/projects/matato-pi",
+      "exit": 0,
+      "seconds": 0.164,
+      "log": "/home/leon/.cache/codingSessionV5/finalValidation/upstreamNative.log",
+      "sha256": "a535efcac36414ed0970807bddc558581571c31e2715b6e2c340f4705768c4bc"
+    }
+  ],
+  "rootChecks": [
+    {
+      "label": "originalWholeAtlas",
+      "command": "PYTHONPATH=\"/home/leon/.t3/worktrees/atlas/t3-969945f4/atlas/src\" TREE_SITTER_LANGUAGE_PACK_LIBS_DIR=/home/leon/.cache/tree-sitter-language-pack/v1.20.0/libs \"/home/leon/.t3/worktrees/atlas/t3-969945f4/atlas/.venv/bin/python\" -B -m atlas check --f .",
+      "cwd": "/home/leon/.cache/codingSessionV5/finalValidation/app/workspace",
+      "exit": 127,
+      "timedOut": false,
+      "seconds": 0.008,
+      "stdout": "/home/leon/.cache/codingSessionV5/finalValidation/app/evidence/originalWholeAtlas.stdout",
+      "stderr": "/home/leon/.cache/codingSessionV5/finalValidation/app/evidence/originalWholeAtlas.stderr"
+    },
+    {
+      "label": "bunTests",
+      "command": "bun --no-env-file test",
+      "cwd": "/home/leon/.cache/codingSessionV5/finalValidation/app/workspace",
+      "exit": 0,
+      "timedOut": false,
+      "seconds": 11.345,
+      "stdout": "/home/leon/.cache/codingSessionV5/finalValidation/app/evidence/bunTests.stdout",
+      "stderr": "/home/leon/.cache/codingSessionV5/finalValidation/app/evidence/bunTests.stderr"
+    },
+    {
+      "label": "typecheck",
+      "command": "bun --no-env-file run check",
+      "cwd": "/home/leon/.cache/codingSessionV5/finalValidation/app/workspace",
+      "exit": 0,
+      "timedOut": false,
+      "seconds": 4.272,
+      "stdout": "/home/leon/.cache/codingSessionV5/finalValidation/app/evidence/typecheck.stdout",
+      "stderr": "/home/leon/.cache/codingSessionV5/finalValidation/app/evidence/typecheck.stderr"
+    },
+    {
+      "label": "lint",
+      "command": "bun --no-env-file run lint",
+      "cwd": "/home/leon/.cache/codingSessionV5/finalValidation/app/workspace",
+      "exit": 0,
+      "timedOut": false,
+      "seconds": 1.867,
+      "stdout": "/home/leon/.cache/codingSessionV5/finalValidation/app/evidence/lint.stdout",
+      "stderr": "/home/leon/.cache/codingSessionV5/finalValidation/app/evidence/lint.stderr"
+    },
+    {
+      "label": "wholeAtlas",
+      "command": "PYTHONPATH=\"/home/leon/.t3/worktrees/atlas/t3-969945f4/atlas/src\" TREE_SITTER_LANGUAGE_PACK_LIBS_DIR=/home/leon/.cache/tree-sitter-language-pack/v1.20.0/libs \"/home/leon/.t3/worktrees/atlas/t3-969945f4/atlas/.venv/bin/python\" -B -m atlas check --f .",
+      "cwd": "/home/leon/.cache/codingSessionV5/finalValidation/app/workspace",
+      "exit": 127,
+      "timedOut": false,
+      "seconds": 0.008,
+      "stdout": "/home/leon/.cache/codingSessionV5/finalValidation/app/evidence/wholeAtlas.stdout",
+      "stderr": "/home/leon/.cache/codingSessionV5/finalValidation/app/evidence/wholeAtlas.stderr"
+    },
+    {
+      "label": "diffCheck",
+      "command": "git diff --check",
+      "cwd": "/home/leon/.cache/codingSessionV5/finalValidation/app/workspace",
+      "exit": 0,
+      "timedOut": false,
+      "seconds": 0.114,
+      "stdout": "/home/leon/.cache/codingSessionV5/finalValidation/app/evidence/diffCheck.stdout",
+      "stderr": "/home/leon/.cache/codingSessionV5/finalValidation/app/evidence/diffCheck.stderr"
+    },
+    {
+      "label": "originalWholeAtlasReady",
+      "command": "PYTHONPATH=\"/home/leon/.t3/worktrees/atlas/t3-969945f4/atlas/src\" TREE_SITTER_LANGUAGE_PACK_LIBS_DIR=/home/leon/.cache/tree-sitter-language-pack/v1.20.0/libs \"/home/leon/.t3/worktrees/atlas/t3-969945f4/atlas/.venv/bin/python\" -B -m atlas check --f .",
+      "cwd": "/home/leon/.cache/codingSessionV5/finalValidation/app/workspace",
+      "exit": 127,
+      "timedOut": false,
+      "seconds": 0.008,
+      "stdout": "/home/leon/.cache/codingSessionV5/finalValidation/app/evidence/originalWholeAtlasReady.stdout",
+      "stderr": "/home/leon/.cache/codingSessionV5/finalValidation/app/evidence/originalWholeAtlasReady.stderr"
+    },
+    {
+      "label": "wholeAtlasReady",
+      "command": "PYTHONPATH=\"/home/leon/.t3/worktrees/atlas/t3-969945f4/atlas/src\" TREE_SITTER_LANGUAGE_PACK_LIBS_DIR=/home/leon/.cache/tree-sitter-language-pack/v1.20.0/libs \"/home/leon/.t3/worktrees/atlas/t3-969945f4/atlas/.venv/bin/python\" -B -m atlas check --f .",
+      "cwd": "/home/leon/.cache/codingSessionV5/finalValidation/app/workspace",
+      "exit": 127,
+      "timedOut": false,
+      "seconds": 0.008,
+      "stdout": "/home/leon/.cache/codingSessionV5/finalValidation/app/evidence/wholeAtlasReady.stdout",
+      "stderr": "/home/leon/.cache/codingSessionV5/finalValidation/app/evidence/wholeAtlasReady.stderr"
+    },
+    {
+      "label": "originalWholeAtlasMounted",
+      "command": "PYTHONPATH=\"/home/leon/.t3/worktrees/atlas/t3-969945f4/atlas/src\" TREE_SITTER_LANGUAGE_PACK_LIBS_DIR=/home/leon/.cache/tree-sitter-language-pack/v1.20.0/libs \"/home/leon/.t3/worktrees/atlas/t3-969945f4/atlas/.venv/bin/python\" -B -m atlas check --f .",
+      "cwd": "/home/leon/.cache/codingSessionV5/finalValidation/app/workspace",
+      "exit": 1,
+      "timedOut": false,
+      "seconds": 1.868,
+      "stdout": "/home/leon/.cache/codingSessionV5/finalValidation/app/evidence/originalWholeAtlasMounted.stdout",
+      "stderr": "/home/leon/.cache/codingSessionV5/finalValidation/app/evidence/originalWholeAtlasMounted.stderr"
+    },
+    {
+      "label": "wholeAtlasMounted",
+      "command": "PYTHONPATH=\"/home/leon/.t3/worktrees/atlas/t3-969945f4/atlas/src\" TREE_SITTER_LANGUAGE_PACK_LIBS_DIR=/home/leon/.cache/tree-sitter-language-pack/v1.20.0/libs \"/home/leon/.t3/worktrees/atlas/t3-969945f4/atlas/.venv/bin/python\" -B -m atlas check --f .",
+      "cwd": "/home/leon/.cache/codingSessionV5/finalValidation/app/workspace",
+      "exit": 1,
+      "timedOut": false,
+      "seconds": 3.221,
+      "stdout": "/home/leon/.cache/codingSessionV5/finalValidation/app/evidence/wholeAtlasMounted.stdout",
+      "stderr": "/home/leon/.cache/codingSessionV5/finalValidation/app/evidence/wholeAtlasMounted.stderr"
+    }
+  ],
+  "objective": "NOT MET",
+  "liveSkillChanged": false,
+  "finalRepositoryHead": "0ead6bdcec3f53342b3ccb5718e3b2824ba86df1",
+  "rootVerificationBoundary": "Independent clone at current user HEAD plus exact final untracked V5 archive-only subtree; read-only original/dependencies; network-unshared; no auth/providers/services; no dotenv loading.",
+  "validationSourceSnapshot": "/home/leon/.cache/codingSessionV5/finalValidation/sourceSnapshot",
+  "validationAmendments": [
+    "Initial Atlas invocations exit127: .venv/bin/python targets the generic CPython directory symlink whose alias was not mounted. An added venv mount alone did not fix it; both failed pairs remain. Final original/final checks bind the resolved interpreter AND its generic directory alias read-only, same command and source. No app source repaired."
+  ],
+  "rootSummary": {
+    "bunTests": {
+      "exit": 0,
+      "passed": 111,
+      "failed": 0
+    },
+    "typecheck": {
+      "exit": 0
+    },
+    "lint": {
+      "exit": 0
+    },
+    "diffCheck": {
+      "exit": 0
+    },
+    "wholeAtlas": {
+      "exit": 1,
+      "baselineExit": 1,
+      "diagnostics": 25,
+      "baselineDiagnostics": 25,
+      "exactReportEqualsOriginal": true,
+      "newDiagnostics": 0,
+      "note": "Required whole-project check executed. Inherited diagnostics preserved; not claimed passing."
+    }
+  },
+  "postCommandInspectionNote": "Atlas outputs Markdown by default. A parent display-only JSON parse failed after command results were safely recorded; comparison then used exact complete text, not rerun or repair.",
+  "archiveSourceChecks": "All 112 source and 2819 public evidence members independently audited; 26 result identities match ledger.",
+  "packageAuditB1Resolved": true,
+  "sourceArchiveOnlyLayout": true,
+  "privateCredentialCopiesRemoved": 26,
+  "validationArchive": {
+    "path": "archives/validation.tar.gz",
+    "sha256": "0a8daf5fa46cfb1f1a082e2c6c58a42a92089d49cf7c40e8d1b6a601ceb7622f",
+    "members": 43
+  },
+  "liveSkillSha256": "6efa072c53b7e83aae7a17f4f60a45efd113cd8dc927c1c1ebf815ec3cd25643",
+  "frozenSourceSnapshotRetained": "Owned research cache, no credentials; source archive authoritative.",
+  "remainingLimits": [
+    "Strict all-metric goal NOT MET; no deployment.",
+    "Whole-project Atlas check exit1 has exactly25 inherited diagnostics, no new diagnostics.",
+    "Experimental full Atlas importer/dashboard closure incomplete; invalid model generations remain invalid.",
+    "Standalone/native source checks and root current-HEAD app checks are distinct evidence."
+  ]
+}

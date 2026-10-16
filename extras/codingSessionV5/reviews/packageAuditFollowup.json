@@ -1,0 +1,9 @@
+{
+  "originalAudit": "reviews/packageAudit.json",
+  "blockingObjection": "B1 replay.md stale metadata",
+  "resolution": "Updated retained hash and size only; source/evidence archives unchanged. All 27 retained entries reverified.",
+  "resolved": true,
+  "replaySha256": "118f9a177ff857420129841e825be0c9c749b4acd510a4ced779b42333b5b465",
+  "rootValidation": "validation.json",
+  "publication": "Local only; no push/PR/deployment."
+}

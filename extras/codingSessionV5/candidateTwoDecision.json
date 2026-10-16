@@ -1,0 +1,25 @@
+{
+  "revision": 2,
+  "profile": "profiles/candidateTwo.md",
+  "sha256": "da4417ae2056ad54ea7a4e287d71f5ac0e5386b3c064f877a5df3dbdc58485d9",
+  "bytes": 3775,
+  "frozenBeforeHoldout": true,
+  "basis": "RevisionOne passes relevant behavior and required Python policy, but extra searches/checks create resource tradeoffs; independent reviews verify original-catching regressions and baseline quality failures. Four mutation comparisons tie.",
+  "hypothesis": "Replace repeated bullet imperatives with six explicit ordered stages. Bound search/output, use prepared toolchain, account long check coverage, verify owned regressions and apply limits to all helpers. Preserve Ponytail persona/native mechanism and smallest-complete ordered facilities. Composite last revision; no single-clause causal claim.",
+  "comparison": "Fresh candidateTwo and exact Ponytail once per development task, no retry/repair. Then candidateTwo locked regardless of results for two paired holdout repetitions. No tuning after holdout.",
+  "orders": {
+    "workspaceRoots": [
+      "ponytail",
+      "candidateTwo"
+    ],
+    "unseenEdges": [
+      "candidateTwo",
+      "ponytail"
+    ],
+    "downloadFailures": [
+      "ponytail",
+      "candidateTwo"
+    ]
+  },
+  "gate": "Original plan unchanged. Ties are not strict wins; invalid or quality regressions block superiority. All required incomplete checks disclosed."
+}

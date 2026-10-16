@@ -1,0 +1,25 @@
+{
+  "revision": 1,
+  "profile": "profiles/candidateOne.md",
+  "sha256": "7f02836af76a1594bf8e22fcdbc951915998b77d30d7e86e304072dab5809a47",
+  "bytes": 4152,
+  "frozenBeforeHoldout": true,
+  "basis": "Initial independent review: Python all arms timeout after restarting/broad checks; maintained regression helpers violate required Atlas limits. All development behaviors pass. Narrative presentation alone inconsistent, no causal win.",
+  "hypothesis": "Preserve Ponytail procedural/persona/native machinery; make check planning/deadline, regression seam/quality and owning-expression precedence explicit. Composite change, not isolated per-clause effect.",
+  "comparison": "Fresh candidate and exact Ponytail once each on all three frozen development tasks. Preserve original caps and all attempts.",
+  "orders": {
+    "workspaceRoots": [
+      "candidateOne",
+      "ponytail"
+    ],
+    "unseenEdges": [
+      "ponytail",
+      "candidateOne"
+    ],
+    "downloadFailures": [
+      "candidateOne",
+      "ponytail"
+    ]
+  },
+  "metrics": "Original plan gates unchanged; no code-size win compensates quality failure."
+}

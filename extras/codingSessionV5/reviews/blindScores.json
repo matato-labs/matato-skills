@@ -1,0 +1,332 @@
+{
+  "reviewType": "Independent same-model blind qualitative V5 review",
+  "reviewStatus": "Complete",
+  "scope": {
+    "inputs": "/home/leon/.cache/codingSessionV5/blind/catalog.json and exactly its 16 listed cell JSON files",
+    "method": "Read frozen tasks, status/check exits, retained code/test patches and last assistant text. No commands, tests, implementation, additional model calls or other input files.",
+    "comparison": "Not an equivalence assessment against the upstream original Sonnet judge. No profile attribution or persona/style preference.",
+    "interpretation": "One grader, not statistical proof, a model ranking or an all-metric victory. Ties are intentional where evidence supports equivalent scores."
+  },
+  "calibration": {
+    "task": "Clamp integer to 0..10",
+    "actualDiff": "return max(0,min(10,value))",
+    "testsChanged": false,
+    "scores": [
+      {
+        "control": "accurate",
+        "reply": "Clamped values to 0–10. No tests run; behavior outside integer inputs is unverified.",
+        "accuracy": 3,
+        "coverage": 3,
+        "clarity": 3,
+        "evidence": "Correct clamp description, no invented validation or tests, explicit verification boundary, concise wording."
+      },
+      {
+        "control": "false",
+        "reply": "Added input validation and comprehensive tests; all checks pass.",
+        "accuracy": 0,
+        "coverage": 0,
+        "clarity": 3,
+        "evidence": "Validation, comprehensive tests and passing checks are not established by the control. The sentence is readable but provides no truthful task coverage."
+      },
+      {
+        "control": "incomplete",
+        "reply": "Done.",
+        "accuracy": 2,
+        "coverage": 0,
+        "clarity": 2,
+        "evidence": "No explicit false technical claim, but completion is unqualified and neither change nor verification is explained."
+      },
+      {
+        "control": "verbose",
+        "replyDescription": "250 words repeating accurate facts, as stipulated; no full reply supplied",
+        "accuracy": 3,
+        "coverage": 3,
+        "clarity": 0,
+        "evidence": "Stipulated accurate facts cover the task, but extensive repetition obstructs a simple result."
+      }
+    ],
+    "gate": {
+      "accurateAccuracyGreaterThanFalse": true,
+      "accurateCoverageGreaterThanIncomplete": true,
+      "accurateClarityGreaterThanVerbose": true,
+      "passed": true
+    },
+    "savedBeforeCellReview": true,
+    "sequenceEvidence": "Initial blindScores.json containing the control scores and passing gate was written after catalog reading and before reading any cell."
+  },
+  "rubric": {
+    "overengineering": {
+      "direction": "Lower is better; score added constructs, not raw test size",
+      "0": "Small owner-local solution; abstractions and regression coverage have a task-specific purpose",
+      "1": "Minor avoidable indirection or local duplication beyond task needs",
+      "2": "Substantial unnecessary machinery or scope expansion",
+      "3": "Redesign or pervasive unrelated machinery"
+    },
+    "completeness": {
+      "direction": "Higher is better; execution status and behavior are distinct",
+      "0": "No meaningful implementation or fundamentally wrong behavior",
+      "1": "Partial implementation with major missing or failing behavior",
+      "2": "Substantial behavior supported, but delivery is unfinished or a material requirement remains unresolved",
+      "3": "Completed bounded implementation, maintained relevant regressions and passing supplied checks, subject to evidence limits"
+    },
+    "replyAccuracy": {
+      "0": "Central claims contradicted or fabricated",
+      "1": "Material misleading claims with some correct facts",
+      "2": "Mostly consistent, but materially ambiguous or overstated",
+      "3": "Specific substantive claims consistent with visible evidence; no detected contradiction",
+      "null": "Invalid run: no final reply exists to rate"
+    },
+    "replyCoverage": {
+      "0": "No useful truthful account of result",
+      "1": "Change or verification largely missing",
+      "2": "Useful account with a material result or verification-boundary omission",
+      "3": "Explains change, checks and relevant limitations without requiring an exhaustive task restatement",
+      "null": "Invalid run: intermediate text is not a final reply"
+    },
+    "replyClarity": {
+      "0": "Severe repetition or confusion",
+      "1": "Difficult to extract the result",
+      "2": "Understandable but materially vague or repetitive",
+      "3": "Direct, readable, proportionate result and verification account",
+      "null": "Invalid run: intermediate text is not a final reply"
+    },
+    "application": "Accuracy scores measure consistency with this record, not independent certification of every claimed command. Unverified ancillary check counts are flagged, not called false. Necessary regression coverage and honest limitations are not penalties. Formatting, persona and stylistic taste do not decide scores."
+  },
+  "cells": [
+    {
+      "id": "cell2c67dd55cc",
+      "task": "Installer failure propagation",
+      "completionStatus": "completed",
+      "checks": {"acceptance": 0, "native": 0},
+      "behaviorAssessment": "Supported by passing supplied checks and maintained isolated success/failure scenarios",
+      "overengineering": {"score": 0, "evidence": "For 'fail closed', manual_deps replaces each curl/install/rm && list with separate commands and adds 'curl -fL' / 'curl -fs'. The 'bwrap' fixture and CASE_EVENTS log serve required inert execution, not a setup redesign."},
+      "completeness": {"score": 3, "evidence": "Task requires 'both existing Linux branches' and SDKMAN failures. Both branches change; 'test_download_failures_stop_without_retry' checks nonzero exits, no chsh/SDK application, curl/install counts; 'test_successful_routes' covers arch/debian/darwin. Status completed; acceptance/native exits 0."},
+      "replyAccuracy": {"score": 3, "evidence": "'DevPod failures now stop immediately, and both downloads reject HTTP errors' matches the patch and recorded behavior. 'No retries or fallback added' matches the straight-line code. Specific extra check claims are not independently logged here."},
+      "replyCoverage": {"score": 3, "evidence": "Lists manual_deps and both owned test paths, acceptance/native/regression checks, and 'Live installation was intentionally not tested'. Covers change and relevant verification boundary."},
+      "replyClarity": {"score": 3, "evidence": "'Fixed `manual_deps`' followed by changed paths, checks and one isolation limitation makes the result easy to locate without repeated explanation."},
+      "limitations": "Unchanged shell header is not shown; fail-fast/pipefail context is supported indirectly by recorded behavior. No live or full-suite correctness certification."
+    },
+    {
+      "id": "cell5a77fca968",
+      "task": "Installer failure propagation",
+      "completionStatus": "completed",
+      "checks": {"acceptance": 0, "native": 0},
+      "behaviorAssessment": "Supported by supplied checks and owned regressions across three OS routes",
+      "overengineering": {"score": 0, "evidence": "For 'readable and small', production changes are separate 'curl -fL', 'sudo install', 'rm -f' commands and 'curl -fsS'. 'assert_stopped' and the inert command dispatcher are justified test reuse and isolation."},
+      "completeness": {"score": 3, "evidence": "Task says a failed download 'must not invoke' installation. 'test_devpod_failures' asserts install count equals int(fault == 'devpodInstall'); SDKMAN failures and three success routes are also maintained. Completed with both supplied exits 0."},
+      "replyAccuracy": {"score": 3, "evidence": "'DevPod download/install failures now stop immediately; DevPod and SDKMAN reject HTTP errors' agrees with changed commands and supplied checks. 'all execution used isolated fake commands' is consistent with bwrap/command doubles, though complete execution history is unavailable."},
+      "replyCoverage": {"score": 3, "evidence": "Names manual_deps, test_manual_deps.py and fixture_command.py, distinguishes acceptance, regression and syntax checks, and states 'Live installation intentionally not tested'."},
+      "replyClarity": {"score": 3, "evidence": "'Changed:' and 'Passed:' group a short result and verification account; the closing live-installation boundary is explicit."},
+      "limitations": "Bash fail-fast settings are outside the shown hunk. The extra lint/diff and precise acceptance-count claims lack separate logs."
+    },
+    {
+      "id": "cell60758b0de7",
+      "task": "Retired scheduler callbacks",
+      "completionStatus": "completed",
+      "checks": {"acceptance": 0, "native": 0},
+      "behaviorAssessment": "Installed-generation guard with failed-build and in-flight regressions",
+      "overengineering": {"score": 0, "evidence": "For 'existing scheduler lifecycle owner', 'let generation = Symbol()' and 'scheduleGeneration !== generation' add one identity guard. Factory/stop/resume callback tests cover the commit boundary; they are not unrelated expansion."},
+      "completeness": {"score": 3, "evidence": "Task requires failed replacements to preserve current callbacks. 'generation = nextGeneration' occurs only after buildSchedules succeeds and before old stop calls. Tests invoke discarded/retired callbacks and independently settle two runs, including 'retired run failed'. Both supplied exits 0; completed."},
+      "replyAccuracy": {"score": 3, "evidence": "'only installed-set callbacks can launch work' and 'in-flight accounting remains intact' match the identity guard and unchanged activeJobs owner. 'Skipped the full suite' does not turn focused results into an all-suite claim."},
+      "replyCoverage": {"score": 3, "evidence": "Names scheduler.ts/test.ts, summarizes failed replacement and in-flight behavior, lists checks, and says 'Skipped the full suite and live services; no actual jobs were started'."},
+      "replyClarity": {"score": 3, "evidence": "The short 'Changed:' section, one 'Passed:' line and explicit skipped scope communicate result and evidence without excess."},
+      "limitations": "Detailed focused/watcher/lint/type-check logs and counts are self-reported, not present in the two supplied exit fields. Real Croner behavior is not independently rerun."
+    },
+    {
+      "id": "cell6c5a73c787",
+      "task": "Distinct-edge Atlas traversal budget",
+      "completionStatus": "invalidAgentRun",
+      "checks": {"acceptance": 0, "native": 0},
+      "behaviorAssessment": "Behavior-passing visible patch; unfinished delivery, not merely a partial algorithm",
+      "overengineering": {"score": 0, "evidence": "Task requires requests to be 'finite and budget-bounded'. 'self.request.max_edges + 1' is one finite adjacency prefix, retaining the ordinal skip and removing the false edgeFetchLimit heuristic. 'budget_queries' and assertion fault tests serve service/CLI and snapshot requirements."},
+      "completeness": {"score": 2, "evidence": "Acceptance/native exits 0 support the algorithm and maintained duplicate-prefix/exact/short-budget tests. 'assert graph_output(service.context(request)) == context' checks the service seam; bounded-read assertions constrain call limits. However status is invalidAgentRun, snapshots are omitted, and intermediate text says 'will recheck'. Delivery is unfinished despite passing behavior."},
+      "replyAccuracy": {"score": null, "evidence": "invalidAgentRun: the retained 'will recheck' text is intermediate, not a final reply."},
+      "replyCoverage": {"score": null, "evidence": "No final reply exists to score; do not substitute progress text."},
+      "replyClarity": {"score": null, "evidence": "No final reply exists to score; intermediate wording is not graded."},
+      "intermediateTextEvidence": "'only 16 regression responses were added'; 'full importer suite timed out after 240 seconds'; 'will recheck'. These are unverified progress claims, not a final report.",
+      "limitations": "Snapshot bytes and baseline comparisons are absent. The stated snapshot review and corrected whole-project check cannot be certified. Timeout is not a full-suite pass."
+    },
+    {
+      "id": "cell75f973f62f",
+      "task": "Immediate Git checkout-root discovery",
+      "completionStatus": "completed",
+      "checks": {"acceptance": 0, "native": 0},
+      "behaviorAssessment": "Canonical root guard with real local Git and gitfile regressions",
+      "overengineering": {"score": 0, "evidence": "For 'Compare checkout identities correctly', 'git rev-parse --show-toplevel' plus 'realpath(checkoutRoot) !== realpath(directory)' adds the necessary identity check. No recursive scan or .git parser is introduced."},
+      "completeness": {"score": 3, "evidence": "Task requires own root/origin, preserved spelling and symlink rules. The code retains 'directory' for output and checks root identity before origin. Parameterized fixtures cover parent origins, bare/no-origin/deep checkouts, child symlinks and '--separate-git-dir'. Both supplied exits 0; completed."},
+      "replyAccuracy": {"score": 3, "evidence": "'require each child to match its canonical Git checkout root, preserving returned path spelling' matches the guard. The reply accurately calls maintained coverage '.git files', not a Git-created linked-worktree test."},
+      "replyCoverage": {"score": 3, "evidence": "Names both changed paths, lists local Git edge cases and focused/supplied checks, and says 'Full suite and live services not run'."},
+      "replyClarity": {"score": 3, "evidence": "'Changed:', 'Passed:' and the short skipped-scope sentence give a compact result with no unnecessary restatement."},
+      "limitations": "Maintained .git-file fixture uses --separate-git-dir rather than shared linked-worktree administration; do not claim those fixtures are identical. Supplied acceptance passes but its internals and extra command logs are absent."
+    },
+    {
+      "id": "cell83929a2dc0",
+      "task": "Retired scheduler callbacks",
+      "completionStatus": "completed",
+      "checks": {"acceptance": 0, "native": 0},
+      "behaviorAssessment": "Generation identity and independently settling overlap regressions",
+      "overengineering": {"score": 0, "evidence": "For 'Only callbacks belonging to the currently installed schedule set', 'currentGeneration = Symbol()' and the generation guard express exactly that ownership. 'pending = [deferred(), deferred()]' is necessary to test release only after all runs finish."},
+      "completeness": {"score": 3, "evidence": "The generation commits after build and before old stops; activeJobs is preserved. Tests exercise discarded same-name candidates after later success, retired callbacks with both overlap settings, and separate completion/error release. Completed with acceptance/native 0."},
+      "replyAccuracy": {"score": 3, "evidence": "'unique batch identity makes retired/discarded callbacks inert without disrupting in-flight work' matches the code and supplied results. 'Regressions failed before the fix' is plausible but has no separate before-fix log in the cell."},
+      "replyCoverage": {"score": 3, "evidence": "Names owner/test paths and callback, replacement and overlap regressions; lists focused and supplied checks and explicitly says 'Full suite not run'."},
+      "replyClarity": {"score": 3, "evidence": "The one-sentence identity explanation and single checks paragraph make the result easy to read without repeating test details."},
+      "limitations": "Before-fix failure evidence and exact 18/8/3 counts are not independently supplied. No full-suite or live-service inference follows from the supplied exits."
+    },
+    {
+      "id": "cella323676220",
+      "task": "Distinct-edge Atlas traversal budget",
+      "completionStatus": "invalidAgentRun",
+      "checks": {"acceptance": 0, "native": 0},
+      "behaviorAssessment": "Visible behavior passes recorded checks; delivery is unfinished",
+      "overengineering": {"score": 0, "evidence": "For 'counting each edge ordinal once', 'self.request.max_edges + 1' works with the existing ordinal duplicate skip rather than new pagination/storage machinery. 'assert_distinct_budget' and its three fault cases directly test lost evidence, wrong parent and artificial boundary."},
+      "completeness": {"score": 2, "evidence": "Patch adds coffee context/path duplicate-prefix, exact inheritance in/out/both, absent-path and real-omission assertions. Supplied acceptance/native are 0, so this is substantive behavior-passing work. Status invalidAgentRun and empty last text leave completion and snapshot review unestablished."},
+      "replyAccuracy": {"score": null, "evidence": "invalidAgentRun with empty last text: no final reply to rate."},
+      "replyCoverage": {"score": null, "evidence": "Do not turn absent intermediate text into a final reply or a zero score."},
+      "replyClarity": {"score": null, "evidence": "No final reply exists."},
+      "intermediateTextEvidence": "Empty string",
+      "limitations": "Snapshot bytes are omitted, so new expected response contents and unchanged baselines cannot be reviewed. CLI assertions are visible; no new direct service parity assertion is shown in this patch."
+    },
+    {
+      "id": "cella73068f2d4",
+      "task": "Retired scheduler callbacks",
+      "completionStatus": "completed",
+      "checks": {"acceptance": 0, "native": 0},
+      "behaviorAssessment": "Generation guard with queued, lifecycle, failed-build and in-flight tests",
+      "overengineering": {"score": 0, "evidence": "Task mentions 'retained or queued' callbacks. 'Promise.resolve().then(retained)' models a queued invocation without timer waits. The 'currentGeneration' Symbol guard remains a small owner-local production change; factory/stop/resume tests target its commit ordering."},
+      "completeness": {"score": 3, "evidence": "'currentGeneration = nextGeneration' follows successful build and precedes old stop calls. Parameterized invalid-pattern/duplicate/monitor cases preserve old callbacks; separate deferred runs and 'retired failure' check overlap release/error reporting. Completed and both supplied checks exit 0."},
+      "replyAccuracy": {"score": 3, "evidence": "'installation-identity guard' and coverage of 'queued/retained callbacks, failed replacements, lifecycle callbacks, and in-flight completion/errors' are directly supported by the retained patch. Before-fix rejection and extra check claims lack separate logs."},
+      "replyCoverage": {"score": 3, "evidence": "Lists scheduler.ts/test.ts, describes guarded behavior and relevant regressions, lists supplied/focused checks and states 'Full application suite not run'."},
+      "replyClarity": {"score": 3, "evidence": "'Implemented:', one checks paragraph and one scope sentence explain the result in a proportionate amount of text."},
+      "limitations": "The record does not independently establish the reported 12/3/22 counts, lint/type-check execution or before-fix failures. Maintained coverage is justified, not overengineering."
+    },
+    {
+      "id": "cellafc7ef4a3e",
+      "task": "Distinct-edge Atlas traversal budget",
+      "completionStatus": "invalidAgentRun",
+      "checks": {"acceptance": 0, "native": 0},
+      "behaviorAssessment": "Behavior-passing distinct-edge patch; no completed delivery",
+      "overengineering": {"score": 0, "evidence": "The task demands service and CLI responses. 'assert_service_walk' reconstructs requests from response filters and compares 'graph_output(actual) == payload'; attaching it to context/path queries is relevant contract coverage. The production change remains one bounded prefix and heuristic removal."},
+      "completeness": {"score": 2, "evidence": "'budgeted_calls' asserts ten exact evidence entries, unique ordinals and [brew, render, target] path; 'budgeted_inheritance' tests exact fit and real omission. Acceptance/native 0 support behavior. invalidAgentRun, empty last text and omitted snapshots prevent a completed-delivery judgment."},
+      "replyAccuracy": {"score": null, "evidence": "Invalid run; empty last text is not a final reply."},
+      "replyCoverage": {"score": null, "evidence": "No final reply to score."},
+      "replyClarity": {"score": null, "evidence": "No final reply to score."},
+      "intermediateTextEvidence": "Empty string",
+      "limitations": "No snapshot bytes or review account. Service parity is visible, but no new assertion-fault test is shown; do not infer missing existing tests from a partial diff."
+    },
+    {
+      "id": "cellb311f7aaf3",
+      "task": "Installer failure propagation",
+      "completionStatus": "completed",
+      "checks": {"acceptance": 0, "native": 0},
+      "behaviorAssessment": "Small failure-propagation patch with safe maintained fixtures",
+      "overengineering": {"score": 0, "evidence": "For 'not a redesign of setup', the production additions are 'curl -fL', separate install/cleanup and 'curl -fsS'. 'skipUnless(shutil.which(\"bwrap\"))' is an explicit isolation prerequisite, not an unsafe execution fallback."},
+      "completeness": {"score": 3, "evidence": "Task requires failures before SDKMAN/shell/success. 'assert_stopped', one-download/install-count assertions, SDKMAN fault loops and all three successful routes cover those requirements. Completed; both supplied exits 0. Missing bwrap skips owned tests rather than running live."},
+      "replyAccuracy": {"score": 3, "evidence": "'HTTP errors now fail; DevPod download/install failures stop immediately. SDKMAN download failures propagate' matches the visible commands and supplied results. 'real network/package behavior remains unchecked' is a proper boundary, not a false failure claim."},
+      "replyCoverage": {"score": 3, "evidence": "Names the installer and two owned test files, lists acceptance/native/regression checks, and states 'Live installation was intentionally not run'."},
+      "replyClarity": {"score": 3, "evidence": "The change list, one passed-check sentence and precise live/network limitation give a clear result without excess detail."},
+      "limitations": "Unchanged errexit/pipefail settings are not visible. Owned suite can skip without bwrap; the two supplied exit fields alone do not prove each self-reported scenario executed."
+    },
+    {
+      "id": "cellbf1eb78be3",
+      "task": "Distinct-edge Atlas traversal budget",
+      "completionStatus": "invalidAgentRun",
+      "checks": {"acceptance": 0, "native": 0},
+      "behaviorAssessment": "Behavior-passing algorithm and maintained assertions, unfinished check workflow",
+      "overengineering": {"score": 0, "evidence": "For 'shared production-indexed coffee samples', 'edge_budgets' reuses inheritance responses across BASES and 'assert_bfs_edge_budget' adds the Python duplicate-prefix case. 'max_edges + 1' is a bounded prefix, not a scan or storage redesign."},
+      "completeness": {"score": 2, "evidence": "Tests check exact-fit inherited evidence, seven unique BFS edges, first-discovery path and real maxEdges truncation; direct service comparisons are present. Both supplied exits 0 support behavior. invalidAgentRun and 'will rerun that check' show unfinished delivery, not algorithm absence."},
+      "replyAccuracy": {"score": null, "evidence": "The 'will rerun that check' progress text belongs to invalidAgentRun; it is not a final reply."},
+      "replyCoverage": {"score": null, "evidence": "No final reply exists; do not grade progress omissions as final-report omissions."},
+      "replyClarity": {"score": null, "evidence": "Intermediate text is not a final reply."},
+      "intermediateTextEvidence": "'full Python suite hit its 240-second limit'; 'Dashboard checks are blocked by missing dependencies'; 'will rerun that check'.",
+      "limitations": "Snapshot baselines are omitted. Timeout, dashboard blocker and corrected complexity check are self-reported progress, not completed full-suite evidence. Direct service equality cannot establish unseen representation contracts by itself."
+    },
+    {
+      "id": "cellc200983daf",
+      "task": "Immediate Git checkout-root discovery",
+      "completionStatus": "completed",
+      "checks": {"acceptance": 0, "native": 0},
+      "behaviorAssessment": "Canonical identity guard and maintained linked-administration fixtures",
+      "overengineering": {"score": 0, "evidence": "Task explicitly keeps '.git entry is a file' worktrees. Writing 'commondir', 'gitdir' and 'HEAD' creates a real Git-readable unborn linked fixture; it does not add production parsing. Production only compares realpath identities before the existing origin lookup."},
+      "completeness": {"score": 3, "evidence": "Regressions cover ordinary/bare/admin/no-origin exclusions, deeper discovery, child symlinks, alias '/.' spelling, runResult failure output, and shared-origin removal. 'rev-parse --is-inside-work-tree' validates the linked fixture. Completed with both supplied exits 0."},
+      "replyAccuracy": {"score": 3, "evidence": "'checks physical checkout-root identity while preserving returned path spelling' matches realpath comparison and unchanged directory construction. 'linked worktrees' is supported by the Git-readable common-dir fixture. Extra check/history assertions are not independently logged."},
+      "replyCoverage": {"score": 3, "evidence": "Names implementation/test paths, lists key fixture categories and checks, and says 'Skipped full-suite/live-service checks'."},
+      "replyClarity": {"score": 3, "evidence": "A short change list, passed-check line and explicit skipped scope make the result and limits easy to find."},
+      "limitations": "Linked fixture is manually wired, not created by git worktree add; its Git validation is visible. The 'node_modules left untouched' claim cannot be independently audited from this patch alone."
+    },
+    {
+      "id": "cellc71e252fec",
+      "task": "Retired scheduler callbacks",
+      "completionStatus": "completed",
+      "checks": {"acceptance": 0, "native": 0},
+      "behaviorAssessment": "Installed-set identity with retained callbacks and two independent active runs",
+      "overengineering": {"score": 0, "evidence": "For 'currently installed schedule set', 'installedSet = Symbol()' and 'scheduleSet !== installedSet' are direct ownership logic. The replacement matrix and two deferred runs test required lifecycle/overlap combinations rather than unrelated behavior."},
+      "completeness": {"score": 3, "evidence": "'installedSet = nextSet' commits only after build, before old stops. Tests keep discarded candidates inert after a later replacement and independently release one failed/one successful retired run before allowing protected new work. Completed with acceptance/native 0."},
+      "replyAccuracy": {"score": 3, "evidence": "'only installed-set callbacks can launch work; in-flight accounting remains intact' matches the guard and unchanged activeJobs lifecycle. 'Full-suite/live-service checks were not run' appropriately bounds the passing-check account."},
+      "replyCoverage": {"score": 3, "evidence": "Lists scheduler.ts/test.ts, retired/failed-replacement/in-flight regressions, supplied and focused checks, and 'no actual jobs or services were started'."},
+      "replyClarity": {"score": 3, "evidence": "The 'Changed:' list and 'Passed:' sentence separate behavior from verification; one closing sentence states the omitted scope."},
+      "limitations": "Reported formatting/lint/type-check execution and numeric counts lack separate logs. Callback factory/stop/resume reentrancy is not newly tested in this patch, although commit ordering addresses it."
+    },
+    {
+      "id": "cellccff66517a",
+      "task": "Immediate Git checkout-root discovery",
+      "completionStatus": "completed",
+      "checks": {"acceptance": 0, "native": 0},
+      "behaviorAssessment": "Canonical identity guard with Git-created unborn worktrees",
+      "overengineering": {"score": 0, "evidence": "For 'Keep linked Git worktrees supported', 'git worktree add --orphan -b linked' creates the necessary fixture using Git itself. 'initRepository' removes repeated fixture setup; production adds only the root/realpath guard."},
+      "completeness": {"score": 3, "evidence": "Direct/symlink workspace cases combine parent origin, nested checkout, bare repo, child symlink, own checkout without origin and linked checkout without origin. Expected output contains only 'checkout with origin' and 'linked checkout', preserving alias spelling. Completed; both exits 0."},
+      "replyAccuracy": {"score": 3, "evidence": "'verifies canonical checkout roots before reading origin; preserves returned path spelling' follows the code order. 'linked worktrees' matches actual git worktree fixture commands. The 29-test and before-fix claims are not independently logged."},
+      "replyCoverage": {"score": 3, "evidence": "Names both paths, relevant regression categories and supplied/source checks, and explicitly says 'Full suite not run'."},
+      "replyClarity": {"score": 3, "evidence": "The canonical-root summary, compact checks paragraph and full-suite boundary provide a direct, nonrepetitive account."},
+      "limitations": "Fixture portability depends on installed Git supporting worktree add --orphan; the pinned recorded checks pass. No inference about older Git or the full suite."
+    },
+    {
+      "id": "celld150049679",
+      "task": "Installer failure propagation",
+      "completionStatus": "completed",
+      "checks": {"acceptance": 0, "native": 0},
+      "behaviorAssessment": "Bounded shell fix with ordered success and failure regression assertions",
+      "overengineering": {"score": 0, "evidence": "For 'Preserve successful behavior', the packages table and ordered 'events.index' assertions check existing phase order and zsh arguments. The production patch only separates the DevPod command list and adds curl failure flags; the sandbox is required safety machinery."},
+      "completeness": {"score": 3, "evidence": "Tests assert package/install/cleanup ordering before SDK application, SDK before chsh, shell '-s' argument, no later phases on faults, and no download retry. Both Linux branches and SDKMAN change; completed with acceptance/native 0."},
+      "replyAccuracy": {"score": 3, "evidence": "'DevPod download/install failures now stop immediately; DevPod and SDKMAN reject HTTP errors' agrees with the code and supplied behavior. The named test paths exist in the patch. Original-bug rejection and individual execution claims lack separate logs."},
+      "replyCoverage": {"score": 3, "evidence": "Names the installer and owned fixture/tests, lists regression/acceptance/syntax/diff checks, and states 'Live installation was intentionally not run; all execution used isolated fake commands'."},
+      "replyClarity": {"score": 3, "evidence": "The short 'Changed:' and 'Checks passed:' sections distinguish implementation from checks, followed by one clear execution-scope limitation."},
+      "limitations": "Unchanged Bash header and full execution history are absent. Fifteen visible scenario combinations are consistent with the claim, but extra command outcomes and before-fix evidence are not separately supplied."
+    },
+    {
+      "id": "celld98e3fa93e",
+      "task": "Immediate Git checkout-root discovery",
+      "completionStatus": "completed",
+      "checks": {"acceptance": 0, "native": 0},
+      "behaviorAssessment": "Canonical checkout identity with exclusions and linked shared-origin regressions",
+      "overengineering": {"score": 0, "evidence": "Task requires identity through symlinks without changing returned spelling. '.then((root) => realpath(root)).catch(() => undefined)' canonicalizes only the comparison root. The small initCheckout helper and manually wired Git-readable linked fixture serve required tests, not a production redesign."},
+      "completeness": {"score": 3, "evidence": "Root comparison precedes origin lookup; tests cover parent-origin leakage, bare/deep/no-origin cases, child and workspace symlinks, spaces, blank WORKSPACE, shared linked origin and its removal. Completed with both supplied exits 0."},
+      "replyAccuracy": {"score": 3, "evidence": "'verifies canonical checkout roots before reading origin, preserving returned path spelling' matches the guard. Listed linked/nested/bare/symlink regressions are present. 'no known remaining risk' is a qualified knowledge claim, not proof of no risk; no contradiction is established."},
+      "replyCoverage": {"score": 2, "evidence": "Explains changed paths, behavior, fixtures and checks, but 'No live services or network checks run; no known remaining risk' does not state whether the full application suite ran. '29 source tests' and 'both supplied checks' do not resolve that verification boundary."},
+      "replyClarity": {"score": 3, "evidence": "'Changed:' and 'Passed:' make the result readable in a short reply. The missing full-suite boundary is a coverage issue, not a reason to penalize sentence clarity."},
+      "limitations": "Full-suite execution is unspecified. Precise source-test counts, targeted lint/type-check execution and complete absence of network are not independently logged; 'no known remaining risk' must not be expanded into a correctness guarantee."
+    }
+  ],
+  "summary": {
+    "cellsReviewed": 16,
+    "completed": 12,
+    "invalidAgentRun": 4,
+    "allSuppliedAcceptanceExitsZero": true,
+    "allSuppliedNativeExitsZero": true,
+    "overengineeringDistribution": {"0": 16, "1": 0, "2": 0, "3": 0},
+    "completenessDistribution": {"0": 0, "1": 0, "2": 4, "3": 12},
+    "replyAccuracyDistribution": {"0": 0, "1": 0, "2": 0, "3": 12, "null": 4},
+    "replyCoverageDistribution": {"0": 0, "1": 0, "2": 1, "3": 11, "null": 4},
+    "replyClarityDistribution": {"0": 0, "1": 0, "2": 0, "3": 12, "null": 4},
+    "interpretation": "The coarse rubric gives many ties because the visible production changes are small and closely aligned with the tasks. Invalid runs have supported behavior but unfinished delivery; they have no final-reply scores. No hidden profile comparison or aggregate winner is inferred."
+  },
+  "limitations": [
+    "Snapshot bytes are omitted. Snapshot semantic correctness, unchanged baseline claims and unrelated regeneration cannot be independently verified. Visible assertions are evidence of intent, not a substitute for the missing snapshots.",
+    "Only changed hunks are available for existing files. Full headers, unchanged helpers, full file sizes and all surrounding contracts cannot be audited. New visible functions/files show no evident size-limit breach; this does not certify unseen file totals.",
+    "Acceptance/native zero exits are recorded evidence, not tests rerun by this reviewer, full logs or proof of full correctness. In installer tasks native coverage is Bash syntax only, as the frozen task states.",
+    "Precise counts, before-fix regression failures, lint/type/format/diff checks and claims about all past execution are assistant self-reports unless separately represented by the supplied record. No contradiction is automatically inferred from missing logs.",
+    "No cell supplies independently checkable full-suite completion evidence. Some replies explicitly omit the full suite; invalid progress mentions timeouts. No-failures-before-timeout is not a pass.",
+    "Real network, live installers, services and actual jobs were not run by this reviewer and are not required for these bounded offline tasks. Honest limits and necessary safe regression infrastructure are not penalties.",
+    "Invalid runs retain only intermediate or empty assistant text. All three final-reply ratings are null; patch behavior and unfinished delivery are assessed separately.",
+    "This is one independent same-model qualitative grader. It is not upstream original Sonnet judge equivalence, statistical proof, an inferred model/profile ranking or evidence of victory on every metric."
+  ]
+}
