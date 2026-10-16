@@ -1,20 +1,16 @@
 # Matato Pi
 
-Matato Pi is a [Pi](https://github.com/earendil-works/pi) package for coding workflows, change validation, subagents, scheduled automations, and direct Telegram/Discord messages.
-
-Pi loads the bundled skills, extensions, and prompt templates from `package.json`. Skills guide the agent; extensions add tools and commands. A standalone Bun worker uses Croner to run Pi prompts or skills on a schedule from `config/config.json`.
+A [Pi](https://github.com/earendil-works/pi) package for coding, code review, testing, and scheduled agent work.
 
 ## Install
 
-With Pi installed, choose either source:
-
-**GitHub**
+With Pi installed:
 
 ```bash
 pi install git:github.com/LeonFelipeCordero/matato-pi
 ```
 
-**Local checkout**
+For local development, install Node.js and Bun, then run:
 
 ```bash
 git clone https://github.com/LeonFelipeCordero/matato-pi.git
@@ -23,59 +19,35 @@ npm ci
 pi install "$PWD"
 ```
 
-For an existing checkout, run `npm ci` and `pi install "$PWD"` from its root. Restart Pi or run `/reload` to load the package.
+Restart Pi or run `/reload` after installation.
 
-## Skills
+## What it includes
 
-Use `/skill:<name>` or ask the agent for the matching task. Each linked skill documents its requirements and workflow.
+Ask the agent for a task, or use `/skill:<name>`. Browse [all skills](skills/) for requirements and instructions.
 
-| Skill | Purpose |
-| --- | --- |
-| [acceptance-criteria-validation](skills/acceptance-criteria-validation/SKILL.md) | Verify a change against its acceptance criteria. |
-| [agent-pr-comment-resolver](skills/agent-pr-comment-resolver/SKILL.md) | Resolve `AGENT:` feedback on PRs labelled `resolve-comments`. |
-| [browser-testing](skills/browser-testing/SKILL.md) | Smoke-test user flows in local Brave with playwright-cli. |
-| [change-validation](skills/change-validation/SKILL.md) | Coordinate independent change-validation checks. |
-| [coding-session](skills/coding-session/SKILL.md) | Guide coding work in a target project. |
-| [deep-dive](skills/deep-dive/SKILL.md) | Investigate precise codebase questions. |
-| [discord](skills/discord/SKILL.md) | Send approved messages to allowlisted Discord channels. |
-| [explain](skills/explain/SKILL.md) | Explain a topic in depth. |
-| [general-change-validation](skills/general-change-validation/SKILL.md) | Independently review a change. |
-| [github-issues](skills/github-issues/SKILL.md) | Create GitHub issues in configured projects. |
-| [handoff](skills/handoff/SKILL.md) | Capture a compact session handoff. |
-| [interactive-pr-comment-resolver](skills/interactive-pr-comment-resolver/SKILL.md) | Resolve PR comments interactively. |
-| [internals](skills/internals/SKILL.md) | Manage Matato automations, workers, and channel setup. |
-| [mutation-testing-validation](skills/mutation-testing-validation/SKILL.md) | Check test effectiveness through manual mutations. |
-| [notion-cli](skills/notion-cli/SKILL.md) | Manage Notion content with the official `ntn` CLI. |
-| [quality-checks-validation](skills/quality-checks-validation/SKILL.md) | Run a project's quality checks. |
-| [short-term-memory](skills/short-term-memory/SKILL.md) | Inspect previous sessions and logs. |
-| [telegram](skills/telegram/SKILL.md) | Send approved messages to the Telegram owner. |
-| [testing-quality](skills/testing-quality/SKILL.md) | Assess whether tests are meaningful. |
-| [web-search](skills/web-search/SKILL.md) | Look up current information; requires `TAVILY_API_KEY`. |
-| [why](skills/why/SKILL.md) | Explain why code behaves or is designed a certain way. |
+- **Coding and review:** coding sessions, architecture checks, change validation, acceptance checks, and PR comment resolution.
+- **Code understanding:** Atlas navigation, deep dives, explanations, and design rationale.
+- **Testing:** browser smoke tests, test-quality reviews, and manual or Atlas-based mutation testing.
+- **Other workflows:** GitHub issues, Notion, web search, session history, and handoffs. Web search requires `BRAVE_API_TOKEN`.
+- **Subagents:** run independent Pi tasks in parallel and collect their results.
+- **Remote sessions:** `/remote [name] [--host <sshHost>]` registers a saved session with an existing Matato server. The server is not included here; see the [extension](extensions/remoteSession/index.ts) for configuration.
 
-## Extensions
+## Scheduled automations
 
-| Extension | Tool or command | Purpose |
-| --- | --- | --- |
-| [automations](extensions/automations/index.ts) | `/automations` | Inspect local automation jobs; scheduling requires the worker. |
-| [discord](extensions/discord/index.ts) | `discord_send_message` | Send directly to allowlisted guild channels. |
-| [remoteSession](extensions/remoteSession/index.ts) | `/remote [name] [--host <sshHost>]` | Register a persisted session with a running Matato server, optionally copying it over SSH. |
-| [subagents](extensions/subagents/index.ts) | `subagent` | Run fresh-context Pi tasks and await results; up to four concurrently. |
-| [telegram](extensions/telegram/index.ts) | `telegram_send_message` | Send directly to the configured owner. |
-
-Telegram requires `TELEGRAM_BOT_TOKEN` and `TELEGRAM_OWNER_ID`. Discord requires `DISCORD_BOT_TOKEN`, `DISCORD_GUILD_ID`, and comma-separated `DISCORD_CHANNEL_IDS`. Set these in the sending Pi process; channels are outbound only.
-
-## Contribute
-
-Fork the repository, clone your fork, and create a branch for your change. Install Node.js and Bun, then run from the repository root:
+The standalone Bun worker runs Pi prompts or skills on cron schedules. Review the jobs and models in [`config/config.json`](config/config.json) before starting it; the bundled jobs are enabled.
 
 ```bash
-npm ci
+npm run worker
+```
+
+Use `/skill:matato-pi-automations` to manage jobs. The worker reloads config changes automatically. Set `MATATO_PI_AUTOMATIONS_CONFIG` to use another config file. Editing the config does not start the worker.
+
+## Development
+
+```bash
 npm run check
 npm run lint
 npm test
 ```
 
-Add skills in `skills/<name>/SKILL.md`, extensions in `extensions/<name>/index.ts`, and prompt templates in `prompts/`. Follow `AGENTS.md`, add tests for behavior changes, and update this README when adding a skill or extension.
-
-Open a pull request against `main` with a short summary and the checks you ran. For larger changes, open an issue first to discuss the approach.
+Add skills under `skills/` and extensions under `extensions/`. Follow [AGENTS.md](AGENTS.md) and add tests for behavior changes.
