@@ -2,6 +2,7 @@
 name: atlas-navigate
 description: Use the Atlas CLI to navigate an indexed project's structure, symbols, callers, dependencies, and source. Use for questions about architecture, workflows, behavior, inheritance, or change impact. Explain the evidence with Mermaid diagrams.
 compatibility: Requires the Atlas Python CLI and an indexed Atlas SQLite database; local source is needed to verify behavior.
+disable-model-invocation: true
 ---
 
 # Atlas project navigation
