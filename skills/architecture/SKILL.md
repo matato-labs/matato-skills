@@ -1,30 +1,29 @@
 ---
 name: architecture
-description: Assess where proposed or implemented changes belong in the architecture. Check boundaries, dependencies, contracts and impact. Use before coding or reviewing. Use lightweight layers as the default only when you cannot identify an architecture.
+description: Use this skill to analyse the architecture of a codebase for a review, proposed or implemention.
+disable-model-invocation: true
 ---
 
 # Architecture fit
 
-Identify the required behavior, constraints, scope, checkout, review base and local changes. Read the applicable instructions. Analysis does not authorize edits, execution, installation, indexing, migrations or publication.
+Give some change in the local repository, a PR or just an idea, this skill a playbook to align everything to the project's architecture. . But some times that's not clear or the architecture is driven by an opinionated framework.
 
-## Discover and trace
+## Architecture finding
 
-Inspect relevant entry points, manifests, decisions, source, configuration and tests. Check the intended behavior against actual imports, calls, registrations, mounts and consumers. Cite current evidence as `path:line`. Distinguish what you observed, what documentation states and what you inferred. Do not use history, generated artifacts, folder names or indexes as a substitute for checking the checkout.
+**Straight forward architecture**: Some projects will have a clear architecture, being layer architecture, onion architecture, clean architecture, hexagonal architecture. Identify the one the project follows.
 
-Identify patterns used by frameworks, scripts, configuration, content and mixed subsystems. Identify who owns rules, state and effects. Identify dependency direction and exceptions. Distinguish type-only dependencies from runtime dependencies. Distinguish static relationships from execution. Follow indirect connections. Missing graph edges do not prove that behavior is absent.
+**Opinionated framework**: Frameworks like phoenix, django, ruby on rail, are opinionated on how things are supposed to be be architect, in such cases where the underlying technology dictates the architecture, follows the standards you find in code or you know according the running version.
 
-Treat missing source as an evidence gap. Ask for help if the gap prevents you from deciding where the change belongs. Only when targeted inspection identifies no architecture, provisionally use **entry/presentation → application/behavior → data/external effects**. Use downward dependencies. Separate reusable rules from effect details where needed. These layers describe logical responsibilities. Existing functions and files are sufficient. You do not need separate directories, classes, interfaces or services. Keep configuration and content with their actual loaders, formats and consumers. Never relabel an established architecture.
+**Unclear architecture**: There will be cases where the architecture is not clear, for this case, default to a layer architecture oriented by features and following the classic `entry-point->Service->Repository`
 
-Trace the required behavior through contracts, failures, state, effects and downstream consumers to tests. Include affected alternate entry points, shared callers, platforms, generated contracts, shipped policy resources, deployment connections and asynchronous boundaries. Verify the actual connections. Distinguish configuration changes from activation. Stop when evidence supports both placement and impact.
+## No goes
 
-## Place and challenge
+Independently of the architecture, there are things are not acceptable:
 
-Prefer no change when existing facilities satisfy the request. Otherwise, choose the smallest complete change at the existing owner or extension point. Do not choose only by diff size. Name the files, consumers and integration. Reuse authoritative types, schemas, defaults and policies. Fix causes, not downstream symptoms. Compare viable alternatives when placement has important consequences. Explain necessary boundary changes, tradeoffs and conflicts between constraints.
+* Direct data access from entry points.
+* Unclear ownership.
+* Bidirectional calls.
 
-Preserve relevant APIs, errors, identities, authorization, configuration precedence, stored-data compatibility, transactions, effect ordering, asynchronous lifetimes and cleanup unless the change intentionally alters them. Distinguish existing technical debt from violations that the change introduces. Do not preserve demonstrated bugs, copy technical debt or expand the work into rewrites. Add abstractions, dependencies or migrations only when required.
+## Analysis
 
-Name a plausible boundary violation and a regression check that would detect it. Check a required flow and a counterexample at the actual integration boundary. Derive these checks from existing tests, instructions and CI. During implementation or review, inspect the whole diff against boundaries and affected consumers. Distinguish checks you executed from checks you propose. Approval, merge status, snapshots and metrics cannot prove correctness. Verify claims in the PR or review against the source and final diff. State any evidence gaps.
-
-## Report
-
-Classify the architectural fit as compatible, compatible with adjustments, conflicting, or blocked by missing evidence. Include citations for boundaries, minimal changes to files and flows, preserved contracts, regression checks and risks. Add a diagram when helpful. Distinguish dependencies from runtime flow. Mark proposed or uncertain relationships. Ask only questions whose answers could change correctness or placement. Do not create an architecture document or perform cleanup unless requested.
+With the architecture you found, do a deep analysis of the code or proposal under analysis and rate how well it fits in the current architecture. Extract all places where it diverges from the common patterns in the project and list them. Give all findings in the answer.
