@@ -1,15 +1,15 @@
 ---
 name: acceptance-criteria-validation
-description: Verify acceptance criteria for a change as an explicit specialist used by $change-validation.
+description: Verify acceptance criteria for a change when $change-validation explicitly uses this specialist.
 disable-model-invocation: true
 ---
 
 # Acceptance Criteria Validation
 
-The user will provide you with the acceptance criteria or a source for them.
+The user will provide the acceptance criteria or a source for them.
 
-If nothing is provided, interview the user to extract them, asking each question one by one. Once you have all requirements, create a list of acceptance criteria that the change needs to meet.
+If the user provides neither, ask questions to identify the acceptance criteria. Ask one question at a time. After you have all requirements, list the acceptance criteria that the change must meet.
 
-Once you have the acceptance criteria, validate the code to make sure they are fulfilled in the change. If the current implementation doesn't meet the ACs, you must change the code to fulfil expectations.
+Validate the code against the acceptance criteria. If the current implementation does not meet them, change the code to meet them.
 
-When you are done, reply to the orchestrator agent with a small summary and the state of your work.
+When you finish, send the orchestrator agent a short summary and the status of your work.

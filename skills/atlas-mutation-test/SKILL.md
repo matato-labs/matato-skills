@@ -1,22 +1,22 @@
 ---
 name: atlas-mutation-test
-description: Test whether a change's tests catch realistic bugs using Atlas mutation manifests. Use after code or test changes to select relevant mutations, apply each in isolation, run baseline and mutant tests, and report evidence-backed outcomes.
+description: Use Atlas mutation manifests to test whether a change's tests detect realistic bugs. Use after code or test changes. Select relevant mutations, apply each in isolation, run baseline and mutant tests, and report outcomes with evidence.
 compatibility: Requires Git, Atlas with the mutations command, and the target project's build/test tools.
 ---
 
 # Change-focused mutation testing
 
-Act as the mutation executor; do not ask the user to apply edits or run tests manually. Atlas supplies independent single-edit manifests, not a test runner or an outcome ledger. Use the available tools to execute this workflow and report the results. Ask only when the change scope, required command, permissions, or safe environment cannot be established.
+Apply the mutations and run the tests yourself. Do not ask the user to apply edits or run tests manually. Atlas supplies independent manifests with one edit each. It does not provide a test runner or store test outcomes. Use the available tools to execute this workflow and report the results. Ask only when you cannot establish the change scope, required command, permissions, or a safe environment.
 
 ## 1. Establish the change and execution boundary
 
-Read the target project's instructions and inspect its Git status, diff, relevant source and tests. Identify the requested comparison base and target revision. For a PR, compare its base with the proposed code using the merge base; for uncommitted work, include staged and unstaged changes and relevant untracked files. Do not silently substitute the last commit for the requested change.
+Read the target project's instructions. Inspect its Git status, diff, relevant source and tests. Identify the requested comparison base and target revision. For a PR, compare its base with the proposed code using the merge base. For uncommitted work, include staged and unstaged changes and relevant untracked files. Do not silently substitute the last commit for the requested change.
 
-Record the comparison, target revision, affected behavior and test commands. Derive commands from project instructions, CI and package configuration; do not guess a universal test command. Choose a bounded candidate count and per-command timeout before running, using the user's budget or a small default of at most five relevant mutants. Explain any time-based cutoff.
+Record the comparison, target revision, affected behavior and test commands. Derive commands from project instructions, CI and package configuration. Do not guess a universal test command. Before execution, set a limit on the candidate count and a timeout for each command. Use the user's budget or a small default of at most five relevant mutants. Explain any time-based cutoff.
 
-Use an agent-owned temporary detached Git worktree or disposable copy of the exact target state. A worktree at HEAD does not include uncommitted edits: if needed, transfer a reviewed patch and relevant untracked files into isolation, preserving their paths and bytes, and verify the resulting source matches the intended state. Never transfer secrets, ignored environments or unrelated user files. If the target state cannot be reproduced safely, stop and explain.
+Use a temporary detached Git worktree that you own or a disposable copy of the exact target state. A worktree at HEAD does not include uncommitted edits. If needed, transfer a reviewed patch and relevant untracked files into the isolated workspace. Preserve their paths and bytes. Verify that the resulting source matches the intended state. Never transfer secrets, ignored environments or unrelated user files. If you cannot reproduce the target state safely, stop and explain.
 
-Keep logs, manifests and a pristine snapshot outside the test source tree. Do not mutate the user's checkout, reset/stash their edits, commit experimental mutations, or push them. Restrict execution to approved local test commands. Isolation by worktree is not a security sandbox: avoid production services, credentials, destructive integrations and network side effects; request permission if safe execution is unclear.
+Keep logs, manifests and a pristine snapshot outside the test source tree. Do not mutate the user's checkout, reset or stash their edits, commit experimental mutations, or push them. Execute only approved local test commands. An isolated worktree is not a security sandbox. Avoid production services, credentials, destructive integrations and network side effects. Request permission if safe execution is unclear.
 
 ```mermaid
 flowchart TD
@@ -31,7 +31,7 @@ flowchart TD
 
 ## 2. Generate and select relevant manifests
 
-Use `atlas` if installed. In an Atlas checkout, use `uv run --project /absolute/path/to/atlas/atlas atlas`; keep that tool path fixed when analyzing another project. Inspect `atlas mutations --help`, `atlas mutations --rules`, and the installed version's configuration contract before configuring rules. Different revisions may use different configuration shapes; do not copy a format blindly.
+Use `atlas` if installed. In an Atlas checkout, use `uv run --project /absolute/path/to/atlas/atlas atlas`. Keep that tool path fixed when analyzing another project. Inspect `atlas mutations --help`, `atlas mutations --rules`, and the installed version's configuration contract before configuring rules. Different revisions may use different configuration structures. Check that a format applies before you copy it.
 
 Run fresh analysis against the entire isolated project, not only the changed files:
 
@@ -40,29 +40,29 @@ atlas mutations --rules
 atlas mutations -f /absolute/path/to/isolated-project > /absolute/path/to/run-artifacts/manifests.json
 ```
 
-If rules are absent or insufficient, enable only catalog-supported rules needed for this experiment in the isolated project's `atlas.json`, preserving existing settings. Record this temporary configuration separately from production edits. Do not change configuration in the user's checkout. Prefer fresh analysis; `--saved` requires matching indexed candidates and never refreshes them. Do not initialize or write an index merely for this workflow.
+If rules are absent or insufficient, enable only the catalog-supported rules needed for this experiment in the isolated project's `atlas.json`. Preserve existing settings. Record this temporary configuration separately from production edits. Do not change configuration in the user's checkout. Prefer fresh analysis. `--saved` requires matching indexed candidates and never refreshes them. Do not initialize or write an index only to perform this workflow.
 
-Select candidates by **behavioral relevance to the change**, not by availability or proximity alone. For every selected manifest, record:
+Select candidates by **behavioral relevance to the change**, not by availability or proximity alone. For every selected manifest, record the details below.
 
-- The changed requirement or behavior it probes, with diff/source evidence.
-- Why this exact operator replacement models a plausible regression.
-- Which existing tests should detect it, and the expected failing assertion or observable difference.
+- Identify the changed requirement or behavior it tests. Include evidence from the diff or source.
+- Explain why this exact operator replacement models a plausible regression.
+- Identify the existing tests that should detect it. State the expected failing assertion or observable difference.
 
-Prioritize edits inside changed expressions, then directly affected callers/callees or guards when source evidence connects them to the change. An unchanged boundary comparison can be relevant to a new boundary test; unrelated arithmetic in the same file is not. Test-only changes can justify mutations in the production behavior those tests exercise. Do not mutate test code, generated/vendor files, or unrelated functions merely to increase the count. Do not infer runtime reachability from an import alone.
+Prioritize edits inside changed expressions. Next, consider directly affected callers, callees or guards when source evidence connects them to the change. An unchanged boundary comparison can be relevant to a new boundary test. Unrelated arithmetic in the same file is not relevant. Changes to tests alone can justify mutations in the production behavior those tests exercise. Do not mutate test code, generated files, vendor files, or unrelated functions only to increase the count. Do not infer runtime reachability from an import alone.
 
-Example: a change to discount eligibility at an age threshold justifies mutating the eligibility `<` comparison to `<=` to probe the boundary. It does not justify changing a logging counter's `+` to `-` elsewhere in that file.
+For example, a change to discount eligibility at an age threshold justifies mutating the eligibility `<` comparison to `<=` to test the boundary. It does not justify changing a logging counter's `+` to `-` elsewhere in that file.
 
-Skip irrelevant, duplicate, clearly equivalent or unsafe proposals and explain representative exclusions. If no supported manifest probes the changed behavior, report **no relevant candidates**, not success or a reason to mutate unrelated code. Do not invent arbitrary edits outside the catalog. Treat equivalence as a claim requiring evidence, not as a default explanation for a survivor.
+Skip irrelevant, duplicate, clearly equivalent or unsafe proposals. Explain representative exclusions. If no supported manifest tests the changed behavior, report **no relevant candidates**. Do not report success or use this result to justify mutating unrelated code. Do not invent arbitrary edits outside the catalog. Require evidence for claims of equivalence. Do not use equivalence as the default explanation for a surviving mutant.
 
 ## 3. Establish a passing baseline
 
-Prepare dependencies and build artifacts inside isolation using the project's normal setup. Run the exact checks intended for every mutant on the unchanged target state. Capture command, working directory, exit status, duration and full output outside the source tree. Set an explicit timeout and ensure timed-out child processes are stopped before restoring files.
+Prepare dependencies and build artifacts in the isolated workspace using the project's normal setup. On the unchanged target state, run the exact checks intended for every mutant. Record the command, working directory, exit status, duration and full output outside the source tree. Set an explicit timeout. Stop child processes that exceed the timeout before restoring files.
 
-At minimum, run the relevant tests; include required compilation/build steps. Discover the real test runner and ensure tests were collected and executed: zero tests or a skipped suite is not a passing baseline. If the baseline fails, times out, or is flaky, stop mutation execution and report it as blocked. Do not classify pre-existing failures as killed mutants. Keep the same commands and environment for the baseline and every mutant; if they change, establish a new baseline.
+At minimum, run the relevant tests. Include required compilation and build steps. Identify the actual test runner and confirm that it collected and executed tests. Zero tests or a skipped suite is not a passing baseline. If the baseline fails, times out, or is flaky, stop mutation execution and report it as blocked. Do not classify pre-existing failures as killed mutants. Keep the same commands and environment for the baseline and every mutant. If they change, establish a new baseline.
 
 ## 4. Apply one manifest exactly
 
-Start each experiment from the same pristine isolated target state. Verify the manifest path resolves inside that root, reject escaping paths/symlinks, and read the file as bytes. Verify its full SHA-256 equals `sourceHash`. Decode the base64 `originalBytes` and `replacementBytes`; verify the half-open `[span.startByte, span.endByte)` slice equals the original bytes.
+Start each experiment from the same pristine isolated target state. Verify that the manifest path resolves inside that root. Reject paths or symlinks that resolve outside the root. Read the file as bytes. Verify that its full SHA-256 equals `sourceHash`. Decode the base64 `originalBytes` and `replacementBytes`. Verify that the half-open `[span.startByte, span.endByte)` slice equals the original bytes.
 
 Construct precisely:
 
@@ -70,27 +70,27 @@ Construct precisely:
 mutated = original[:start_byte] + replacement_bytes + original[end_byte:]
 ```
 
-Write only that one byte edit in isolation. Do not use global text replacement, character offsets, newline normalization, or compose manifests. Verify the resulting bytes equal the construction above and inspect the diff before executing. On a hash/span mismatch, stop using that manifest and regenerate from the pristine target; never adjust offsets by guesswork.
+Write only that one byte edit in the isolated workspace. Do not use global text replacement, character offsets or newline normalization. Do not combine manifests. Verify that the resulting bytes equal the construction above. Inspect the diff before executing. If the hash or span does not match, stop using that manifest and regenerate it from the pristine target. Never guess new offsets.
 
 ## 5. Execute, classify and restore
 
-Run the same baseline checks with the same timeout. Capture manifest/candidate IDs, path/span, rule, exact before/after edit, relevance rationale, command, exit status, duration, log path and outcome. Distinguish:
+Run the same baseline checks with the same timeout. Record the manifest and candidate IDs, path and span, and rule. Record the exact edit before and after mutation and explain its relevance. Record the command, exit status, duration, log path and outcome. Distinguish these outcomes:
 
 | Outcome | Required evidence |
 | --- | --- |
-| Killed | Baseline passed; a test assertion/behavior check now fails because of this mutation. Cite the failing test and output. |
-| Survived | The same checks completed successfully with tests actually executed. This is a possible gap, not proof of equivalence. |
-| Invalid | The mutation causes a syntax/type/compile failure. Keep separate from assertion-based kills. |
-| Timeout | The time limit expired. Do not count as killed without further evidence. |
-| Inconclusive | Infrastructure/setup failure, flaky result, uncertain attribution, or no tests executed. |
-| Skipped | Not run; give the relevance, safety or budget reason. |
+| Killed | The baseline passed. A test assertion or behavior check now fails because of this mutation. Cite the failing test and output. |
+| Survived | The same checks completed successfully and actually executed tests. This indicates a possible gap, not proof of equivalence. |
+| Invalid | The mutation causes a syntax, type or compilation failure. Keep this outcome separate from assertion-based kills. |
+| Timeout | The time limit expired. Do not count this outcome as killed without further evidence. |
+| Inconclusive | Infrastructure or setup failed, the result was flaky, the cause was uncertain, or no tests executed. |
+| Skipped | The mutant did not run. Give the reason related to relevance, safety or budget. |
 
-Never classify a nonzero exit code alone as killed. Inspect the failure. If attribution is unclear, restore and rerun the baseline, then reproduce the single mutant if the budget permits; otherwise mark inconclusive.
+Never classify a mutant as killed based only on a nonzero exit code. Inspect the failure. If the cause is unclear, restore and rerun the baseline. Then reproduce the single mutant if the budget permits. Otherwise, mark the outcome as inconclusive.
 
-In a finally-style cleanup, even on test failure, timeout or interruption, stop spawned processes and restore the original bytes before another experiment. Reset test-generated source/build state using only known disposable artifacts or a fresh isolated copy; do not use destructive cleanup commands in the user's checkout. Verify the source hash and pristine state again. If restoration cannot be verified, stop rather than run the next mutant on contaminated state. Keep durable logs before removing only the workspace created for this run. Leave pre-existing worktrees and files untouched.
+Use finally-style cleanup to stop spawned processes and restore the original bytes before another experiment. Do this even after test failure, timeout or interruption. Reset source and build state generated by tests. Use only known disposable artifacts or a fresh isolated copy. Do not use destructive cleanup commands in the user's checkout. Verify the source hash and pristine state again. If you cannot verify restoration, stop. Do not run the next mutant on state that a previous experiment changed. Save durable logs before removing the workspace. Remove only the workspace created for this run. Leave pre-existing worktrees and files unchanged.
 
 ## 6. Show results
 
-Return a short summary and a per-mutant table: file/line, rule and edit, relevance to the change, tests run, outcome and evidence/log location. Include baseline results, comparison/target revision, temporary rule configuration, selected/executed/skipped counts, timeout/budget limits, and confirmation of restoration and unchanged user files. Explicitly identify untested behavior and relevant candidates left unexecuted.
+Return a short summary and a table with one row per mutant. Include the file and line, rule and edit, relevance to the change, tests run, outcome, and location of evidence or logs. Include baseline results, comparison and target revision, and temporary rule configuration. Give counts of selected, executed and skipped mutants. State timeout and budget limits. Confirm that you restored the target state and left user files unchanged. Explicitly identify untested behavior and relevant candidates that you did not execute.
 
-If reporting a mutation score, define it as `killed / (killed + survived)` for this selected sample only, exclude invalid/timeouts/inconclusive/skipped cases, and report N/A for a zero denominator. Do not imply full-project coverage or that all survivors require new tests. Explain each survivor's plausible testing gap and suggest a focused assertion; do not automatically change tests or production code unless requested. Do not claim results are persisted by Atlas or visible in its dashboard: this workflow produces agent-run logs and a report only.
+If you report a mutation score, define it as `killed / (killed + survived)` for this selected sample only. Exclude invalid, timeout, inconclusive and skipped cases. Report N/A when the denominator is zero. Do not imply coverage of the full project or that all surviving mutants require new tests. Explain each surviving mutant's plausible testing gap and suggest a focused assertion. Do not automatically change tests or production code unless requested. Do not claim that Atlas stores results or shows them in its dashboard. This workflow produces only logs from the agent's execution and a report.
