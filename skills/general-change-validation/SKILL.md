@@ -1,20 +1,20 @@
 ---
 name: general-change-validation
-description: Perform an independent change validation as an explicit specialist used by $change-validation.
+description: Independently validate a change when $change-validation explicitly uses this specialist.
 disable-model-invocation: true
 ---
 
 # General Change Validation
 
-Validate the code for the following categories. You MUST change the code for any of them that doesn't pass the check. It means fix tests, fix linting errors, refactor, add missing tests, add logging, etc. Do not stop until all categories are in a good state.
+Validate the code in the following categories. If a category fails its check, you must change the code to fix it. This can include fixing tests, fixing linting errors, refactoring, adding missing tests, or adding logging. Do not stop until all categories pass their checks.
 
 ## Strong types
 
-Validate the usage of strong types, try to avoid weak types like `unknown`, `any` or such kind of types in the programming language the code is in. Type checks should be done via the programming language strong typing systems instead of checks such as `if(value === string)`.
+Check that the code uses strong types. Try to avoid weak types such as `unknown`, `any`, or similar types in the programming language. Use the language's strong type system for type checks instead of checks such as `if(value === string)`.
 
 ## Safeguards
 
-Always prefer safeguards at the start of a function that discard edge cases and return early instead of using complex if-else statements or nested logic.
+Always prefer safeguards at the start of a function. Use them to handle edge cases and return early instead of using complex if-else statements or nested logic.
 
 ## YAGNI
 
@@ -22,12 +22,12 @@ Follow the YAGNI principle and prefer one-line solutions when they are readable.
 
 ## Logging and monitoring
 
-Analyse whether the code logs the right log levels depending on the situation; if the project supports monitoring via metrics, traces, or any other tools, make sure the code follows the standards in the repository.
+Check that the code uses the correct log level for each situation. If the project supports monitoring through metrics, traces, or other tools, check that the code follows the repository's standards.
 
 ## Typechecks and lint
 
-Typechecks and linting pass, the project compiles/builds, and all tests pass.
+Make sure typechecks and linting pass, the project compiles/builds, and all tests pass.
 
 ## Architecture
 
-Analyse the code for a lean and straightforward architecture, which means no complex back-and-forth calls between components and no tight coupling; only introduce new components when it's extremely necessary.
+Check that the code has a simple architecture with no complex sequences of calls in both directions between components and no tight coupling. Introduce new components only when they are essential.

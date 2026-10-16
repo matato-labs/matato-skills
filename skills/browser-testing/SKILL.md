@@ -1,17 +1,19 @@
 ---
 name: browser-testing
-description: Use after a runnable frontend or user-flow change to perform one focused local Brave browser smoke check with playwright-cli.
+description: Use after a change to a runnable frontend or user flow. Perform one focused smoke check in a local Brave browser with playwright-cli.
 ---
 
 # Browser Testing Skill
 
-Read the target repository's project manifest (`package.json`, `mix.exs`, etc.), start scripts, and existing E2E conventions first. Choose its actual start command and an unused local port. Never invent a framework-specific command or reuse a running human/shared server.
+First, read the target repository's project manifest (`package.json`, `mix.exs`, etc.), start scripts, and existing E2E conventions. Use the repository's actual start command and an unused local port. Never invent a framework-specific command. Never reuse a running server that a person uses or shares.
 
-Use `scripts/runBrowser.ts` for all browser smoke checks. It manages the app process group, readiness (60 seconds), a unique named session, Brave configuration, fresh snapshots, interactions, assertions, screenshot, console errors, network requests and response bodies, and cleanup on success, failure, SIGINT, or SIGTERM. It detects the installed CLI interface from help: dedicated session commands or the newer `playwright-cli cli` subcommand. It never installs or downgrades tools or browsers, attaches to human sessions, or closes other browser sessions. `bun`, global `playwright-cli`, and `/usr/bin/brave` must already exist; report missing or unsupported tools as blockers.
+Use `scripts/runBrowser.ts` for all browser smoke checks. The runner manages the app process group and waits up to 60 seconds for readiness. It manages a unique named session, Brave configuration, fresh snapshots, interactions, assertions, and a screenshot. It also manages console errors, network requests and response bodies, and cleanup on success, failure, SIGINT, or SIGTERM.
+
+The runner reads help to detect the installed CLI interface. It supports dedicated session commands or the newer `playwright-cli cli` subcommand. It never installs or downgrades tools or browsers. It never attaches to a person's session or closes other browser sessions. `bun`, global `playwright-cli`, and `/usr/bin/brave` must already exist. Report missing or unsupported tools as blockers.
 
 ## Run
 
-Create a small JSON scenario outside the clone for only the changed critical path. Targets are exact accessible labels from snapshots, not CSS selectors or element refs. The runner resolves each target to a unique ref from an immediately preceding live snapshot; missing or ambiguous targets fail rather than guessing. It snapshots again after each interaction.
+Create a small JSON scenario outside the clone. Cover only the critical path that changed. Use exact accessible labels from snapshots as targets. Do not use CSS selectors or element refs. The runner resolves each target to a unique ref from a live snapshot taken immediately before that step. If a target is missing or ambiguous, the runner fails instead of guessing. It takes another snapshot after each interaction.
 
 ```json
 {
@@ -24,7 +26,14 @@ Create a small JSON scenario outside the clone for only the changed critical pat
 }
 ```
 
-Supported actions: `click`, `check`, `uncheck`, `hover` with `target`; `fill`, `select` with `target` and `value`; `press` with `key`; `expect` with `text`. Every scenario needs at least one `expect`. Assertions wait up to 10 seconds for text in the visible accessibility snapshot; they do not evaluate hidden DOM or execute arbitrary browser code.
+Use these supported actions:
+
+- `click`, `check`, `uncheck`, and `hover` require `target`.
+- `fill` and `select` require `target` and `value`.
+- `press` requires `key`.
+- `expect` requires `text`.
+
+Include at least one `expect` in every scenario. Assertions wait up to 10 seconds for text in the visible accessibility snapshot. They do not evaluate hidden DOM or execute arbitrary browser code.
 
 Resolve the runner path relative to this skill directory, not the target repository:
 
@@ -36,21 +45,21 @@ bun /absolute/path/to/browser-testing/scripts/runBrowser.ts \
   --scenario /tmp/browserScenario.json
 ```
 
-The start command above is an example only. Use the project's real command. For initial discovery, use a scenario containing only an `expect` for a known page heading, then read its snapshot labels to prepare the focused scenario. Do not guess refs or bypass the runner. Each run starts a fresh app and session; no state is shared between runs.
+The start command above is an example only. Use the project's actual start command. To find the snapshot labels, first use a scenario with only an `expect` for a known page heading. Then read its snapshot labels to prepare the focused scenario. Do not guess refs or bypass the runner. Each run starts a fresh app and session. Runs do not share state.
 
 ## Read the Output
 
-The runner prints step outputs, snapshots, assertion results, console errors, all HTTP request statuses (including static assets), non-static request details and response bodies, and a final JSON report. HTTP evidence does not inspect WebSocket messages; LiveView interactions are verified through their resulting snapshots. Exit status is nonzero for failed assertions, commands, or cleanup. `PASS` means scenario assertions passed, not that console/network evidence is clean; inspect those outputs and the screenshot before concluding the change works.
+The runner prints step outputs, snapshots, assertion results, and console errors. It also prints all HTTP request statuses (including static assets), non-static request details and response bodies, and a final JSON report. HTTP evidence does not include inspection of WebSocket messages. Use the resulting snapshots to verify LiveView interactions. The runner returns a nonzero exit status if an assertion, command, or cleanup fails. `PASS` means the scenario assertions passed. It does not mean that the console and network evidence show no problems. Inspect those outputs and the screenshot before you conclude that the change works.
 
-Artifacts live outside the clone in a unique temporary directory printed as `artifacts`. It contains `run.json` (URL, scenario, app PID, log path, session), `app.log`, command logs, snapshots, `result.png`, and `report.json`. Read `result.png` with the image reader. Follow any console/network artifact paths printed by the CLI and inspect relevant failed responses. Report the URL, scenario, result, relevant evidence, and limitations.
+The runner stores artifacts outside the clone in a unique temporary directory. It prints the directory path as `artifacts`. The directory contains `run.json` (URL, scenario, app PID, log path, session), `app.log`, command logs, snapshots, `result.png`, and `report.json`. Read `result.png` with the image reader. Follow any paths to console or network artifacts that the CLI prints. Inspect relevant failed responses. Report the URL, scenario, result, relevant evidence, and limitations.
 
-The browser session and entire app process group are stopped before the runner returns. If cleanup failed, report the failure and resolve it before handoff. Uncatchable termination (SIGKILL or worker crash) cannot run cleanup; use `run.json` to identify the owned app/session, never `close-all` or `kill-all`.
+The runner stops the browser session and the entire app process group before it returns. If cleanup fails, report the failure and resolve it before handoff. Cleanup cannot run after an uncatchable termination (SIGKILL or worker crash). Use `run.json` to identify the app and session owned by the runner. Never use `close-all` or `kill-all`.
 
-After reading and reporting evidence, delete the artifacts using the runner and remove your scenario file:
+After you read and report the evidence, use the runner to delete the artifacts. Remove your scenario file:
 
 ```sh
 bun /absolute/path/to/browser-testing/scripts/runBrowser.ts --cleanup /tmp/matatoBrowserABC123
 rm /tmp/browserScenario.json
 ```
 
-Cleanup accepts only completed runner artifact directories under the system temporary directory. Do not retain screenshots or logs containing sensitive application data unnecessarily.
+Cleanup accepts only artifact directories from completed runs of the runner. These directories must be under the system temporary directory. Do not keep screenshots or logs that contain sensitive application data longer than necessary.

@@ -1,18 +1,18 @@
 ---
 name: deep-dive
-description: Use this skill when the user wants to know how something works in a codebase or has a really presice question
+description: Use this skill when the user wants to know how something works in a codebase or has a very precise question.
 disable-model-invocation: true
 ---
 
-The task is to review the user's request and provide a specific answer regarding the user's question; the user could also ask `how does this component work in the codebase?`, `are there tests that cover this scenario?`, etc. You need to read the code and never invent things; all answers need to be backed by evidence of what the actual code does.
+Review the user's request and give a specific answer to the question. For example, the user could ask `how does this component work in the codebase?` or `are there tests that cover this scenario?`. Read the code. Never invent information. Support every answer with evidence of what the code actually does.
 
-A user request can be categorized in two ways: simple and complex. You need to do a first run and determine which route to take.
+Do an initial investigation. Classify the user's request as simple or complex, then use the corresponding workflow.
 
 ## Simple
-The user's question can be answered by reading part of the code and doesn't require a complex analysis. Launch one subagent to do the analysis.
+Use this workflow when you can answer the user's question by reading part of the code without complex analysis. Launch one subagent to do the analysis.
 
 ## Complex
-Give a quick analysis first; try to find files, classes, modules, functions or any code artifact and identify different branches that are worth exploring; for each branch, launch a sub-agent that will do a deep-dive and come back with a conclusion; they need to work until the branch's theory is proven or disproven.
+Give a quick analysis first. Look for relevant files, classes, modules, functions or other code artifacts. Identify investigation branches worth exploring. For each branch, launch a subagent to investigate in detail and return a conclusion. Each subagent must continue until it proves or disproves the branch's theory.
 
 ## Output
-When all investigations are done and you have a better overview, draft the answer to the user. Make any answer concise. Sacrifice grammar for the sake of concision.
+When all investigations are complete and you understand the findings, draft the answer to the user. Use short, complete sentences and active voice. Use the same term for the same concept. Give direct instructions. Avoid idioms and unnecessary words. Preserve technical accuracy, code, commands, and identifiers. Do not sacrifice grammar for brevity.

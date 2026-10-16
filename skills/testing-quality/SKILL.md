@@ -1,15 +1,15 @@
 ---
 name: testing-quality
-description: Run $testing-quality when a change is done and you want to make sure the tests are meaningful
+description: Run $testing-quality when a change is complete and you want to check that its tests are meaningful.
 disable-model-invocation: true
 ---
 
 ## Testing
 
-The user will provide you with a change, local changes, a PR, a branch, etc.; your task is to analyse them and make sure the changes have meaningful tests.
+Analyze the change that the user provides and check that it has meaningful tests. The user can provide local changes, a PR, a branch or another form of change.
 
-- A good test verifies the code primarily from the business logic side and follows the 3 steps of given/when/then. The assertions are on the state of the system, like what is the returned value of this function, or what ends written to the database, and tests are preferably E2E or follow the frameworks' underused best practices.
-- A good suite of tests has different levels: we have unit tests with mocks and stubs to check the internal logic of a file. Integration tests cover the module's E2E workflows. API tests use frameworks' internal tooling to test the APIs with an E2E setup.
-- Tests are composable by layers. We have `Fixtures` to create runtime objects, models, entities, etc., and define input by default with the option to override. Scenarios are easy to create from the business side. I have utility files that help to build the scenario with methods and functions that create the required data.
-- Everything is tested, but we don't assert twice. A test is as good as its assertions.
+- Verify code primarily through its business logic. Follow the 3 steps of given/when/then. Assert the system state, such as a function's return value or the data written to the database. Prefer E2E tests or the frameworks' underused best practices.
+- Use tests at different levels. Use unit tests with mocks and stubs to check a file's internal logic. Use integration tests to cover the module's E2E workflows. Use the frameworks' internal tooling to test APIs with an E2E setup.
+- Compose tests from layers. Use `Fixtures` to create runtime objects, models, entities and other required items. Define default input and allow overrides. Make business scenarios easy to create. Use utility files with methods and functions that create the data required for a scenario.
+- Test everything, but do not duplicate assertions. Judge a test's quality by its assertions.
 
