@@ -2,6 +2,7 @@
 name: atlas-mutation-test
 description: Use Atlas mutation manifests to test whether a change's tests detect realistic bugs. Use after code or test changes. Select relevant mutations, apply each in isolation, run baseline and mutant tests, and report outcomes with evidence.
 compatibility: Requires Git, Atlas with the mutations command, and the target project's build/test tools.
+disable-model-invocation: true
 ---
 
 # Change-focused mutation testing

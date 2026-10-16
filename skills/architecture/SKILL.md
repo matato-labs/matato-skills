@@ -1,14 +1,29 @@
 ---
 name: architecture
-description: Review proposed or implemented changes for fit with the project's architecture. Use before coding or during review.
+description: Use this skill to analyse the architecture of a codebase for a review, proposed or implemention.
+disable-model-invocation: true
 ---
 
-# Architecture review
+# Architecture fit
 
-1. Read project instructions and the task or diff to identify the change's scope.
-2. Inspect related source and callers. Identify the existing architecture from actual dependencies and responsibilities, not folder names alone.
-3. Check that the change follows that architecture: correct ownership, dependency direction, existing extension points, and preserved contracts.
-4. If no architecture is visible, recommend **entrypoint → service → repository**: entrypoints handle input and output, services own business logic, and repositories handle data access. Dependencies point in that direction. Do not force unrelated code into these layers or require new directories or classes.
-5. Report whether the change fits. For each mismatch, cite `path:line`, explain the impact, and suggest the smallest correction and a regression check. State evidence gaps instead of guessing. If no issues exist, say so.
+Give some change in the local repository, a PR or just an idea, this skill a playbook to align everything to the project's architecture. . But some times that's not clear or the architecture is driven by an opinionated framework.
 
-Review only unless the user requests implementation. Do not redesign unrelated code.
+## Architecture finding
+
+**Straight forward architecture**: Some projects will have a clear architecture, being layer architecture, onion architecture, clean architecture, hexagonal architecture. Identify the one the project follows.
+
+**Opinionated framework**: Frameworks like phoenix, django, ruby on rail, are opinionated on how things are supposed to be be architect, in such cases where the underlying technology dictates the architecture, follows the standards you find in code or you know according the running version.
+
+**Unclear architecture**: There will be cases where the architecture is not clear, for this case, default to a layer architecture oriented by features and following the classic `entry-point->Service->Repository`
+
+## No goes
+
+Independently of the architecture, there are things are not acceptable:
+
+* Direct data access from entry points.
+* Unclear ownership.
+* Bidirectional calls.
+
+## Analysis
+
+With the architecture you found, do a deep analysis of the code or proposal under analysis and rate how well it fits in the current architecture. Extract all places where it diverges from the common patterns in the project and list them. Give all findings in the answer.
