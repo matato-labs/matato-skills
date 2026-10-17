@@ -1,7 +1,6 @@
 ---
 name: architecture
 description: Use this skill to analyse the architecture of a codebase for a review, proposed or implemention.
-disable-model-invocation: true
 ---
 
 # Architecture fit
