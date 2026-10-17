@@ -1,0 +1,42 @@
+name: Atlas CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  atlas:
+    name: Atlas
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: repository
+          persist-credentials: false
+      - name: Checkout Atlas
+        uses: actions/checkout@v4
+        with:
+          repository: LeonFelipeCordero/atlas
+          ref: main
+          path: atlas
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+          cache-dependency-glob: atlas/atlas/pyproject.toml
+          python-version: "3.14"
+      - run: uv sync --project atlas/atlas --no-dev
+      - name: Require zero findings across the entire repository
+        shell: bash
+        run: |
+          uv run --project atlas/atlas --no-dev atlas check --f repository --format json | tee "$RUNNER_TEMP/atlasReport.json"
+          jq -e '.findings == []' "$RUNNER_TEMP/atlasReport.json"

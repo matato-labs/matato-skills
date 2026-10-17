@@ -42,7 +42,7 @@ async function scripts(): Promise<string> {
   return skill;
 }
 
-describe("standalone automation runner", () => {
+describe("worker skill lookup", () => {
   test("skill lookup prefers user skills then package paths, never cwd", async () => {
     const packageSkills = join(root, "package", "skills");
     const local = join(root, ".pi", "agent", "skills", "example");
@@ -62,7 +62,9 @@ describe("standalone automation runner", () => {
       resolveSkillPath("../example", root, packageSkills),
     ).rejects.toThrow("Invalid skill name");
   });
+});
 
+describe("worker execution environment", () => {
   test("prompt-only jobs need no skill and inherit env with storage/subagent controls", async () => {
     const fake = fakeRun();
     await runAutomation(automation(), {
@@ -94,7 +96,9 @@ describe("standalone automation runner", () => {
     });
     expect(fake.calls[0].options.env.PI_SUBAGENT_DEPTH).toBe("2");
   });
+});
 
+describe("worker skill execution", () => {
   test("pre-script context, explicit skill, daily session, post-script order", async () => {
     const skill = await scripts();
     const fake = fakeRun("  useful context\n");
@@ -172,7 +176,9 @@ describe("standalone automation runner", () => {
     expect(fake.calls[0].args.at(-1)).toBe("/skill:example Run the job");
     expect(dailySessionArgs(automation())).toEqual([]);
   });
+});
 
+describe("worker execution failures", () => {
   test("zero-exit JSON provider failure prevents post-script", async () => {
     const skill = await scripts();
     const fake = fakeRun("context", piEvents("error", "provider failed"));

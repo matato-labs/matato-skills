@@ -39,7 +39,7 @@ const searchResults = Array.from({ length: 14 }, (_, index) => ({
   description: `Text ${index}`,
 }));
 
-describe("Brave search helpers", () => {
+describe("Brave search results", () => {
   test("uses the Brave API with token authentication and normalizes results", async () => {
     process.env.BRAVE_API_TOKEN = " testToken ";
     let requestedUrl = "";
@@ -115,7 +115,9 @@ describe("Brave search helpers", () => {
         .results,
     ).toHaveLength(2);
   });
+});
 
+describe("Brave search cache", () => {
   test("reuses disk results across depths and refreshes expired entries", async () => {
     let requests = 0;
     setFetch(async () => {
@@ -173,7 +175,9 @@ describe("Brave search helpers", () => {
         .results,
     ).toHaveLength(1);
   });
+});
 
+describe("Brave search token validation", () => {
   test("requires a token even when results are cached", async () => {
     let requests = 0;
     setFetch(async () => {
@@ -210,7 +214,9 @@ describe("Brave search helpers", () => {
       "Brave search failed: HTTP 401",
     );
   });
+});
 
+describe("Brave search errors and empty results", () => {
   test("rejects empty queries and HTTP errors", async () => {
     setFetch(async () => new Response("Forbidden", { status: 403 }));
     await expect(
@@ -244,7 +250,9 @@ describe("Brave search helpers", () => {
         .results,
     ).toEqual([]);
   });
+});
 
+describe("page content fetching", () => {
   test("fetches page HTML directly and rejects invalid URLs and HTTP errors", async () => {
     delete process.env.BRAVE_API_TOKEN;
     setFetch(async (input) => {
