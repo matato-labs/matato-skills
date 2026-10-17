@@ -4,6 +4,7 @@ import {
   registerRemoteSession,
   registrationError,
   relativeProject,
+  runCommand,
   type CommandRunner,
   type FetchLike,
   type RemoteSessionContext,
@@ -49,6 +50,32 @@ function okFetch(): FetchLike {
     ),
   );
 }
+
+describe("command execution diagnostics", () => {
+  test("returns stdout and stderr for a successful command", async () => {
+    await expect(
+      runCommand(process.execPath, [
+        "-e",
+        "process.stdout.write('ready'); process.stderr.write('warning');",
+      ]),
+    ).resolves.toEqual({ stdout: "ready", stderr: "warning" });
+  });
+
+  test("uses trimmed stderr when a command fails", async () => {
+    await expect(
+      runCommand(process.execPath, [
+        "-e",
+        "process.stderr.write('  permission denied\\n'); process.exit(7);",
+      ]),
+    ).rejects.toThrow(/^permission denied$/);
+  });
+
+  test("reports the exit status when a failed command has no stderr", async () => {
+    await expect(
+      runCommand(process.execPath, ["-e", "process.exit(7);"]),
+    ).rejects.toThrow(`${process.execPath} exited with status 7.`);
+  });
+});
 
 describe("registration prerequisites", () => {
   test("rejects an ephemeral session without calling the web app", async () => {
