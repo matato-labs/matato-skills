@@ -66,7 +66,9 @@ describe("worker config polling", () => {
     expect(loads).toBe(2);
     expect(replacements).toBe(1);
   });
+});
 
+describe("worker polling lifecycle", () => {
   test("polls are serialized and shutdown discards an in-flight load", async () => {
     const pending = deferred();
     let loads = 0;

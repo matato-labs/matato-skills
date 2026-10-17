@@ -3,7 +3,10 @@ import { existsSync } from "node:fs";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, join, resolve } from "node:path";
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import type {
+  ExtensionAPI,
+  ToolDefinition,
+} from "@earendil-works/pi-coding-agent";
 import {
   DEFAULT_MAX_BYTES,
   DEFAULT_MAX_LINES,
@@ -72,8 +75,13 @@ function getPiInvocation(args: Array<string>): {
 function runPi(
   args: Array<string>,
   cwd: string,
-  signal: AbortSignal | undefined,
-  onStarted: () => void,
+  {
+    signal,
+    onStarted,
+  }: {
+    signal: AbortSignal | undefined;
+    onStarted: () => void;
+  },
 ): Promise<ProcessResult> {
   return new Promise((resolvePromise) => {
     const invocation = getPiInvocation(args);
@@ -266,15 +274,13 @@ async function runSubagentTask(
   settings: SubagentRunSettings,
 ): Promise<SubagentTaskDetails> {
   throwIfAborted(settings.signal);
-  const result = await runPi(
-    subagentArgs(task, settings),
-    task.cwd,
-    settings.signal,
-    () => {
+  const result = await runPi(subagentArgs(task, settings), task.cwd, {
+    signal: settings.signal,
+    onStarted: () => {
       task.status = "running";
       settings.update();
     },
-  );
+  });
   throwIfAborted(settings.signal);
   completeTask(
     task,
@@ -335,6 +341,97 @@ function resultColor(failed: number): "error" | "success" {
   return failed ? "error" : "success";
 }
 
+const subagentParameters = Type.Union([
+  Type.Object(
+    {
+      prompt: Type.String({
+        minLength: 1,
+        description:
+          "Self-contained prompt for the fresh subagent. Start with /skill:<name> when delegating to a specific Pi skill.",
+      }),
+      cwd: Type.Optional(
+        Type.String({
+          description: "Working directory; defaults to the parent session cwd",
+        }),
+      ),
+    },
+    { additionalProperties: false },
+  ),
+  Type.Object(
+    {
+      tasks: Type.Array(
+        Type.Object({
+          prompt: Type.String({
+            minLength: 1,
+            description: "Self-contained prompt for this fresh subagent.",
+          }),
+          cwd: Type.Optional(
+            Type.String({
+              description:
+                "Working directory for this task; defaults to the parent session cwd",
+            }),
+          ),
+        }),
+        {
+          minItems: 1,
+          maxItems: MAX_BATCH_SIZE,
+          description:
+            "Independent tasks. All child Pi processes run concurrently.",
+        },
+      ),
+    },
+    { additionalProperties: false },
+  ),
+]);
+
+type SubagentExecute = ToolDefinition<
+  typeof subagentParameters,
+  SubagentDetails
+>["execute"];
+
+function createSubagentExecute(tempDirs: Set<string>): SubagentExecute {
+  return async (
+    ...[, params, signal, onUpdate, ctx]: Parameters<SubagentExecute>
+  ) => {
+    if (!ctx.model)
+      throw new Error("Cannot launch a subagent without an active model");
+
+    const prepared = prepareTasks(params, ctx.cwd);
+    const details: SubagentDetails = {
+      status: "running",
+      tasks: prepared.tasks,
+    };
+    const update = () =>
+      onUpdate?.({
+        content: [{ type: "text", text: progressText(prepared.tasks) }],
+        details,
+      });
+    const settings: SubagentRunSettings = {
+      model: `${ctx.model.provider}/${ctx.model.id}`,
+      thinkingLevel: ctx.thinkingLevel,
+      signal,
+      tempDirs,
+      update,
+    };
+    const completedTasks = await runConcurrent(prepared.tasks, (task) =>
+      runSubagentTask(task, settings),
+    );
+
+    details.status = "finished";
+    const error = singleTaskError(prepared.batch, completedTasks[0]);
+    if (error) throw new Error(error);
+    return {
+      content: [
+        {
+          type: "text",
+          text: completedOutput(prepared.batch, completedTasks),
+        },
+      ],
+      details,
+    };
+  };
+}
+
 export default function (pi: ExtensionAPI) {
   if (Number(process.env.PI_SUBAGENT_DEPTH ?? "0") > 0) return;
 
@@ -357,88 +454,8 @@ export default function (pi: ExtensionAPI) {
       "Immediately before calling subagent, write a brief assistant text update saying that you are launching the subagent or subagents and will wait for them to finish.",
       "Wait for all requested subagent results before continuing, then report what each returned or did.",
     ],
-    parameters: Type.Union([
-      Type.Object(
-        {
-          prompt: Type.String({
-            minLength: 1,
-            description:
-              "Self-contained prompt for the fresh subagent. Start with /skill:<name> when delegating to a specific Pi skill.",
-          }),
-          cwd: Type.Optional(
-            Type.String({
-              description:
-                "Working directory; defaults to the parent session cwd",
-            }),
-          ),
-        },
-        { additionalProperties: false },
-      ),
-      Type.Object(
-        {
-          tasks: Type.Array(
-            Type.Object({
-              prompt: Type.String({
-                minLength: 1,
-                description: "Self-contained prompt for this fresh subagent.",
-              }),
-              cwd: Type.Optional(
-                Type.String({
-                  description:
-                    "Working directory for this task; defaults to the parent session cwd",
-                }),
-              ),
-            }),
-            {
-              minItems: 1,
-              maxItems: MAX_BATCH_SIZE,
-              description:
-                "Independent tasks. All child Pi processes run concurrently.",
-            },
-          ),
-        },
-        { additionalProperties: false },
-      ),
-    ]),
-
-    async execute(_toolCallId, params: SubagentParams, signal, onUpdate, ctx) {
-      if (!ctx.model)
-        throw new Error("Cannot launch a subagent without an active model");
-
-      const prepared = prepareTasks(params, ctx.cwd);
-      const details: SubagentDetails = {
-        status: "running",
-        tasks: prepared.tasks,
-      };
-      const update = () =>
-        onUpdate?.({
-          content: [{ type: "text", text: progressText(prepared.tasks) }],
-          details,
-        });
-      const settings: SubagentRunSettings = {
-        model: `${ctx.model.provider}/${ctx.model.id}`,
-        thinkingLevel: ctx.thinkingLevel,
-        signal,
-        tempDirs,
-        update,
-      };
-      const completedTasks = await runConcurrent(prepared.tasks, (task) =>
-        runSubagentTask(task, settings),
-      );
-
-      details.status = "finished";
-      const error = singleTaskError(prepared.batch, completedTasks[0]);
-      if (error) throw new Error(error);
-      return {
-        content: [
-          {
-            type: "text",
-            text: completedOutput(prepared.batch, completedTasks),
-          },
-        ],
-        details,
-      };
-    },
+    parameters: subagentParameters,
+    execute: createSubagentExecute(tempDirs),
 
     renderCall(args: SubagentParams, theme) {
       const taskCount = "tasks" in args ? args.tasks.length : 1;

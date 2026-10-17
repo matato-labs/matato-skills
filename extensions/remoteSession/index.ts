@@ -214,8 +214,7 @@ function sessionRegistration(
 type RegistrationTarget = { sessionFile: string; webUrl: string };
 
 async function registrationTarget(
-  host: string | undefined,
-  sessionFile: string,
+  { host, sessionFile }: { host?: string; sessionFile: string },
   ctx: RemoteSessionContext,
   commandRunner: CommandRunner,
 ): Promise<RegistrationTarget | undefined> {
@@ -235,8 +234,10 @@ async function registrationTarget(
 }
 
 async function submitRegistration(
-  registration: Omit<SessionRegistration, "sessionId">,
-  targetWebUrl: string,
+  {
+    webUrl: targetWebUrl,
+    ...registration
+  }: Omit<SessionRegistration, "sessionId"> & RegistrationTarget,
   ctx: RemoteSessionContext,
   fetchImpl: FetchLike,
 ): Promise<void> {
@@ -271,8 +272,10 @@ async function submitRegistration(
 export async function registerRemoteSession(
   args: string,
   ctx: RemoteSessionContext,
-  fetchImpl: FetchLike = fetch,
-  commandRunner: CommandRunner = runCommand,
+  {
+    fetchImpl = fetch,
+    commandRunner = runCommand,
+  }: { fetchImpl?: FetchLike; commandRunner?: CommandRunner } = {},
 ): Promise<void> {
   let command: RemoteCommand;
   try {
@@ -291,8 +294,7 @@ export async function registerRemoteSession(
   );
   if (!registration) return;
   const target = await registrationTarget(
-    command.host,
-    registration.sessionFile,
+    { host: command.host, sessionFile: registration.sessionFile },
     ctx,
     commandRunner,
   );
@@ -300,9 +302,8 @@ export async function registerRemoteSession(
   await submitRegistration(
     {
       ...registration,
-      sessionFile: target.sessionFile,
+      ...target,
     },
-    target.webUrl,
     ctx,
     fetchImpl,
   );

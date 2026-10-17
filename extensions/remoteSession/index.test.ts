@@ -50,13 +50,13 @@ function okFetch(): FetchLike {
   );
 }
 
-describe("registerRemoteSession", () => {
+describe("registration prerequisites", () => {
   test("rejects an ephemeral session without calling the web app", async () => {
     process.env.WORKSPACE = "/workspace";
     const fetchImpl = okFetch();
     const { ctx, notifications } = context({ sessionFile: undefined });
 
-    await registerRemoteSession("", ctx, fetchImpl);
+    await registerRemoteSession("", ctx, { fetchImpl });
 
     expect(fetchImpl).not.toHaveBeenCalled();
     expect(notifications).toEqual([
@@ -69,7 +69,7 @@ describe("registerRemoteSession", () => {
     const fetchImpl = okFetch();
     const { ctx, notifications } = context({ cwd: "/somewhere" });
 
-    await registerRemoteSession("", ctx, fetchImpl);
+    await registerRemoteSession("", ctx, { fetchImpl });
 
     expect(fetchImpl).not.toHaveBeenCalled();
     expect(notifications).toEqual([
@@ -85,20 +85,22 @@ describe("registerRemoteSession", () => {
     const fetchImpl = okFetch();
     const { ctx, notifications } = context({ cwd: "/elsewhere/alpha" });
 
-    await registerRemoteSession("", ctx, fetchImpl);
+    await registerRemoteSession("", ctx, { fetchImpl });
 
     expect(fetchImpl).not.toHaveBeenCalled();
     expect(notifications).toEqual([
       { message: expect.stringContaining("outside WORKSPACE"), type: "error" },
     ]);
   });
+});
 
+describe("local registration", () => {
   test("registers the session with the given name", async () => {
     process.env.WORKSPACE = "/workspace";
     const fetchImpl = okFetch();
     const { ctx, notifications } = context({ cwd: "/workspace/alpha" });
 
-    await registerRemoteSession("My session", ctx, fetchImpl);
+    await registerRemoteSession("My session", ctx, { fetchImpl });
 
     expect(fetchImpl).toHaveBeenCalledTimes(1);
     const [url, init] = (fetchImpl as ReturnType<typeof mock>).mock.calls[0];
@@ -117,7 +119,9 @@ describe("registerRemoteSession", () => {
       },
     ]);
   });
+});
 
+describe("SSH registration", () => {
   test("copies and registers the session through an SSH-config host", async () => {
     process.env.WORKSPACE = "/workspace";
     const fetchImpl = okFetch();
@@ -130,12 +134,10 @@ describe("registerRemoteSession", () => {
     );
     const { ctx, notifications } = context({ cwd: "/workspace/alpha" });
 
-    await registerRemoteSession(
-      "My session --host piServer",
-      ctx,
+    await registerRemoteSession("My session --host piServer", ctx, {
       fetchImpl,
       commandRunner,
-    );
+    });
 
     expect(commandRunner).toHaveBeenNthCalledWith(1, "ssh", [
       "piServer",
@@ -161,7 +163,9 @@ describe("registerRemoteSession", () => {
       },
     ]);
   });
+});
 
+describe("SSH transfer failures", () => {
   test("shows an error without registering when SSH storage preparation fails", async () => {
     process.env.WORKSPACE = "/workspace";
     const fetchImpl = okFetch();
@@ -170,12 +174,10 @@ describe("registerRemoteSession", () => {
     );
     const { ctx, notifications } = context();
 
-    await registerRemoteSession(
-      "--host piServer",
-      ctx,
+    await registerRemoteSession("--host piServer", ctx, {
       fetchImpl,
       commandRunner,
-    );
+    });
 
     expect(fetchImpl).not.toHaveBeenCalled();
     expect(notifications).toEqual([
@@ -197,12 +199,10 @@ describe("registerRemoteSession", () => {
     );
     const { ctx, notifications } = context();
 
-    await registerRemoteSession(
-      "--host piServer",
-      ctx,
+    await registerRemoteSession("--host piServer", ctx, {
       fetchImpl,
       commandRunner,
-    );
+    });
 
     expect(fetchImpl).not.toHaveBeenCalled();
     expect(notifications).toEqual([
@@ -213,7 +213,9 @@ describe("registerRemoteSession", () => {
       },
     ]);
   });
+});
 
+describe("remote registration failures", () => {
   test("shows the remote API error without a success notification", async () => {
     process.env.WORKSPACE = "/workspace";
     const fetchImpl: FetchLike = mock(() =>
@@ -228,12 +230,10 @@ describe("registerRemoteSession", () => {
     );
     const { ctx, notifications } = context();
 
-    await registerRemoteSession(
-      "--host piServer",
-      ctx,
+    await registerRemoteSession("--host piServer", ctx, {
       fetchImpl,
       commandRunner,
-    );
+    });
 
     expect(notifications).toEqual([
       { message: "Registration failed: Invalid session path", type: "error" },
@@ -248,12 +248,10 @@ describe("registerRemoteSession", () => {
     );
     const { ctx, notifications } = context();
 
-    await registerRemoteSession(
-      "My session --host -oProxyCommand",
-      ctx,
+    await registerRemoteSession("My session --host -oProxyCommand", ctx, {
       fetchImpl,
       commandRunner,
-    );
+    });
 
     expect(fetchImpl).not.toHaveBeenCalled();
     expect(commandRunner).not.toHaveBeenCalled();
@@ -273,8 +271,7 @@ describe("registerRemoteSession", () => {
     await registerRemoteSession(
       "My session --host piServer --host anotherServer",
       ctx,
-      fetchImpl,
-      commandRunner,
+      { fetchImpl, commandRunner },
     );
 
     expect(fetchImpl).not.toHaveBeenCalled();
@@ -286,13 +283,15 @@ describe("registerRemoteSession", () => {
       },
     ]);
   });
+});
 
+describe("local registration defaults and failures", () => {
   test("defaults the name to the project directory", async () => {
     process.env.WORKSPACE = "/workspace";
     const fetchImpl = okFetch();
     const { ctx } = context({ cwd: "/workspace/alpha" });
 
-    await registerRemoteSession("  ", ctx, fetchImpl);
+    await registerRemoteSession("  ", ctx, { fetchImpl });
 
     const [, init] = (fetchImpl as ReturnType<typeof mock>).mock.calls[0];
     expect(JSON.parse(String(init?.body)).name).toBe("alpha");
@@ -305,7 +304,7 @@ describe("registerRemoteSession", () => {
     );
     const { ctx, notifications } = context();
 
-    await registerRemoteSession("", ctx, fetchImpl);
+    await registerRemoteSession("", ctx, { fetchImpl });
 
     expect(notifications).toEqual([
       {
@@ -327,7 +326,7 @@ describe("registerRemoteSession", () => {
     );
     const { ctx, notifications } = context();
 
-    await registerRemoteSession("", ctx, fetchImpl);
+    await registerRemoteSession("", ctx, { fetchImpl });
 
     expect(notifications).toEqual([
       { message: "Registration failed: Invalid session path", type: "error" },
@@ -340,7 +339,7 @@ describe("registration preparation", () => {
     delete process.env.WORKSPACE;
     const fetchImpl = okFetch();
     const { ctx, notifications } = context({ sessionFile: undefined });
-    await registerRemoteSession("--host", ctx, fetchImpl);
+    await registerRemoteSession("--host", ctx, { fetchImpl });
     expect(fetchImpl).not.toHaveBeenCalled();
     expect(notifications).toEqual([
       { message: expect.stringContaining("Invalid SSH host"), type: "error" },
@@ -358,12 +357,10 @@ describe("registration preparation", () => {
       expect(commandRunner).toHaveBeenCalledTimes(2);
       throw new Error("session ID unavailable");
     };
-    await registerRemoteSession(
-      "--host piServer",
-      ctx,
+    await registerRemoteSession("--host piServer", ctx, {
       fetchImpl,
       commandRunner,
-    );
+    });
     expect(fetchImpl).not.toHaveBeenCalled();
     expect(notifications).toEqual([
       {
@@ -378,7 +375,7 @@ describe("registration preparation", () => {
     process.env.WORKSPACE = "/workspace";
     const { ctx, notifications } = context();
     const fetchImpl: FetchLike = () => Promise.reject("offline");
-    await registerRemoteSession("", ctx, fetchImpl);
+    await registerRemoteSession("", ctx, { fetchImpl });
     expect(notifications).toEqual([
       {
         message:

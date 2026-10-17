@@ -61,9 +61,15 @@ export type RunnerOptions = {
 async function runScript(
   skillPath: string,
   name: "preScript.ts" | "postScript.ts",
-  run: Execute,
-  env: NodeJS.ProcessEnv,
-  signal: AbortSignal | undefined,
+  {
+    run,
+    env,
+    signal,
+  }: {
+    run: Execute;
+    env: NodeJS.ProcessEnv;
+    signal: AbortSignal | undefined;
+  },
 ): Promise<string | null> {
   const path = join(skillPath, "scripts", name);
   try {
@@ -107,7 +113,11 @@ export async function runAutomation(
     ? await (options.resolveSkill ?? resolveSkillPath)(automation.jobName)
     : undefined;
   const preScriptOutput = skillPath
-    ? await runScript(skillPath, "preScript.ts", run, env, options.signal)
+    ? await runScript(skillPath, "preScript.ts", {
+        run,
+        env,
+        signal: options.signal,
+      })
     : null;
   if (preScriptOutput === "") return "skipped";
   const prompt = automationPrompt(automation, skillPath, preScriptOutput);
@@ -143,6 +153,10 @@ export async function runAutomation(
   );
   output.verify();
   if (skillPath)
-    await runScript(skillPath, "postScript.ts", run, env, options.signal);
+    await runScript(skillPath, "postScript.ts", {
+      run,
+      env,
+      signal: options.signal,
+    });
   return "completed";
 }
