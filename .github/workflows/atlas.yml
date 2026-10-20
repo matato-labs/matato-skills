@@ -29,14 +29,15 @@ jobs:
           ref: main
           path: atlas
           persist-credentials: false
-      - uses: astral-sh/setup-uv@v7
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
         with:
-          enable-cache: true
-          cache-dependency-glob: atlas/atlas/pyproject.toml
-          python-version: "3.14"
-      - run: uv sync --project atlas/atlas --no-dev
+          workspaces: atlas/atlas-rust
+      - name: Build Atlas
+        run: cargo build --manifest-path atlas/atlas-rust/Cargo.toml --release --locked --bin atlas
       - name: Require zero findings across the entire repository
         shell: bash
         run: |
-          uv run --project atlas/atlas --no-dev atlas check --f repository --format json | tee "$RUNNER_TEMP/atlasReport.json"
+          set -o pipefail
+          atlas/atlas-rust/target/release/atlas check --f repository --format json | tee "$RUNNER_TEMP/atlasReport.json"
           jq -e '.findings == []' "$RUNNER_TEMP/atlasReport.json"
