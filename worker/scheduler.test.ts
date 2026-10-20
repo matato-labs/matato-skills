@@ -44,7 +44,7 @@ function setup(
   return { scheduler, jobs, errors };
 }
 
-describe("worker schedules", () => {
+describe("worker schedule replacement", () => {
   test("real Croner accepts five/six fields and schedules enabled jobs only", () => {
     const scheduler = createScheduler({
       run: async () => {},
@@ -91,7 +91,9 @@ describe("worker schedules", () => {
     );
     expect(jobs[0].stopped).toBe(false);
   });
+});
 
+describe("worker schedule execution", () => {
   test("overlap protection survives reload and removal/readdition", async () => {
     const pending = deferred();
     let count = 0;

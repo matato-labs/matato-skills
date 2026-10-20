@@ -345,15 +345,21 @@ const run = async (options: RunOptions): Promise<void> => {
     process.removeListener("SIGINT", onSignal);
     process.removeListener("SIGTERM", onSignal);
   }
-  reportRun(options, browser, failures, opened, cleanupComplete);
+  reportRun(options, browser, { failures, opened, cleanupComplete });
 };
 
 const reportRun = (
   options: RunOptions,
   browser: BrowserRun,
-  failures: Array<string>,
-  opened: boolean,
-  cleanupComplete: boolean,
+  {
+    failures,
+    opened,
+    cleanupComplete,
+  }: {
+    failures: Array<string>;
+    opened: boolean;
+    cleanupComplete: boolean;
+  },
 ): void => {
   const report = {
     result: failures.length ? "FAIL" : "PASS",
