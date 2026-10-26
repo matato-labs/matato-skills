@@ -6,7 +6,7 @@ disable-model-invocation: true
 
 # Explain Change
 
-This requires you to scan a full change and use the `$deep-dive`, `$why`, and `$explain` skills as companions to fully understand the change. 
+This requires you to scan a full change and use the `$deep-dive` and `$why` skills as companions to fully understand the change. 
 
 You need to identify all added/updated/deleted components, such as files, folders, modules, and tests, to build an incremental understanding of the change that helps the user visualize the impact and how it fits into the existing codebase. Launch as many subagents as you need to get all the information needed.
 
