@@ -25,4 +25,4 @@ The output would be divide into the following parts:
 1. Explain each of the categories with one mermaid diagram, enumarete the steps to explain the sequence of events. Complement each diagram with an explation of the internals.
 2. Explain any new added components, justify it's addition.
 3. Provide a file structure diagram with ADDED,MODIFIED,DELETED.
-3. If applicable, present a before-and-after diagram with Mermaid to help the user understand the old and new behavior.
+4. If applicable, present a before-and-after diagram with Mermaid to help the user understand the old and new behavior.
