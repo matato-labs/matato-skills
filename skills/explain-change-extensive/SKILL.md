@@ -1,6 +1,6 @@
 ---
-name: explain-change
-description: Run $explain-change when the user wants to review and understand a change.
+name: explain-change-extensive
+description: Run $explain-change-extensive when the user wants to review and understand a change.
 disable-model-invocation: true
 ---
 

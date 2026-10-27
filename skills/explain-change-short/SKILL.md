@@ -1,10 +1,10 @@
 ---
-name: explainchangev2
-description: Explain a diff, commit, or PR with small Mermaid diagrams and concise, source-grounded text for a visual learner. Invoke explicitly for a visual walkthrough.
+name: explain-change-short
+description: Run $explain-change-short when the user wants to review and understand a change with a short explanation.
 disable-model-invocation: true
 ---
 
-# Explain Change v2
+# Explain Change Short
 
 Teach a mental model, not a file inventory. Show what changes, how it works, and why it matters.
 Work read-only; do not install dependencies, run effectful commands, or change the project to explain it.
