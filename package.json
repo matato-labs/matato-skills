@@ -35,6 +35,9 @@
   "dependencies": {
     "croner": "^10.0.1"
   },
+  "overrides": {
+    "undici": "8.12.2"
+  },
   "devDependencies": {
     "@earendil-works/pi-coding-agent": "^1.0.4",
     "@earendil-works/pi-tui": "^1.0.4",
