@@ -453,6 +453,7 @@ export default function (pi: ExtensionAPI) {
       "Use prompt for one task, or tasks for independent tasks. A batch runs all subagents concurrently and reports every task outcome.",
       "Immediately before calling subagent, write a brief assistant text update saying that you are launching the subagent or subagents and will wait for them to finish.",
       "Wait for all requested subagent results before continuing, then report what each returned or did.",
+      "Use ths only if T3Code orchestration is not available"
     ],
     parameters: subagentParameters,
     execute: createSubagentExecute(tempDirs),
