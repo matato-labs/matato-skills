@@ -7,7 +7,7 @@
 ## Coding Rules
 
 - When writing or reviewing code, follow the YAGNI principle and prefer one-line solutions when they stay readable.
-- When a file exceeds 600 lines for production code and 1000 lines for tests, it must be refactored or split.
+- When a file exceeds 700 lines for production code and 1000 lines for tests, it must be refactored or split.
 - Do not implement large functions that exceed 100 lines or reach 4 levels of nesting.
 - **NEVER** change the README unless the user tells you to do so.
 
