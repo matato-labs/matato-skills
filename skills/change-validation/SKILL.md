@@ -19,4 +19,3 @@ You must create a worktree under `/tmp` to keep your work separate from other ru
 After all subagents return, produce one gate report that preserves each specialist's verdict and evidence. The gate controller must not modify the repository. Specialists may make the controlled temporary mutations or test improvements that their own skill requires.
 
 When you finish, reply with a short summary.
-
