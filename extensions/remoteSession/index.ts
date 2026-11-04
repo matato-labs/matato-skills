@@ -5,7 +5,7 @@ import type {
   ExtensionCommandContext,
 } from "@earendil-works/pi-coding-agent";
 
-const webUrl = process.env.MATATO_PI_WEB_URL ?? "http://localhost:4000";
+const webUrl = process.env.MATATO_SKILLS_WEB_URL ?? "http://localhost:4000";
 const remoteSessionDirectory = ".pi/agent/sessions";
 const sshHostPattern = /^[A-Za-z0-9][A-Za-z0-9.-]*$/;
 

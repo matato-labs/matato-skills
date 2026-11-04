@@ -4,7 +4,7 @@ import { sendTelegramMessage } from "./telegram.ts";
 const envKeys = [
   "TELEGRAM_BOT_TOKEN",
   "TELEGRAM_OWNER_ID",
-  "MATATO_PI_WEB_URL",
+  "MATATO_SKILLS_WEB_URL",
 ];
 const originalEnv = envKeys.map((key) => [key, process.env[key]] as const);
 let fetchSpy = spyOn(globalThis, "fetch");
@@ -14,7 +14,7 @@ const send = (text = "hello", chatId = "123") =>
 beforeEach(() => {
   process.env.TELEGRAM_BOT_TOKEN = "private-token";
   process.env.TELEGRAM_OWNER_ID = "123";
-  process.env.MATATO_PI_WEB_URL = "http://127.0.0.1:1";
+  process.env.MATATO_SKILLS_WEB_URL = "http://127.0.0.1:1";
   fetchSpy = spyOn(globalThis, "fetch");
 });
 afterEach(() => {

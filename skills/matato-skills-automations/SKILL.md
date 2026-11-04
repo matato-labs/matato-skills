@@ -1,13 +1,13 @@
 ---
-name: matato-pi-automations
-description: Create, read, update, and delete Matato Pi automations. Use when managing scheduled jobs, prompts, or enabled states.
+name: matato-skills-automations
+description: Create, read, update, and delete Matato Skills automations. Use when managing scheduled jobs, prompts, or enabled states.
 ---
 
-# Matato Pi automations
+# Matato Skills automations
 
 Resolve paths from this skill directory, not the working directory.
 
-1. Read the config at `$MATATO_PI_AUTOMATIONS_CONFIG`, or `../../config/config.json` when unset. Do not edit the package-root `config.json` or use T3 scheduler tools.
+1. Read the config at `$MATATO_SKILLS_AUTOMATIONS_CONFIG`, or `../../config/config.json` when unset. Do not edit the package-root `config.json` or use T3 scheduler tools.
 2. List jobs or find a job by its unique `jobName`. Ask if the target is unclear.
 3. Create by appending to `automations`; update only requested fields; delete only the requested job. Preserve other jobs and fields. To pause a job, set `enabled: false`.
 4. Read `../../src/automation.ts` for fields and allowed values. For new jobs, get the schedule, prompt, and model from the user or an agreed existing job. Use this shape:

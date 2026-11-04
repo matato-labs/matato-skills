@@ -106,7 +106,7 @@ export async function runAutomation(
   const env: NodeJS.ProcessEnv = {
     ...process.env,
     ...options.env,
-    MATATO_PI_CONFIG: configPath,
+    MATATO_SKILLS_CONFIG: configPath,
   };
   if (!automation.canLaunchSubAgents) env.PI_SUBAGENT_DEPTH = "1";
   const skillPath = automation.useSkill

@@ -2,7 +2,7 @@
 
 ## Project scope
 
-Matato Pi is a Pi package with skills, two extensions, and a standalone Bun automation worker. It does not contain the Matato web server. Use [README.md](README.md) for installation, worker commands, automation fields, and the complete [skill](README.md#skills) and [extension](README.md#extensions) tables.
+Matato Skills is a Pi package with skills, two extensions, and a standalone Bun automation worker. It does not contain the Matato web server. Use [README.md](README.md) for installation, worker commands, automation fields, and the complete [skill](README.md#skills) and [extension](README.md#extensions) tables.
 
 ## Package structure
 
@@ -47,13 +47,13 @@ For an intentional worker run, read the config first, confirm Pi credentials and
 
 ## Automation rules
 
-- Use `$MATATO_PI_AUTOMATIONS_CONFIG` when set; otherwise use `config/config.json` relative to this package. Do not edit the root `config.json` for worker changes. Do not use T3 scheduler tools to manage these jobs.
-- Use the `matato-pi-automations` skill for job management. Preserve other jobs and fields. Keep `jobName` unique and new jobs disabled unless the user requests activation.
+- Use `$MATATO_SKILLS_AUTOMATIONS_CONFIG` when set; otherwise use `config/config.json` relative to this package. Do not edit the root `config.json` for worker changes. Do not use T3 scheduler tools to manage these jobs.
+- Use the `matato-skills-automations` skill for job management. Preserve other jobs and fields. Keep `jobName` unique and new jobs disabled unless the user requests activation.
 - Read `src/automation.ts` and `src/automationConfig.ts` before changing the schema or defaults. Croner accepts five- or six-field cron expressions in the worker's local time zone. Enabled `monitor` jobs are unsupported.
 - `useSkill` defaults to true and `canOverlap` defaults to false. Set both explicitly in new examples. Skill jobs require `jobName` to match a skill directory.
 - Skill lookup prefers `~/.pi/agent/skills/<jobName>` over the bundled skill. Hooks run from that skill directory; empty pre-script output skips Pi and the post-script. Pi itself inherits the worker's working directory.
 - The worker polls about every five seconds. Invalid reloads retain existing schedules. Missing configs load an empty job list. Config edits neither start the worker nor cancel active runs.
-- `MATATO_PI_CONFIG` controls storage, defaulting to `~/.config/matato-pi`; it does not select the automation JSON. Daily session files use its `sessions` directory.
+- `MATATO_SKILLS_CONFIG` controls storage, defaulting to `~/.config/matato-skills`; it does not select the automation JSON. Daily session files use its `sessions` directory.
 - GitHub pre-scripts use direct child repositories of `WORKSPACE` with `origin` remotes. They select at most one item per run. Keep selection in pre-scripts and workflow instructions in the config's `userPrompt`.
 - Subagents share a checkout unless given another directory. They do not create worktrees. Keep code-editing tasks isolated as required by their skills. `canLaunchSubAgents: false` disables the bundled extension, not all possible delegation tools.
 

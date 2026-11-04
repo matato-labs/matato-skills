@@ -82,7 +82,7 @@ describe("worker execution environment", () => {
     expect(fake.calls[0].args.at(-1)).toBe("Run the job");
     expect(fake.calls[0].args).not.toContain("--skill");
     expect(fake.calls[0].options.env).toMatchObject({
-      MATATO_PI_CONFIG: root,
+      MATATO_SKILLS_CONFIG: root,
       TEST_VALUE: "inherited",
       PI_SUBAGENT_DEPTH: "1",
     });
@@ -123,7 +123,7 @@ describe("worker skill execution", () => {
     expect(fake.calls[1].args).toContain("example-2026-01-02");
     expect(fake.calls[1].args).toContain(join(root, "sessions"));
     for (const call of fake.calls)
-      expect(call.options.env.MATATO_PI_CONFIG).toBe(root);
+      expect(call.options.env.MATATO_SKILLS_CONFIG).toBe(root);
     expect(fake.calls[0].options.cwd).toBe(skill);
     expect(fake.calls[2].args[0]).toBe(join(skill, "scripts", "postScript.ts"));
   });

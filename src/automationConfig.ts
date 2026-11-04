@@ -7,7 +7,7 @@ type StoredAutomation = Omit<Automation, "canOverlap" | "useSkill"> &
 type StoredConfig = { automations: Array<StoredAutomation> };
 
 export const automationConfigPath = (): string =>
-  process.env.MATATO_PI_AUTOMATIONS_CONFIG ??
+  process.env.MATATO_SKILLS_AUTOMATIONS_CONFIG ??
   fileURLToPath(new URL("../config/config.json", import.meta.url));
 
 export async function loadAutomationConfig(

@@ -14,7 +14,7 @@ for (const signal of ["SIGTERM", "SIGINT"] as const) {
       process.execPath,
       [fileURLToPath(new URL("./index.ts", import.meta.url))],
       {
-        env: { ...process.env, MATATO_PI_AUTOMATIONS_CONFIG: config },
+        env: { ...process.env, MATATO_SKILLS_AUTOMATIONS_CONFIG: config },
         stdio: ["ignore", "pipe", "pipe"],
       },
     );

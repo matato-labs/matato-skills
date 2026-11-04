@@ -4,9 +4,9 @@ import { createScheduler } from "./scheduler.ts";
 import { createWatcher } from "./watcher.ts";
 
 const log = (message: string): void =>
-  console.log(`[matato-pi-worker] ${message}`);
+  console.log(`[matato-skills-worker] ${message}`);
 const onError = (message: string): void =>
-  console.error(`[matato-pi-worker] ${message}`);
+  console.error(`[matato-skills-worker] ${message}`);
 const controller = new AbortController();
 const scheduler = createScheduler({
   async run(automation) {

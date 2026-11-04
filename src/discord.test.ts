@@ -5,7 +5,7 @@ const envKeys = [
   "DISCORD_BOT_TOKEN",
   "DISCORD_GUILD_ID",
   "DISCORD_CHANNEL_IDS",
-  "MATATO_PI_WEB_URL",
+  "MATATO_SKILLS_WEB_URL",
 ];
 const originalEnv = envKeys.map((key) => [key, process.env[key]] as const);
 let fetchSpy = spyOn(globalThis, "fetch");
@@ -16,7 +16,7 @@ beforeEach(() => {
   process.env.DISCORD_BOT_TOKEN = "private-token";
   process.env.DISCORD_GUILD_ID = "555";
   process.env.DISCORD_CHANNEL_IDS = "123,456";
-  process.env.MATATO_PI_WEB_URL = "http://127.0.0.1:1";
+  process.env.MATATO_SKILLS_WEB_URL = "http://127.0.0.1:1";
   fetchSpy = spyOn(globalThis, "fetch");
 });
 afterEach(() => {

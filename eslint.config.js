@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 const tsconfigRootDir = fileURLToPath(new URL(".", import.meta.url));
 
 export default tseslint.config(
-  { ignores: ["node_modules/", "dist/", "matato-pi-origin-main/"] },
+  { ignores: ["node_modules/", "dist/", "matato-skills-origin-main/"] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
