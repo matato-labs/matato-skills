@@ -11,7 +11,7 @@ Use two sources to access all daily activity. Sessions include all conversations
 
 **Sessions**: `~/.pi/agent/sessions/matato/`
 
-**Logs**: `~/.config/matato-pi/logs/web-app.log`. The web app writes every log event to this rotating file. The rotation limit is 10 MB, and the app keeps 5 files. Use `grep '\[error\]'` to find error-level entries. For example, use `grep '\[error\]' ~/.config/matato-pi/logs/web-app.log`.
+**Logs**: `~/.config/matato-skills/logs/web-app.log`. The web app writes every log event to this rotating file. The rotation limit is 10 MB, and the app keeps 5 files. Use `grep '\[error\]'` to find error-level entries. For example, use `grep '\[error\]' ~/.config/matato-skills/logs/web-app.log`.
 
 ## Task
 

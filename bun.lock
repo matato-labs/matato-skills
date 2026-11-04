@@ -3,7 +3,7 @@
   "configVersion": 0,
   "workspaces": {
     "": {
-      "name": "@matato/pi",
+      "name": "@matato/skills",
       "dependencies": {
         "croner": "^10.0.1",
       },

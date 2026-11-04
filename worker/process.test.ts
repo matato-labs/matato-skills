@@ -5,10 +5,10 @@ describe("worker subprocess execution", () => {
   test("drains stdout and inherits explicitly supplied env", async () => {
     const stdout = await execute(
       process.execPath,
-      ["-e", "console.log(process.env.MATATO_PI_CONFIG)"],
+      ["-e", "console.log(process.env.MATATO_SKILLS_CONFIG)"],
       {
         cwd: process.cwd(),
-        env: { ...process.env, MATATO_PI_CONFIG: "testStorage" },
+        env: { ...process.env, MATATO_SKILLS_CONFIG: "testStorage" },
       },
     );
     expect(stdout.trim()).toBe("testStorage");

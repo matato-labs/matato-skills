@@ -9,16 +9,16 @@ import {
   loadAutomationConfig,
 } from "./automationConfig.ts";
 
-const originalConfig = process.env.MATATO_PI_CONFIG;
-const originalAutomations = process.env.MATATO_PI_AUTOMATIONS_CONFIG;
+const originalConfig = process.env.MATATO_SKILLS_CONFIG;
+const originalAutomations = process.env.MATATO_SKILLS_AUTOMATIONS_CONFIG;
 const directories: Array<string> = [];
 
 afterEach(async () => {
-  if (originalConfig === undefined) delete process.env.MATATO_PI_CONFIG;
-  else process.env.MATATO_PI_CONFIG = originalConfig;
+  if (originalConfig === undefined) delete process.env.MATATO_SKILLS_CONFIG;
+  else process.env.MATATO_SKILLS_CONFIG = originalConfig;
   if (originalAutomations === undefined)
-    delete process.env.MATATO_PI_AUTOMATIONS_CONFIG;
-  else process.env.MATATO_PI_AUTOMATIONS_CONFIG = originalAutomations;
+    delete process.env.MATATO_SKILLS_AUTOMATIONS_CONFIG;
+  else process.env.MATATO_SKILLS_AUTOMATIONS_CONFIG = originalAutomations;
   await Promise.all(
     directories.splice(0).map((path) => rm(path, { recursive: true })),
   );
@@ -32,8 +32,8 @@ async function temporaryConfig(): Promise<string> {
 
 describe("standalone automation configuration", () => {
   test("uses the repository config independently of storage and working directory", () => {
-    delete process.env.MATATO_PI_AUTOMATIONS_CONFIG;
-    process.env.MATATO_PI_CONFIG = "/customConfig";
+    delete process.env.MATATO_SKILLS_AUTOMATIONS_CONFIG;
+    process.env.MATATO_SKILLS_CONFIG = "/customConfig";
     const originalDirectory = process.cwd();
     try {
       process.chdir(tmpdir());
@@ -46,7 +46,7 @@ describe("standalone automation configuration", () => {
   });
 
   test("supports an explicit automation config path", () => {
-    process.env.MATATO_PI_AUTOMATIONS_CONFIG = "/customAutomations.json";
+    process.env.MATATO_SKILLS_AUTOMATIONS_CONFIG = "/customAutomations.json";
     expect(automationConfigPath()).toBe("/customAutomations.json");
   });
 

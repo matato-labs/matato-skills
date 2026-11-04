@@ -1,23 +1,23 @@
 ---
-name: atlas-navigate
-description: Use the Atlas CLI to navigate an indexed project's structure, symbols, callers, dependencies, and source. Use for questions about architecture, workflows, behavior, inheritance, or change impact. Explain the evidence with Mermaid diagrams.
-compatibility: Requires the Atlas Python CLI and an indexed Atlas SQLite database; local source is needed to verify behavior.
+name: matis-navigate
+description: Use the Matis CLI to navigate an indexed project's structure, symbols, callers, dependencies, and source. Use for questions about architecture, workflows, behavior, inheritance, or change impact. Explain the evidence with Mermaid diagrams.
+compatibility: Requires the Matis Python CLI and an indexed Matis SQLite database; local source is needed to verify behavior.
 disable-model-invocation: true
 ---
 
-# Atlas project navigation
+# Matis project navigation
 
-Investigate the user's question. Then explain the answer with a Mermaid diagram and source citations. Atlas retrieves static facts. You interpret them. Do not invent execution order, branches, data flow, or callback invocation from dependency edges.
+Investigate the user's question. Then explain the answer with a Mermaid diagram and source citations. Matis retrieves static facts. You interpret them. Do not invent execution order, branches, data flow, or callback invocation from dependency edges.
 
 Read `references/commands.md` for the command contract. Resolve that reference relative to this skill directory, not the project being investigated.
 
 ## Select the project
 
-Use `atlas` if installed. In an Atlas checkout, use `uv run --project /absolute/path/to/atlas/atlas atlas` instead. The final `atlas` directory contains `pyproject.toml`. First, check whether the database exists. Use the read-only check in `references/commands.md`. `atlas projects` can create an empty database if none exists. If the database is absent, explain the prerequisite instead of running discovery. Inside the intended indexed checkout, start with `graph overview` and confirm the checkout's identity. Use `projects` only to locate a registration or resolve ambiguity between registrations. Keep the same supplied `DATABASE_PATH`. Names and IDs identify registrations. Do not treat different Git worktrees as interchangeable.
+Use `matis` if installed. In an Matis checkout, use `uv run --project /absolute/path/to/matis/matis matis` instead. The final `matis` directory contains `pyproject.toml`. First, check whether the database exists. Use the read-only check in `references/commands.md`. `matis projects` can create an empty database if none exists. If the database is absent, explain the prerequisite instead of running discovery. Inside the intended indexed checkout, start with `graph overview` and confirm the checkout's identity. Use `projects` only to locate a registration or resolve ambiguity between registrations. Keep the same supplied `DATABASE_PATH`. Names and IDs identify registrations. Do not treat different Git worktrees as interchangeable.
 
-Inside an indexed folder or any of its subdirectories, graph commands infer the project from the current directory. When indexed folders are nested, commands use the nearest containing folder. Use `atlas graph overview` to start locally. Use `--project` with an explicit name or ID when you run commands from elsewhere or when registrations for the same folder are ambiguous. Do not silently select a similarly named project. Check `overview` for indexing metadata and coverage before investigating. An index timestamp does not prove that the working tree is unchanged.
+Inside an indexed folder or any of its subdirectories, graph commands infer the project from the current directory. When indexed folders are nested, commands use the nearest containing folder. Use `matis graph overview` to start locally. Use `--project` with an explicit name or ID when you run commands from elsewhere or when registrations for the same folder are ambiguous. Do not silently select a similarly named project. Check `overview` for indexing metadata and coverage before investigating. An index timestamp does not prove that the working tree is unchanged.
 
-Graph queries do not index, migrate, or repair the database. If the database is absent or incompatible, or the project has no graph, explain the prerequisite. Initialize or migrate the database, or run `atlas index --folder /absolute/project/path`, only with permission to write the database. Otherwise, use ordinary file search and reading. Clearly state that Atlas evidence was unavailable.
+Graph queries do not index, migrate, or repair the database. If the database is absent or incompatible, or the project has no graph, explain the prerequisite. Initialize or migrate the database, or run `matis index --folder /absolute/project/path`, only with permission to write the database. Otherwise, use ordinary file search and reading. Clearly state that Matis evidence was unavailable.
 
 ## Investigate progressively
 
@@ -47,7 +47,7 @@ Use `source` before making claims about behavior. It checks the local file again
 
 Keep `CALLS`, `REFERENCES`, `IMPORTS`, and `INHERITS` distinct. Preserve confidence and `typeOnly` distinctions. `INFERRED` is a static resolution category, not a numerical probability. `REFERENCES` does not establish invocation. A type-only dependency is not proof of a runtime interaction. An external node may represent an unresolved or ambiguous internal target, not a confirmed third-party package.
 
-Atlas alone cannot answer every question. Use ordinary file search and source reading for configuration, documentation, SQL, unsupported languages, dynamic registration, and missing relationships. Search for routes, decorators, event names, registries, or configuration keys when indirect dispatch matters. A missing graph edge does not prove that behavior is absent. You may need tests or logs to establish runtime timing and actual execution. State what remains unknown.
+Matis alone cannot answer every question. Use ordinary file search and source reading for configuration, documentation, SQL, unsupported languages, dynamic registration, and missing relationships. Search for routes, decorators, event names, registries, or configuration keys when indirect dispatch matters. A missing graph edge does not prove that behavior is absent. You may need tests or logs to establish runtime timing and actual execution. State what remains unknown.
 
 Before drawing an E2E flow, check the relevant boundaries in source. Check dispatch predicates, callbacks and messages; separately committed writes; state retained after failures; behavior when an optional step fails or is skipped; result delivery as distinct from logging; and limits on lists and history. Inspect only the boundaries relevant to the question. Static relationships do not establish these semantics.
 
@@ -72,4 +72,4 @@ Below the diagram, cite the important steps as `path/to/file.py:42` or a line ra
 
 ## Use in Pi or another agent
 
-Pi discovers this project skill under `.agents/skills/`. Reload resources after adding it. Invoke it explicitly with `/skill:atlas-navigate Explain how indexing saves data and draw the workflow.` Other agents that support Agent Skills can load this directory. To investigate another project, make the skill available to that agent and select the project's Atlas registration. The skill's directory is not the source root.
+Pi discovers this project skill under `.agents/skills/`. Reload resources after adding it. Invoke it explicitly with `/skill:matis-navigate Explain how indexing saves data and draw the workflow.` Other agents that support Agent Skills can load this directory. To investigate another project, make the skill available to that agent and select the project's Matis registration. The skill's directory is not the source root.
