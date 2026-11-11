@@ -10,5 +10,13 @@ describe("readFlagValue", () => {
   test("returns an empty string for a missing or valueless flag", () => {
     expect(readFlagValue([], "query")).toBe("");
     expect(readFlagValue(["--query"], "query")).toBe("");
+    expect(readFlagValue(["--query="], "query")).toBe("");
+  });
+
+  test("preserves inline precedence and exact flag names", () => {
+    expect(
+      readFlagValue(["--query", "separate", "--query=inline"], "query"),
+    ).toBe("inline");
+    expect(readFlagValue(["--queryExtra=value"], "query")).toBe("");
   });
 });

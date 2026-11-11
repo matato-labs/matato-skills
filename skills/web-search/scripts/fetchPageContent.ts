@@ -1,4 +1,4 @@
-import { readFlagValue } from "../../../src/cli.ts";
+import { readFlagValue } from "./cli.ts";
 import { fetchPageContent } from "./webSearch.ts";
 
 const parseInput = (args: string[]) => {
