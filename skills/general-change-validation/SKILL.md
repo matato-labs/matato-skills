@@ -1,26 +1,25 @@
 ---
-name: general-change-validation
-description: Independently validate a change when $change-validation explicitly uses this specialist.
+name: general-change-review
+description: Perform an independent change review as an explicit specialist used by $change-gate.
 disable-model-invocation: true
 ---
 
-# General Change Validation
+# General Change Review
 
-Validate the code in the following categories. If a category fails its check, you must change the code to fix it. This can include fixing tests, fixing linting errors, refactoring, adding missing tests, or adding logging. Do not stop until all categories pass their checks.
+Review the code for the following categories You MUST change the code for any of them that doesn't pass the check. It means fix tests, fix linting errors, refactor, add missing tests, add logging, etc. Do not stop until all categories are in a good state.
 
 ## Strong types
 
-Check that the code uses strong types. Try to avoid weak types such as `unknown`, `any`, or similar types in the programming language. Use the language's strong type system for type checks instead of checks such as `if(value === string)`.
+Review for the usage of strong types, try to avoid weak types like `unknown`, `any` or such kind of types in the programming language the code is in.
 
-## Safeguards
+## Safe guards
 
-Always prefer safeguards at the start of a function. Use them to handle edge cases and return early instead of using complex if-else statements or nested logic.
+Always prefer safe guards at the start of a function that discard the edge cases and do early return instead of complex if-else statements or nested logic.
+
+## YAGNI
+
+Follow YAGNI principle and prefer one-line solutions when they are readable.
 
 ## Logging and monitoring
 
-Check that the code uses the correct log level for each situation. If the project supports monitoring through metrics, traces, or other tools, check that the code follows the repository's standards.
-
-## Typechecks and lint
-
-Make sure typechecks and linting pass, the project compiles/builds, and all tests pass. All CI checks are green and passing.
-
+Analyse the code does log the right log levels depending the situation, if the project support monitoring via metrics, traces or anything other tool, make sure the code follows the standards in the repository.
