@@ -11,7 +11,7 @@ import {
 import { tmpdir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 import { spawn, spawnSync, type ChildProcess } from "node:child_process";
-import { readFlagValue } from "../../../src/cli.ts";
+import { readFlagValue } from "./cli.ts";
 import {
   readScenario,
   stepArguments,

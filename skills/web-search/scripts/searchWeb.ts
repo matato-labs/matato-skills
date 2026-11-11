@@ -1,4 +1,4 @@
-import { readFlagValue } from "../../../src/cli.ts";
+import { readFlagValue } from "./cli.ts";
 import { searchWeb } from "./webSearch.ts";
 
 type DepthMode = "quick" | "think" | "deep";
