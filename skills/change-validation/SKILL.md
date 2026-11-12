@@ -14,7 +14,7 @@ You must create a worktree under `/tmp` to keep your work separate from other ru
 2. Invoke `$general-change-validation` for an independent validation of the change.
 3. Invoke `$testing-quality` for in-code testing.
 4. Invoke `$architecture` for the overall architecture.
-5. Invoke `$mutation-testing-validations` for mutation-test evaluation.
+5. Invoke `$mutation-testing-validation` for mutation-test evaluation.
 
 After all subagents return, produce one gate report that preserves each specialist's verdict and evidence. The gate controller must not modify the repository. Specialists may make the controlled temporary mutations or test improvements that their own skill requires.
 
