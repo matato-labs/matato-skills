@@ -1,0 +1,40 @@
+name: Pi CI
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
+
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pi:
+    name: Pi
+    if: >-
+      github.repository == 'LeonFelipeCordero/matato-skills' &&
+      github.actor_id == github.repository_owner_id &&
+      github.triggering_actor == github.repository_owner &&
+      (github.event_name != 'pull_request' ||
+      github.event.pull_request.head.repo.full_name == github.repository)
+    runs-on: [self-hosted, linux, x64, matato-local]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: oven-sh/setup-bun@v2
+      - run: npm ci
+      - run: npm test
+      - run: npm run lint
+      - run: npm run check
