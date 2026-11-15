@@ -1,40 +1,27 @@
 ---
 name: testing-qualityv2
-description: Review or improve tests for a change using business outcomes, existing scenarios, and minimal test maintenance. Use before writing tests or when reviewing a diff, branch, or PR. Excludes tests for scripts, prose, CI, and configuration.
+description: Check that a change has meaningful business tests with minimal maintenance. Use before writing tests or when reviewing a change, branch, or PR.
 ---
 
-# Testing quality v2
+# Testing Quality v2
 
-Choose the smallest test change that proves the changed business behavior. Test count and coverage percentage are not goals.
+Analyze the supplied change. Read the request, diff, affected callers, and nearby tests. Identify the user-visible outcome and the regression that would break it.
 
-## Decide what needs a test
+## Testing
 
-Read the request, production diff, affected callers, and nearby tests before changing tests. State the user-visible outcome and the regression that would break it.
+- Do not add or extend tests for scripts in any language, skills, prompts, prose, CI, configuration, or package metadata. This includes existing tests, temporary harnesses, inline assertions, content checks, and snapshots.
+- For excluded-only changes, review the diff and use relevant existing syntax checks, validators, linters, or builds. Explain why no test change is needed. Do not run destructive scripts, credential transfers, deployments, or external writes.
+- For mixed changes, test changed application behavior, not excluded artifacts. Application logic that reads configuration or processes prompts still needs business tests. Do not extract excluded logic just to test it.
+- Extend an existing business scenario first. Add a case only for distinct preconditions or outcomes, or when extension would obscure the scenario. Explain why reuse is insufficient; a new test file is a last resort.
+- Reuse project fixtures, utilities, and conventions. Follow given/when/then. Do not introduce layered factories or helpers for one small change.
+- Exercise the nearest public business boundary. Assert results and relevant stored state. After rejection, verify unchanged storage, not just empty search results. Keep the business rule real; mock external boundaries only.
+- When rejection must explain a restriction, assert the field and cause without pinning the complete message.
+- Select normal and changed failure/boundary scenarios from real risk. Avoid duplicate layers, unrelated parameter rows, and unrelated workflows. Test count and coverage percentage are not goals.
+- Use independent expected values, not the production transformation such as `input.trim()`. Do not substitute source checks, private helper assertions, mock call counts, or implementation snapshots for business evidence.
+- Technical tests need a concrete security, data integrity, compatibility, or performance risk. Classify application code by role, not path; excluded artifacts remain excluded.
 
-Do not add or extend automated tests for scripts in any language; skills, prompts, documentation, or other prose; CI workflows; configuration or package metadata. Do not add file-content assertions, snapshots, or a test harness for these artifacts. This applies to existing tests, temporary files, inline assertion commands, and throwaway harnesses, not just committed tests.
+## Output
 
-For changes limited to those artifacts, review the diff and use an existing syntax check, linter, validator, or build when relevant. Report that no automated test change is needed and why. Do not execute scripts with destructive effects, credentials, deployments, or external writes just to verify them.
+Run repository-required checks and the smallest relevant tests. For regressions, show fail-before/pass-after when practical and restore the fix. Never report an unrun check as passed.
 
-For a mixed change, test the changed application behavior, not the excluded files. Application logic that reads configuration or processes prompts still needs business tests when its behavior changes. Do not move excluded logic into a module just to justify testing it.
-
-## Reuse before adding
-
-Find the existing test that exercises the same business scenario. Extend its inputs or assertions first. Add a new case only when the scenario, preconditions, or expected outcome are materially different, or an extension would obscure the original scenario. Explain why an existing test cannot cover it. A new test file is a last resort.
-
-Reuse the project's fixtures, test utilities, and conventions. Do not introduce layered factories or utility files for one small change. Use readable given/when/then structure without requiring those words as comments.
-
-## Assert outcomes
-
-Exercise the public application boundary nearest the business rule: a service, API, persistence operation, or user interaction. Assert the result the user depends on, including stored state or the absence of side effects after rejection when relevant. If rejection must explain a restriction, check the relevant field and cause, not just that any error occurred. Avoid pinning the complete message wording.
-
-Prefer the normal scenario and the changed failure or boundary scenario. Select cases from the actual risk, not every possible input. Do not repeat the same rule at every layer unless the boundaries have distinct risks. Keep distinct business scenarios clear instead of growing one test into unrelated workflows. Do not expand unrelated parameterized cases just because they share a test.
-
-Do not substitute source-text checks, private helper assertions, mock call counts, or implementation snapshots for business evidence. Mock external boundaries when needed; keep the changed business rule real. Reuse realistic fixtures and derive expected results independently of the implementation. For example, assert that a stored padded name becomes the literal `Daily review`, not `input.trim()` when trimming is the behavior under test.
-
-Technical tests are exceptions. Name the concrete risk, such as credential exposure, data corruption, protocol compatibility, or a required performance limit. Test the observable contract at the narrowest useful boundary. A file under `ci/` or a configuration parser can be application code; classify its role, not just its path. The excluded artifacts themselves remain out of scope.
-
-## Verify and report
-
-Run the smallest relevant existing test command. For a regression fix, show that the changed assertion fails without the production fix when practical. Restore the fix afterward. Do not claim an unrun check passed. Report environment blockers and any behavior left unverified.
-
-Report the business outcome covered, the existing test extended or reason for a new case, the exact check and result, and excluded artifacts intentionally left without test changes. In review-only work, report findings without editing files. Do not demand tests for unchanged behavior or unrelated cleanup of old tests.
+Report the business outcome, test extended or reason for a new case, exact commands and results, exclusions, blockers, and unverified behavior. In review-only work, report findings without edits. Do not demand tests for unchanged behavior or unrelated cleanup.

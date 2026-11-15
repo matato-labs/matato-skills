@@ -34,7 +34,7 @@ The baseline skill came from this package at `389e8a4284548ddfcaee2954915f0ce3be
 | --- | --- |
 | Existing `skills/testing-quality/SKILL.md` | `0f9f3388667d35dd90d776a6eea97bbad3dece0fc9476308d0ba3045425c23a8` |
 | V2 first paired round | `06f3583bf76785129cc4148a7d910bc13b511af8a59ddc43390fe70e4f991c17` |
-| V2 final, used for the VU refinement | `8e7c6d259fc1ffc6e3ab3efb4c617094c42ce3d892fc0f0b4d59b0d4a36153fb` |
+| V2 longer revision, used for the VU refinement | `8e7c6d259fc1ffc6e3ab3efb4c617094c42ce3d892fc0f0b4d59b0d4a36153fb` |
 
 ## First paired round: independent ratings
 
@@ -98,3 +98,28 @@ Patch paths and context belong to their source projects. They are not active tes
 ## Package verification
 
 A separate verification agent ran `npm ci`, `npm run check`, `npm run lint`, and `npm test` sequentially in this package. All exited 0; all 60 tests passed, with no skipped tests. npm reported zero vulnerabilities, one deprecated dependency, and install-script approval warnings. No approvals or dependency changes were made. `pi.skills: ["./skills"]` already includes the new directory; frontmatter was reviewed manually. No skill-content test, benchmark runner, global install, or README change was added. Existing package tests verify package code, not the quality of these instructions. Full report: `/tmp/testingQualityv2Evaluation1794751980843/packageVerification.md`.
+
+## Compact iteration
+
+The user requested the local skill style and no more lines than `explain-extensive`. The final skill uses a short introduction, `Testing` bullets, and an `Output` section. It has **27 lines / 407 words**, including frontmatter, versus the longer revision's 40 lines / 664 words. `explain-extensive` has 28 lines / 271 words. This reduces words as well as lines; it does not merely join the original paragraphs. Final SHA-256: `f7a2af902d20e8c8a7b8d9b6bce96b268fa8df469b9a728710abf97db5c25c05`.
+
+Ran five fresh implementation agents with the same original tasks and safety instructions. Four repositories retained their earlier starting revisions. Proxy had advanced to `42e16f3a714a9eeb973a76e407393e2da37a527a`; a fresh longer-skill agent reran the task at that revision, avoiding comparison of changed repository behavior. All agents used the same model and thinking setting as before. Changes were saved and reversed; projects ended clean. These runs retained the earlier direct-checkout limitations, not worktree isolation.
+
+A fresh label-masked reviewer compared compact outputs with the longer-skill references: previous Pi/Habitat/Blog outputs, the refined VU output, and the new Proxy reference. See [the review](compactReview.md). This is a historical-output comparison for four projects, not a simultaneous controlled trial. Initial scores were 10/10 for each longer reference; compact Pi and VU scored 9/10, the others 10/10. Do not treat those scores as final-version ratings or statistical evidence.
+
+The review found two gaps. VU inferred no persistence from empty spatial search results instead of inspecting storage; this was a material proof-strength loss. Pi ran targeted static checks but omitted the full repository checks; this was a smaller verification gap. The compact skill was revised, without adding lines, to require unchanged storage rather than empty search results and to run repository-required checks. Fresh Pi and VU agents received only the original tasks and revised skill, not patches or reviewer advice.
+
+Parent review of their final patches confirms both gaps are addressed. VU seeds valid data and compares actual report/index rows after each rejected app/crawler write. Pi reads created and updated jobs back and runs the complete repository checks. No second independent rating was assigned after these fixes. Proxy, Habitat, and Blog were not rerun after the final two sentence changes. Thus the observed required test-selection behavior is preserved after targeted corrections; exact agent output and universal equivalence are not claimed.
+
+| Final sampled output | Actual verification | Test choice and evidence |
+| --- | --- | --- |
+| [Pi compact](compactMatatoPi.patch) | 2 focused tests failed before; all 22 selected tests passed after. `npm run check` and `matis check -f .` passed. | Extend two existing business scenarios; literal names/prompts, create/update read-back, field/cause errors, and unchanged jobs/sessions. Full suite: 1780 passed, 1 failed, 12 skipped; isolated UI-file retry passed. Full suite not confirmed green. |
+| [Proxy compact](compactMatatoProxy.patch) | 2 failed before; focused tests and all 362 full-suite tests passed after. TypeScript and Matis passed. | Extend existing HTTP/internal failure scenarios. Independent stored-text expectations, raw length boundaries, retries, terminal behavior, and rejection state. |
+| [Proxy longer reference](longCurrentProxy.patch) | 2 failed before; all 360 full-suite tests, TypeScript, and Matis passed after. | Same starting revision and production fix; existing cases cover the same required outcomes. Test-count differences earn no quality credit. |
+| [VU compact](compactVu.patch) | 1 failed before; 5 selected cases passed after. All 124 application tests, 2 required Python tests, Atlas, TypeScript, and build passed. | Add one embedded-NUL row to the existing two-source scenario; assert field/cause and unchanged actual report/index tables. No duplicate helper/UI scenarios. |
+| [Habitat compact](compactAgentHabitat.patch) | `bash -n setup` and diff checks passed; manual guard/prompt review. | No script/prompt tests, temporary harnesses, credential access, or bootstrap. Runtime behavior remains unverified. |
+| [Blog compact](compactPersonalBlog.patch) | `npm pkg get description`, existing YAML parser, and diff checks passed. | No metadata/CI tests. Permissions already correct. Parser success is not proof of hosted CI semantics. |
+
+Pi's full-suite failure was `tests/uiResync.test.tsx` / `large history and recovery use bounded snapshots on a real WebSocket without HTTP`. Its isolated retry passed all 3 tests. The agent did not rerun the full suite or reproduce the failure on a clean baseline, so a timing-related cause remains unconfirmed. This failure must not be hidden behind the passing focused regression checks.
+
+Package verification ran `npm run check`, `npm run lint`, and `npm test` sequentially: all passed, including 60 tests. Manual review confirmed the local format and line limit. This package verification preceded the last two wording refinements; no package code changed. No prose tests or new test harness were added. `README.md` and the original skill remain unchanged. Reports, original patches, skill snapshots, and logs for all eight implementation runs remain in `/tmp/testingQualityv2Evaluation1794751980843/compactRound/`. Rejected initial compact Pi/VU patches remain there; linked compact Pi/VU patches above are the corrected outputs, not the inputs to the independent review.

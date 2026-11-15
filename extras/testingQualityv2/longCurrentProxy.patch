@@ -1,0 +1,74 @@
+diff --git i/convex/deliveries.ts w/convex/deliveries.ts
+index 37b9e93..1ead1cc 100644
+--- i/convex/deliveries.ts
++++ w/convex/deliveries.ts
+@@ -130,7 +130,7 @@ export const fail = internalMutation({
+     if (delivery.status !== "ready") throw new ConvexError("invalid_transition");
+     const failureCount = Math.min(delivery.failureCount + 1, 5);
+     await ctx.db.patch(delivery._id, {
+-      failureCount, status: failureCount >= 5 ? "failed" : "ready", lastError: input.error,
++      failureCount, status: failureCount >= 5 ? "failed" : "ready", lastError: input.error.trim(),
+     });
+   },
+ });
+diff --git i/tests/bots.test.ts w/tests/bots.test.ts
+index 62d4be4..0f272ad 100644
+--- i/tests/bots.test.ts
++++ w/tests/bots.test.ts
+@@ -47,7 +47,7 @@ describe("delivery HTTP trust boundary", () => {
+     expect((await bot(t, operation, { ...input, eventId })).status).toBe(404);
+   });
+
+-  it.each([null, "", "   ", 42, "x".repeat(2001)])("validates failure text %j", async (error) => {
++  it.each([null, "", " \t\n ", 42, " " + "x".repeat(1999) + " "])("validates failure text %j", async (error) => {
+     const t = createTest();
+     const { eventId } = await seed(t);
+     await next(t);
+@@ -86,8 +86,13 @@ describe("delivery HTTP trust boundary", () => {
+     const t = createTest();
+     const { eventId } = await seed(t);
+     await next(t);
+-    const args = { eventId, subscriberId: "worker", error: "x".repeat(2000) };
+-    for (let index = 0; index < 5; index++) expect((await bot(t, "fail", args)).status).toBe(200);
++    const args = { eventId, subscriberId: "worker", error: " \t" + "x".repeat(1996) + "\n " };
++    for (let index = 0; index < 5; index++) {
++      expect((await bot(t, "fail", args)).status).toBe(200);
++      expect(await deliveries(t)).toEqual([expect.objectContaining({
++        failureCount: index + 1, status: index < 4 ? "ready" : "failed", lastError: "x".repeat(1996),
++      })]);
++    }
+     const before = await deliveries(t);
+     expect((await bot(t, "fail", args)).status).toBe(409);
+     expect((await bot(t, "complete", args)).status).toBe(409);
+diff --git i/tests/queue.test.ts w/tests/queue.test.ts
+index 17795db..65434f2 100644
+--- i/tests/queue.test.ts
++++ w/tests/queue.test.ts
+@@ -66,8 +66,10 @@ describe("generic ingestion and fanout", () => {
+     const { eventId } = await seed(t);
+     await next(t);
+     for (let failureCount = 1; failureCount <= 5; failureCount++) {
+-      await t.mutation(internal.deliveries.fail, { eventId, subscriberId: "worker", error: "retry" });
+-      expect(await delivery(t, eventId)).toMatchObject({ failureCount, status: failureCount < 5 ? "ready" : "failed" });
++      await t.mutation(internal.deliveries.fail, { eventId, subscriberId: "worker", error: " \t retry  later \n " });
++      expect(await delivery(t, eventId)).toMatchObject({
++        failureCount, status: failureCount < 5 ? "ready" : "failed", lastError: "retry  later",
++      });
+     }
+     const before = await deliveries(t);
+     await expect(t.mutation(internal.deliveries.fail, { eventId, subscriberId: "worker", error: "late" })).rejects.toThrow("invalid_transition");
+@@ -76,11 +78,12 @@ describe("generic ingestion and fanout", () => {
+     expect(await next(t)).toBeNull();
+   });
+
+-  it.each(["", " ", "x".repeat(2001)])("rejects internal invalid failure text %j", async (error) => {
++  it.each(["", " \t\n ", " " + "x".repeat(1999) + " "])("rejects internal invalid failure text %j", async (error) => {
+     const t = createTest();
+     const { eventId } = await seed(t);
+     await next(t);
++    const before = await delivery(t, eventId);
+     await expect(t.mutation(internal.deliveries.fail, { eventId, subscriberId: "worker", error })).rejects.toThrow("invalid_request");
+-    expect(await delivery(t, eventId)).toMatchObject({ status: "ready", failureCount: 0 });
++    expect(await delivery(t, eventId)).toEqual(before);
+   });
+ });
