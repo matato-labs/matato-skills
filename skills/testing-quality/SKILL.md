@@ -12,3 +12,4 @@ Analyze the change that the user provides and check that it has meaningful tests
 - Find the tests that already tests the code that change and find which existing tests can change to assert the new changes, prefer always expand existing tests with assertions instead of creating new tests. Ask yourself, do I need to add this new test, is there a test that exist that I can expand the assertion, many times, is better to expand an existing test instead of creating a new one.
 - Follow the 3 steps of given/when/then.
 - Compose tests from layers. Use `Fixtures` to create runtime objects, models, entities and other required items. Define default input and allow overrides. Make business scenarios easy to create. Use utility files with methods and functions that create the data required for a scenario.
+- Scripts in any language must not have a corresponding tests.
