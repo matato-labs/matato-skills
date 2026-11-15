@@ -1,0 +1,36 @@
+diff --git i/src/lib/report.ts w/src/lib/report.ts
+index b844c0b..8eae1d6 100644
+--- i/src/lib/report.ts
++++ w/src/lib/report.ts
+@@ -26,6 +26,7 @@ export function validateReport(input: ReportInput) {
+     throw new Error('Description must not be blank.')
+   }
+   const description = input.description.trim()
++  if (description.includes('\u0000')) throw new Error('Description must not contain NUL characters (U+0000).')
+   if (description.length > MAX_DESCRIPTION_LENGTH) {
+     throw new Error(`Description must be ${MAX_DESCRIPTION_LENGTH} characters or fewer.`)
+   }
+diff --git i/tests/backend.test.ts w/tests/backend.test.ts
+index 4a5e326..391cbc9 100644
+--- i/tests/backend.test.ts
++++ w/tests/backend.test.ts
+@@ -101,11 +101,14 @@ describe('SQLite report writes', () => {
+     expect(store.nearby(center)).toEqual({ reports: [], limited: false })
+   })
+
+-  it.each(invalidDescriptions)('validates descriptions for both sources', (description) => {
+-    const { store } = setup()
+-    expect(() => store.createApp({ ...input, description })).toThrow(/Description/)
+-    expect(() => store.createFromCrawler({ ...input, description })).toThrow(/Description/)
+-    expect(reportIds(store)).toEqual([])
++  it.each([
++    ...invalidDescriptions.map((description) => ({ description, error: /Description/ })),
++    { description: 'Road\u0000hazard', error: /Description.*NUL/i },
++  ])('validates descriptions for both sources: $description', ({ description, error }) => {
++    const { store, db } = setup()
++    expect(() => store.createApp({ ...input, description })).toThrow(error)
++    expect(() => store.createFromCrawler({ ...input, description })).toThrow(error)
++    expect(db.$client.prepare('SELECT * FROM locations').all()).toEqual([])
+   })
+
+   it('accepts in-memory databases when explicitly migrated', () => {

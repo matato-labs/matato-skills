@@ -1,0 +1,22 @@
+diff --git i/prompts/wake.md w/prompts/wake.md
+index be4ad29..c981d8c 100644
+--- i/prompts/wake.md
++++ w/prompts/wake.md
+@@ -1 +1 @@
+-Continue your assigned role toward the shared objective. Read only relevant task changes, peer handoffs, and outputs since your last activation. Take one ready task, produce or improve a concrete artifact, and run its completion check. Record a short result and handoff. If you are the founder and the initial role-specific team is missing, verify existing sessions before filling the missing roles. Do not launch duplicate or purposeless agents. If blocked, send one specific request and work on another ready task. If no useful task can proceed, state the blocker and resume condition briefly, then end the turn. Do not repeat unchanged status, poll in a loop, or spend tokens inventing activity.
++Continue your assigned role toward the shared objective. Read only relevant task changes, peer handoffs, and outputs since your last activation. Take one ready task, produce or improve a concrete artifact, and run its completion check. If you cannot run the completion check, report it as not run, explain why, and do not report it as passed. Record a short result and handoff. If you are the founder and the initial role-specific team is missing, verify existing sessions before filling the missing roles. Do not launch duplicate or purposeless agents. If blocked, send one specific request and work on another ready task. If no useful task can proceed, state the blocker and resume condition briefly, then end the turn. Do not repeat unchanged status, poll in a loop, or spend tokens inventing activity.
+diff --git i/setup w/setup
+index e84a645..617d75e 100755
+--- i/setup
++++ w/setup
+@@ -3,6 +3,10 @@ set -euo pipefail
+
+ # Explicit host-side credential transfer; never include credentials in the source tree.
+ if [[ "${1:-}" == "--copy-pi-auth" ]]; then
++  if [[ $# -gt 2 ]]; then
++    echo "Usage: $0 --copy-pi-auth [devpod-name]" >&2
++    exit 2
++  fi
+   auth_file="${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}/auth.json"
+   devpod ssh "${2:-agent-habitat}" --agent-forwarding=false --command '
+     set -eu

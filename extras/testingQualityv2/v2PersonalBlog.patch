@@ -1,0 +1,11 @@
+diff --git i/package.json w/package.json
+index b399e97..6ba2ea0 100644
+--- i/package.json
++++ w/package.json
+@@ -1,5 +1,6 @@
+ {
+   "name": "personal-blog",
++  "description": "A personal software-engineering blog about building software, developer tools, and AI-assisted development.",
+   "type": "module",
+   "version": "0.0.1",
+   "private": true,

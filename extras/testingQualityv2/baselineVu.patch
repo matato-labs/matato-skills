@@ -1,0 +1,76 @@
+diff --git i/src/lib/report.ts w/src/lib/report.ts
+index b844c0b..1b26e4e 100644
+--- i/src/lib/report.ts
++++ w/src/lib/report.ts
+@@ -26,6 +26,7 @@ export function validateReport(input: ReportInput) {
+     throw new Error('Description must not be blank.')
+   }
+   const description = input.description.trim()
++  if (description.includes('\u0000')) throw new Error('Description must not contain NUL characters.')
+   if (description.length > MAX_DESCRIPTION_LENGTH) {
+     throw new Error(`Description must be ${MAX_DESCRIPTION_LENGTH} characters or fewer.`)
+   }
+diff --git i/tests/backend.test.ts w/tests/backend.test.ts
+index 4a5e326..e9034fc 100644
+--- i/tests/backend.test.ts
++++ w/tests/backend.test.ts
+@@ -48,7 +48,10 @@ const invalidLocations = [
+   { latitude: 0, longitude: 180.001 },
+   { latitude: 0, longitude: -180.001 },
+ ]
+-const invalidDescriptions = ['', ' \t\n ', '\uFEFF\u2000', 'x'.repeat(MAX_DESCRIPTION_LENGTH + 1)]
++const invalidDescriptions = [
++  '', ' \t\n ', '\uFEFF\u2000', 'x'.repeat(MAX_DESCRIPTION_LENGTH + 1),
++  '\u0000', '\u0000Report', 'Report\u0000text', 'Report\u0000',
++]
+
+ afterEach(() => {
+   vi.restoreAllMocks()
+@@ -59,8 +62,11 @@ afterEach(() => {
+ describe('shared validation', () => {
+   it('trims descriptions and accepts coordinate boundaries and maximum length', () => {
+     expect(validateReport(input)).toEqual({ location: center, description: 'Test report' })
++    const description = 'Straße 🚦\nLine two\twith spacing and literal \\u0000'
++    expect(validateReport({ ...input, description: `  ${description}  ` }).description).toBe(description)
+     for (const location of [{ latitude: -90, longitude: -180 }, { latitude: 90, longitude: 180 }]) {
+-      expect(validateReport({ location, description: 'x'.repeat(MAX_DESCRIPTION_LENGTH) }).location).toEqual(location)
++      const description = 'x'.repeat(MAX_DESCRIPTION_LENGTH)
++      expect(validateReport({ location, description })).toEqual({ location, description })
+     }
+   })
+
+@@ -69,7 +75,7 @@ describe('shared validation', () => {
+   })
+
+   it.each(invalidDescriptions)('rejects invalid descriptions', (description) => {
+-    expect(() => validateReport({ ...input, description })).toThrow(/Description/)
++    expect(() => validateReport({ ...input, description })).toThrow(description.includes('\u0000') ? /Description.*NUL/ : /Description/)
+   })
+ })
+
+@@ -86,7 +92,7 @@ describe('SQLite report writes', () => {
+     expect(id).not.toBe(900)
+     const crawlerInput = { ...untrusted, source: 'app' }
+     const crawlerId = store.createFromCrawler(crawlerInput)
+-    expect(store.nearby(center).reports[1]).toMatchObject({ id: crawlerId, source: 'crawler' })
++    expect(store.nearby(center).reports[1]).toMatchObject({ id: crawlerId, source: 'crawler', description: 'Test report' })
+     expect(db.$client.prepare('SELECT * FROM locations WHERE id = ?').get(id)).toEqual({
+       id, latitude: center.latitude, longitude: center.longitude, source: 'app',
+       description: 'Test report', created_at: 1700000000000, updated_at: 1700000000000,
+@@ -102,10 +108,13 @@ describe('SQLite report writes', () => {
+   })
+
+   it.each(invalidDescriptions)('validates descriptions for both sources', (description) => {
+-    const { store } = setup()
+-    expect(() => store.createApp({ ...input, description })).toThrow(/Description/)
+-    expect(() => store.createFromCrawler({ ...input, description })).toThrow(/Description/)
++    const { store, db } = setup()
++    const error = description.includes('\u0000') ? /Description.*NUL/ : /Description/
++    expect(() => store.createApp({ ...input, description })).toThrow(error)
++    expect(() => store.createFromCrawler({ ...input, description })).toThrow(error)
+     expect(reportIds(store)).toEqual([])
++    expect(db.$client.prepare('SELECT * FROM locations').all()).toEqual([])
++    expect(db.$client.prepare('SELECT * FROM locations_rtree').all()).toEqual([])
+   })
+
+   it('accepts in-memory databases when explicitly migrated', () => {

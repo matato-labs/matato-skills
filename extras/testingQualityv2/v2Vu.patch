@@ -1,0 +1,25 @@
+diff --git i/src/lib/report.ts w/src/lib/report.ts
+index b844c0b..d969339 100644
+--- i/src/lib/report.ts
++++ w/src/lib/report.ts
+@@ -26,6 +26,7 @@ export function validateReport(input: ReportInput) {
+     throw new Error('Description must not be blank.')
+   }
+   const description = input.description.trim()
++  if (description.includes('\0')) throw new Error('Description must not contain NUL characters.')
+   if (description.length > MAX_DESCRIPTION_LENGTH) {
+     throw new Error(`Description must be ${MAX_DESCRIPTION_LENGTH} characters or fewer.`)
+   }
+diff --git i/tests/backend.test.ts w/tests/backend.test.ts
+index 4a5e326..d05e383 100644
+--- i/tests/backend.test.ts
++++ w/tests/backend.test.ts
+@@ -101,7 +101,7 @@ describe('SQLite report writes', () => {
+     expect(store.nearby(center)).toEqual({ reports: [], limited: false })
+   })
+
+-  it.each(invalidDescriptions)('validates descriptions for both sources', (description) => {
++  it.each([...invalidDescriptions, '\0', 'Before\0after'])('validates descriptions for both sources', (description) => {
+     const { store } = setup()
+     expect(() => store.createApp({ ...input, description })).toThrow(/Description/)
+     expect(() => store.createFromCrawler({ ...input, description })).toThrow(/Description/)
