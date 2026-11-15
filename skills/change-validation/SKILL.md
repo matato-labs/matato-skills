@@ -12,7 +12,7 @@ You must create a worktree under `/tmp` to keep your work separate from other ru
 
 1. Invoke `$acceptance-criteria-validation` for the supplied acceptance criteria.
 2. Invoke `$general-change-validation` for an independent validation of the change.
-3. Invoke `$testing-quality` for in-code testing.
+3. Invoke `$testing-quiality` for in-code testing.
 4. Invoke `$architecture` for the overall architecture.
 5. Invoke `$mutation-testing-validation` for mutation-test evaluation.
 
