@@ -17,7 +17,7 @@ concurrency:
 jobs:
   matis:
     name: matis
-    runs-on: [self-hosted, linux, x64, matato-local]
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -46,7 +46,7 @@ jobs:
 
   pi:
     name: Pi
-    runs-on: [self-hosted, linux, x64, matato-local]
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -65,7 +65,7 @@ jobs:
     name: ci
     if: always()
     needs: [matis, pi]
-    runs-on: [self-hosted, linux, x64, matato-local]
+    runs-on: ubuntu-24.04
     steps:
       - name: Require all checks to pass
         env:
