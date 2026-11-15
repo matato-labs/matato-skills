@@ -1,9 +1,9 @@
 ---
-name: testing-qualityv2
+name: testing-quiality
 description: Check that a change has meaningful business tests with minimal maintenance. Use before writing tests or when reviewing a change, branch, or PR.
 ---
 
-# Testing Quality v2
+# Testing Quality
 
 Analyze the supplied change. Read the request, diff, affected callers, and nearby tests. Identify the user-visible outcome and the regression that would break it.
 
