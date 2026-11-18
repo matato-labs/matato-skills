@@ -1,5 +1,5 @@
 ---
-name: testing-quiality
+name: testing-quality
 description: Check that a change has meaningful business tests with minimal maintenance. Use before writing tests or when reviewing a change, branch, or PR.
 ---
 
