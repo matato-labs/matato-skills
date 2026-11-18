@@ -1,5 +1,5 @@
 ---
-name: quality-checks-review
+name: quality-checks-validation
 description: Run quality checks as an explicit specialist used by $change-gate.
 disable-model-invocation: true
 ---
