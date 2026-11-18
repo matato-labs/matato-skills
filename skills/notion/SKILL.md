@@ -1,5 +1,5 @@
 ---
-name: cli
+name: notion
 description: Explain how projects, research, and plans are organized in the Personal Work Notion workspace. Use when working with this workspace or its project structure.
 ---
 
