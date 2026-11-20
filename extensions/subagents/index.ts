@@ -298,7 +298,7 @@ export default function (pi: ExtensionAPI) {
       "Use this only if T3 Code orchestration is not available.",
     ],
     parameters: subagentParameters,
-    async execute(id, params, signal, onUpdate, ctx) {
+    async execute(...[id, params, signal, , ctx]) {
       signal?.throwIfAborted();
       session.signal.throwIfAborted();
       if (!ctx.model)
