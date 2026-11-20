@@ -11,9 +11,16 @@ import type {
 } from "@earendil-works/pi-coding-agent";
 import subagents, { runConcurrent } from "./index.ts";
 
+const priorEntry = {
+  type: "custom_message",
+  customType: "review-reminder",
+  content: "Review the final diff before replying.",
+  display: false,
+} as const;
+
 const beforeSettle: AgentBeforeSettleEvent = {
   type: "agent_before_settle",
-  entries: [],
+  entries: [priorEntry],
   continue: false,
   outcome: "completed",
   context: {
@@ -110,6 +117,7 @@ test.each(["tui", "print", "json"] as const)(
       } else {
         expect(await settlement).toEqual({
           entries: [
+            priorEntry,
             {
               type: "custom_message",
               customType: "subagent-results",
