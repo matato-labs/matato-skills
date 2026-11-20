@@ -1,5 +1,133 @@
-import { describe, expect, test } from "bun:test";
-import { runConcurrent } from "./index.ts";
+import { describe, expect, mock, spyOn, test } from "bun:test";
+import * as childProcess from "node:child_process";
+import { EventEmitter } from "node:events";
+import type {
+  AgentBeforeSettleEvent,
+  AgentBeforeSettleEventResult,
+  ExtensionAPI,
+  ExtensionHandler,
+  ExtensionToolContext,
+  ToolDefinition,
+} from "@earendil-works/pi-coding-agent";
+import subagents, { runConcurrent } from "./index.ts";
+
+const beforeSettle: AgentBeforeSettleEvent = {
+  type: "agent_before_settle",
+  entries: [],
+  continue: false,
+  outcome: "completed",
+  context: {
+    contextEntries: [],
+    contextMessages: [],
+    llmMessages: [],
+    pendingMessages: [],
+    canContinue: false,
+  },
+};
+
+test.each(["tui", "print", "json"] as const)(
+  "launches in the background and delivers results in %s mode",
+  async (mode) => {
+    const workers = Array.from({ length: 2 }, () =>
+      Object.assign(new EventEmitter(), {
+        stdout: new EventEmitter(),
+        stderr: new EventEmitter(),
+        kill: () => true,
+      }),
+    );
+    const spawn = spyOn(childProcess, "spawn")
+      .mockReturnValueOnce(workers[0] as childProcess.ChildProcess)
+      .mockReturnValueOnce(workers[1] as childProcess.ChildProcess);
+    const delivered =
+      Promise.withResolvers<Parameters<ExtensionAPI["sendMessage"]>>();
+    const sendMessage = mock<ExtensionAPI["sendMessage"]>((...args) =>
+      delivered.resolve(args),
+    );
+    const registerTool = mock<(tool: ToolDefinition) => void>();
+    const ui: Partial<ExtensionToolContext["ui"]> = { notify: mock() };
+    const context: Partial<ExtensionToolContext> = {
+      cwd: process.cwd(),
+      mode,
+      model: { provider: "test", id: "test" } as ExtensionToolContext["model"],
+      ui: ui as ExtensionToolContext["ui"],
+    };
+    type SettleHandler = ExtensionHandler<
+      AgentBeforeSettleEvent,
+      AgentBeforeSettleEventResult
+    >;
+    let settleHandler: SettleHandler | undefined;
+    const api: Partial<ExtensionAPI> = {
+      registerTool: registerTool as ExtensionAPI["registerTool"],
+      sendMessage,
+      on: (event, handler) => {
+        if (event === "agent_before_settle")
+          settleHandler = handler as SettleHandler;
+        return () => {
+          settleHandler = undefined;
+        };
+      },
+    };
+
+    try {
+      subagents(api as ExtensionAPI);
+      const tool = registerTool.mock.calls[0][0];
+      const acknowledgement = await tool.execute(
+        "call-1",
+        {
+          tasks: [
+            { prompt: "Find a question" },
+            { prompt: "Find an edge case" },
+          ],
+        },
+        undefined,
+        undefined,
+        context as ExtensionToolContext,
+      );
+      expect(acknowledgement.content).toEqual([
+        { type: "text", text: expect.stringContaining("in the background") },
+      ]);
+      expect(sendMessage.mock.calls).toHaveLength(0);
+
+      const settle = () =>
+        settleHandler?.(beforeSettle, context as ExtensionToolContext);
+      const settlement = settle();
+      if (mode === "tui") expect(await settlement).toBeUndefined();
+
+      workers[1].stderr.emit("data", Buffer.from("Worker failed"));
+      workers[1].emit("close", 1);
+      workers[0].stdout.emit(
+        "data",
+        Buffer.from("What should happen offline?"),
+      );
+      workers[0].emit("close", 0);
+
+      const content =
+        "Subagent results for call-1:\n\n## Task 1: finished\n\nWhat should happen offline?\n\n## Task 2: failed\n\nWorker failed";
+      if (mode === "tui") {
+        const [message, delivery] = await delivered.promise;
+        expect(message.content).toBe(content);
+        expect(delivery).toEqual({ triggerTurn: false });
+      } else {
+        expect(await settlement).toEqual({
+          entries: [
+            {
+              type: "custom_message",
+              customType: "subagent-results",
+              content,
+              display: true,
+            },
+          ],
+          continue: true,
+        });
+        expect(sendMessage.mock.calls).toHaveLength(0);
+        expect(await settle()).toBeUndefined();
+      }
+    } finally {
+      spawn.mockRestore();
+    }
+  },
+  1_000,
+);
 
 describe("runConcurrent", () => {
   test("starts more than four tasks concurrently and preserves input order", async () => {
