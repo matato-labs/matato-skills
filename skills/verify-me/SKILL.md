@@ -1,6 +1,7 @@
 ---
 name: verify-me
 description: Use $verify-me everytime you need to test a feature or change.
+disable-model-invocation: true
 ---
 
 # Verify me
