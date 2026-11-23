@@ -5,13 +5,13 @@ description: Review a patch, branch, commit, or pull request for bugs, regressio
 
 # Review
 
-Review the named change. If none is named, review uncommitted changes or the last commit if the tree is clean. Report findings; do not edit the code.
+Review the named change. If none is named, review uncommitted changes or the last commit if the tree is clean. Use read-only inspection and report findings. Do not edit files, change system or repository state, or publish results. Assess security defects by tracing code and existing evidence, not by developing exploits, reproducing vulnerabilities, or running offensive tests.
 
 ## Check the contract, not just the diff
 
 - Identify the requested outcome and what callers could rely on before the change. Trace changed behavior from its entry point through helpers, storage or side effects, and return values. Find callers, tests, and the nearest implementation of the same operation.
 - Compare old and new outcomes for a concrete input, failure, or execution order. Prioritize wrong results, broken callers, lost data, weakened security, and failure at the expected load. Use the repo's deploy configuration or docs for load assumptions; state an assumption only when it affects a finding.
-- Check that tests cover the new outcome and the regression most likely to matter. Look for a test that could pass despite the bug. Report a missing test only when you can name the risk it would catch.
+- Check that tests cover the new outcome and the regression most likely to matter. Look for a test that could pass despite the bug. Report a missing test only when you can name the application behavior it would protect. Do not require dedicated tests for skill instructions, prose, or metadata.
 
 ## Challenge the extra code
 

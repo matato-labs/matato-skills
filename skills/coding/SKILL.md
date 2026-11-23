@@ -20,8 +20,8 @@ Solve the requested problem, not the surrounding problems. If a proposed mechani
 
 ## Prove it
 
-Extend the nearest suitable test at the public boundary. Name a plausible wrong implementation that could pass a happy-path test. Pick an input that distinguishes it from the correct behavior: make values that could be confused disagree, or exercise both scopes if a helper serves changed and unchanged callers. Do not add cases that only repeat existing coverage.
+For changes to application behavior, extend the nearest suitable test at the public boundary. Name a plausible wrong implementation that could pass a happy-path test. Pick an input that distinguishes it from the correct behavior: make values that could be confused disagree, or exercise both scopes if a helper serves changed and unchanged callers. Do not add cases that only repeat existing coverage.
 
-Run the focused check against the original and the fix when practical. Run the relevant project checks. Before finishing, read the diff and remove anything that neither delivers nor verifies the requested behavior.
+Run the focused check against the original and the fix when practical. For skill instructions, prose, or metadata, use relevant existing validators instead of adding dedicated tests. Run the relevant project checks. Before finishing, read the diff and remove anything that neither delivers nor verifies the requested behavior.
 
 Say what changed, how you checked it, and any important check or risk that remains. Do not claim a check passed unless it ran.

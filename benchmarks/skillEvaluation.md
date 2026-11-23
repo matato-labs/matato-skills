@@ -144,10 +144,10 @@ The latest revision adds a second evidence pass over the top findings: verify th
 
 ## Final results
 
-| Final skill | Cases | Matato / 20 | Ponytail Ultra / 20 |
+| Evaluated skill revision | Cases | Matato / 20 | Ponytail Ultra / 20 |
 | --- | --- | ---: | ---: |
 | `coding` | `hoCoding`, `validateCoding` | 20 | 18 |
 | `review` | `hoReview`, `validateReview` | 19 | 17 |
 | `audit` | `evidenceDataAudit`, `evidenceAppAudit` | 18 | 16 |
 
-All final versions met the two-case score criterion without a gate failure. The scores are from one run per arm and case; they show an advantage on these tasks, not a guarantee on unseen repositories or other models. The earlier audit losses and ties are part of the result. The experiment used disposable Pi processes and did not change the user's Ponytail settings. Full local records are in `/tmp/matatoSkillEval.K9fti6/` while that directory remains available.
+All three evaluated revisions met the two-case score criterion without a gate failure. The scores use one run per arm and case, one model (`openai-codex/gpt-6.2-sol`), and one thinking setting (`medium`). They show an advantage on these tasks, not general superiority. The earlier audit losses and ties are part of the result. Later read-only safety and test-scope clarifications were not benchmarked. The experiment used disposable Pi processes and did not change the user's Ponytail settings. Full local records are in `/tmp/matatoSkillEval.K9fti6/` while that directory remains available.
