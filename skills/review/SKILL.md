@@ -1,6 +1,7 @@
 ---
 name: review
 description: Review a patch, branch, commit, or pull request for bugs, regressions, missing tests, and unnecessary complexity. Use for read-only reviews of changes, not whole-repository audits.
+disable-model-invocation: true
 ---
 
 # Review

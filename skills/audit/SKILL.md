@@ -1,6 +1,7 @@
 ---
 name: audit
 description: Audit a repository or package for bugs, safety and data risks, load failures, test gaps, and code or dependencies to remove. Use for read-only repository or subsystem audits, not individual change reviews.
+disable-model-invocation: true
 ---
 
 # Audit
